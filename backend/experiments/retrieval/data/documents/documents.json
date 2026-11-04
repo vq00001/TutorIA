@@ -1,0 +1,162 @@
+[
+  {
+    "document_id": "qdrant-basico",
+    "filename": "qdrant-basico.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "Qdrant es una base de datos vectorial que almacena embeddings y permite buscar los vectores más similares a una consulta."
+  },
+  {
+    "document_id": "qdrant-colecciones",
+    "filename": "qdrant-colecciones.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Una colección de Qdrant contiene vectores con el mismo tamaño y una métrica de distancia configurada. La colección de evaluación debe estar separada de producción."
+  },
+  {
+    "document_id": "qdrant-payload",
+    "filename": "qdrant-payload.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "El payload de Qdrant guarda metadata del chunk, como document_id, filename, páginas, índice del chunk y texto original."
+  },
+  {
+    "document_id": "ollama-embeddings",
+    "filename": "ollama-embeddings.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Ollama expone el endpoint /api/embed para generar embeddings. El modelo de embeddings se selecciona con MODEL_EMBED."
+  },
+  {
+    "document_id": "modelos-embedding",
+    "filename": "modelos-embedding.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Al cambiar el modelo de embeddings pueden cambiar las dimensiones y los scores de similitud. Cada modelo debe evaluarse con el mismo conjunto de consultas."
+  },
+  {
+    "document_id": "ingesta-documentos",
+    "filename": "ingesta-documentos.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "La ingesta transforma los documentos en chunks, genera un embedding por chunk y guarda el vector junto con su metadata en Qdrant."
+  },
+  {
+    "document_id": "chunking",
+    "filename": "chunking.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "El chunking divide documentos largos en fragmentos recuperables. Chunks demasiado grandes mezclan temas y chunks demasiado pequeños pueden perder contexto."
+  },
+  {
+    "document_id": "busqueda-vectorial",
+    "filename": "busqueda-vectorial.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "La búsqueda vectorial convierte la pregunta en un embedding y consulta Qdrant para ordenar los chunks por similitud semántica."
+  },
+  {
+    "document_id": "score-threshold",
+    "filename": "score-threshold.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "score_threshold descarta resultados cuyo score está por debajo del umbral. Un umbral bajo aumenta el recall y puede traer ruido; uno alto reduce ruido y puede perder documentos relevantes."
+  },
+  {
+    "document_id": "limit-k",
+    "filename": "limit-k.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "El parámetro limit define cuántos resultados como máximo devuelve la recuperación. Las métricas hit@k, precision@k y recall@k deben indicar qué valor de k utilizan."
+  },
+  {
+    "document_id": "precision-recall",
+    "filename": "precision-recall.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Precision mide qué proporción de los resultados recuperados es relevante. Recall mide qué proporción de los documentos relevantes fue recuperada."
+  },
+  {
+    "document_id": "mrr",
+    "filename": "mrr.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "MRR es el promedio del reciprocal rank. El reciprocal rank vale uno dividido por la posición del primer resultado relevante y vale cero si no aparece."
+  },
+  {
+    "document_id": "dataset-evaluacion",
+    "filename": "dataset-evaluacion.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Un dataset de evaluación relaciona cada pregunta con los archivos relevantes esperados. Debe incluir consultas dentro y fuera del dominio."
+  },
+  {
+    "document_id": "consultas-ood",
+    "filename": "consultas-fuera-dominio.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "Una consulta fuera de dominio no tiene un documento relevante en el corpus. El comportamiento correcto es rechazarla y no devolver documentos irrelevantes."
+  },
+  {
+    "document_id": "reranking",
+    "filename": "reranking.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Un reranker recibe los candidatos recuperados y los vuelve a ordenar con un modelo más preciso. Puede mejorar la posición del chunk correcto después de la búsqueda vectorial."
+  },
+  {
+    "document_id": "busqueda-hibrida",
+    "filename": "busqueda-hibrida.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "La búsqueda híbrida combina similitud vectorial con coincidencia léxica. Es útil cuando la consulta contiene nombres, códigos o términos exactos."
+  },
+  {
+    "document_id": "metadata-filtros",
+    "filename": "metadata-filtros.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "Los filtros por metadata pueden restringir la búsqueda a un documento, idioma, fecha o tipo de contenido antes de ordenar los resultados vectoriales."
+  },
+  {
+    "document_id": "docker-servicios",
+    "filename": "docker-servicios.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Docker Compose levanta los servicios Qdrant y Ollama. Qdrant usa el puerto 6333 y Ollama usa el puerto 11434 por defecto."
+  },
+  {
+    "document_id": "configuracion-rag",
+    "filename": "configuracion-rag.md",
+    "page_start": 1,
+    "page_end": 2,
+    "chunk_index": 0,
+    "text": "Las variables QDRANT_URL, OLLAMA_URL, QDRANT_COLLECTION, MODEL_EMBED, LIMIT_QUERY y UMBRAL_SIMILITUD configuran la recuperación del RAG."
+  },
+  {
+    "document_id": "reproducibilidad",
+    "filename": "reproducibilidad.md",
+    "page_start": 1,
+    "page_end": 1,
+    "chunk_index": 0,
+    "text": "Para comparar modelos se debe conservar el dataset, la colección de evaluación, el modelo, k, los thresholds y las métricas de cada ejecución."
+  }
+]

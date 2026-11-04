@@ -1,0 +1,242 @@
+[
+  {
+    "id": "in-01-qdrant",
+    "question": "¿Qué es Qdrant y para qué sirve?",
+    "relevant_files": ["qdrant-basico.md"],
+    "relevant_documents": ["qdrant-basico"]
+  },
+  {
+    "id": "in-02-coleccion",
+    "question": "¿Qué debe contener una colección de Qdrant?",
+    "relevant_files": ["qdrant-colecciones.md"],
+    "relevant_documents": ["qdrant-colecciones"]
+  },
+  {
+    "id": "in-03-payload",
+    "question": "¿Qué información se guarda en el payload?",
+    "relevant_files": ["qdrant-payload.md"],
+    "relevant_documents": ["qdrant-payload"]
+  },
+  {
+    "id": "in-04-ollama",
+    "question": "¿Qué endpoint de Ollama genera embeddings?",
+    "relevant_files": ["ollama-embeddings.md"],
+    "relevant_documents": ["ollama-embeddings"]
+  },
+  {
+    "id": "in-05-modelo",
+    "question": "¿Qué cambia al cambiar el modelo de embeddings?",
+    "relevant_files": ["modelos-embedding.md"],
+    "relevant_documents": ["modelos-embedding"]
+  },
+  {
+    "id": "in-06-ingesta",
+    "question": "¿Cómo se almacenan los documentos durante la ingesta?",
+    "relevant_files": ["ingesta-documentos.md"],
+    "relevant_documents": ["ingesta-documentos"]
+  },
+  {
+    "id": "in-07-chunks",
+    "question": "¿Por qué se dividen los documentos en chunks?",
+    "relevant_files": ["chunking.md", "ingesta-documentos.md"],
+    "relevant_documents": ["chunking", "ingesta-documentos"]
+  },
+  {
+    "id": "in-08-busqueda",
+    "question": "¿Cómo funciona la búsqueda vectorial?",
+    "relevant_files": ["busqueda-vectorial.md", "qdrant-basico.md"],
+    "relevant_documents": ["busqueda-vectorial", "qdrant-basico"]
+  },
+  {
+    "id": "in-09-threshold",
+    "question": "¿Qué efecto tiene subir el score_threshold?",
+    "relevant_files": ["score-threshold.md"],
+    "relevant_documents": ["score-threshold"]
+  },
+  {
+    "id": "in-10-limit",
+    "question": "¿Qué controla el parámetro limit?",
+    "relevant_files": ["limit-k.md"],
+    "relevant_documents": ["limit-k"]
+  },
+  {
+    "id": "in-11-precision",
+    "question": "¿Qué diferencia hay entre precision y recall?",
+    "relevant_files": ["precision-recall.md"],
+    "relevant_documents": ["precision-recall"]
+  },
+  {
+    "id": "in-12-mrr",
+    "question": "¿Cómo se calcula el reciprocal rank y el MRR?",
+    "relevant_files": ["mrr.md"],
+    "relevant_documents": ["mrr"]
+  },
+  {
+    "id": "in-13-dataset",
+    "question": "¿Cómo se etiquetan las preguntas de un dataset de evaluación?",
+    "relevant_files": ["dataset-evaluacion.md"],
+    "relevant_documents": ["dataset-evaluacion"]
+  },
+  {
+    "id": "in-14-ood",
+    "question": "¿Qué debe hacer el sistema ante una pregunta fuera de dominio?",
+    "relevant_files": ["consultas-fuera-dominio.md", "dataset-evaluacion.md"],
+    "relevant_documents": ["consultas-ood", "dataset-evaluacion"]
+  },
+  {
+    "id": "in-15-reranking",
+    "question": "¿Qué función cumple un reranker?",
+    "relevant_files": ["reranking.md"],
+    "relevant_documents": ["reranking"]
+  },
+  {
+    "id": "in-16-hibrida",
+    "question": "¿Cuándo conviene usar búsqueda híbrida?",
+    "relevant_files": ["busqueda-hibrida.md", "busqueda-vectorial.md"],
+    "relevant_documents": ["busqueda-hibrida", "busqueda-vectorial"]
+  },
+  {
+    "id": "in-17-filtros",
+    "question": "¿Qué se puede filtrar usando metadata?",
+    "relevant_files": ["metadata-filtros.md", "qdrant-payload.md"],
+    "relevant_documents": ["metadata-filtros", "qdrant-payload"]
+  },
+  {
+    "id": "in-18-docker",
+    "question": "¿Qué servicios y puertos levanta Docker Compose?",
+    "relevant_files": ["docker-servicios.md"],
+    "relevant_documents": ["docker-servicios"]
+  },
+  {
+    "id": "in-19-configuracion",
+    "question": "¿Qué variables configuran la recuperación del RAG?",
+    "relevant_files": ["configuracion-rag.md", "score-threshold.md", "limit-k.md"],
+    "relevant_documents": ["configuracion-rag", "score-threshold", "limit-k"]
+  },
+  {
+    "id": "in-20-comparacion",
+    "question": "¿Qué datos hay que guardar para comparar modelos de embeddings?",
+    "relevant_files": ["reproducibilidad.md", "modelos-embedding.md", "dataset-evaluacion.md"],
+    "relevant_documents": ["reproducibilidad", "modelos-embedding", "dataset-evaluacion"]
+  },
+  {
+    "id": "out-01-clima",
+    "question": "¿Cuál será el clima mañana en Buenos Aires?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-02-receta",
+    "question": "¿Cómo preparo una receta de empanadas?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-03-futbol",
+    "question": "¿Quién ganó el último mundial de fútbol?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-04-viaje",
+    "question": "¿Qué hoteles recomiendas en París?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-05-musica",
+    "question": "¿Qué canción es la más escuchada este año?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-06-salud",
+    "question": "¿Qué medicamento debo tomar para el dolor de cabeza?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-07-impuestos",
+    "question": "¿Cómo presento mi declaración de impuestos?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-08-astronomia",
+    "question": "¿A qué distancia está la Luna de la Tierra?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-09-idiomas",
+    "question": "¿Cómo se dice buenos días en japonés?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-10-autos",
+    "question": "¿Qué auto consume menos combustible?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-11-jardineria",
+    "question": "¿Cada cuánto debo regar una planta de tomate?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-12-cocina",
+    "question": "¿Cuál es la temperatura ideal para hornear pan?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-13-cine",
+    "question": "¿Qué películas ganó un premio Oscar este año?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-14-finanzas",
+    "question": "¿En qué acciones debería invertir mis ahorros?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-15-geografia",
+    "question": "¿Cuál es el río más largo de América del Sur?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-16-matematica",
+    "question": "¿Cuál es la raíz cuadrada de 144?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-17-mascotas",
+    "question": "¿Qué alimento es mejor para un perro adulto?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-18-historia",
+    "question": "¿En qué año comenzó la Revolución Francesa?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-19-tecnologia",
+    "question": "¿Cuál es el mejor teléfono móvil del mercado?",
+    "relevant_files": [],
+    "relevant_documents": []
+  },
+  {
+    "id": "out-20-entretenimiento",
+    "question": "¿Qué serie debería ver durante el fin de semana?",
+    "relevant_files": [],
+    "relevant_documents": []
+  }
+]

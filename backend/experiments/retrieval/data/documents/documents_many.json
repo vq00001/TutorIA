@@ -1,0 +1,22 @@
+[
+  {"document_id":"many-qdrant-01","filename":"many-qdrant-01.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Qdrant es una base de datos vectorial para almacenar embeddings y buscar contenido semánticamente similar."},
+  {"document_id":"many-qdrant-02","filename":"many-qdrant-02.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Qdrant permite consultar vectores por similitud y devolver los chunks más cercanos a una pregunta."},
+  {"document_id":"many-qdrant-03","filename":"many-qdrant-03.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Las colecciones de Qdrant agrupan vectores que comparten tamaño y configuración de distancia."},
+  {"document_id":"many-qdrant-04","filename":"many-qdrant-04.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Cada punto de Qdrant puede tener un vector y un payload con metadata del documento."},
+  {"document_id":"many-qdrant-05","filename":"many-qdrant-05.md","page_start":1,"page_end":1,"chunk_index":0,"text":"El payload puede contener filename, páginas, document_id, chunk_index y texto recuperable."},
+  {"document_id":"many-qdrant-06","filename":"many-qdrant-06.md","page_start":1,"page_end":1,"chunk_index":0,"text":"La búsqueda vectorial transforma la pregunta en un embedding antes de consultar Qdrant."},
+  {"document_id":"many-qdrant-07","filename":"many-qdrant-07.md","page_start":1,"page_end":1,"chunk_index":0,"text":"La distancia COSINE permite comparar la orientación de los embeddings durante la recuperación."},
+  {"document_id":"many-qdrant-08","filename":"many-qdrant-08.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Una colección de evaluación debe mantenerse separada de la colección de producción."},
+  {"document_id":"many-qdrant-09","filename":"many-qdrant-09.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Qdrant devuelve resultados ordenados por score de similitud cuando se ejecuta una consulta."},
+  {"document_id":"many-qdrant-10","filename":"many-qdrant-10.md","page_start":1,"page_end":1,"chunk_index":0,"text":"La recuperación RAG usa los chunks encontrados por Qdrant como contexto para generar una respuesta."},
+  {"document_id":"many-eval-01","filename":"many-eval-01.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Un benchmark RAG relaciona preguntas con los documentos que deberían responderlas."},
+  {"document_id":"many-eval-02","filename":"many-eval-02.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Precision mide cuántos resultados recuperados son relevantes para la pregunta evaluada."},
+  {"document_id":"many-eval-03","filename":"many-eval-03.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Recall mide cuántos documentos relevantes del conjunto esperado fueron recuperados."},
+  {"document_id":"many-eval-04","filename":"many-eval-04.md","page_start":1,"page_end":1,"chunk_index":0,"text":"MRR mide la posición del primer resultado relevante y no debe contar preguntas sin respuesta."},
+  {"document_id":"many-eval-05","filename":"many-eval-05.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Las preguntas fuera del dominio deben registrarse con una lista vacía de documentos relevantes."},
+  {"document_id":"many-eval-06","filename":"many-eval-06.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Un threshold bajo suele recuperar más candidatos, pero también puede aumentar el ruido."},
+  {"document_id":"many-eval-07","filename":"many-eval-07.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Un threshold alto puede mejorar precision y rechazo OOD, pero perder documentos relevantes."},
+  {"document_id":"many-eval-08","filename":"many-eval-08.md","page_start":1,"page_end":1,"chunk_index":0,"text":"El limit es el máximo de resultados devueltos después de aplicar el score_threshold."},
+  {"document_id":"many-eval-09","filename":"many-eval-09.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Con diez documentos relevantes y limit cuatro, solo los cuatro primeros pueden llegar al contexto."},
+  {"document_id":"many-eval-10","filename":"many-eval-10.md","page_start":1,"page_end":1,"chunk_index":0,"text":"Comparar varios thresholds con el mismo corpus permite estudiar el equilibrio entre recall y precision."}
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "many-01-qdrant",
+    "question": "¿Cómo funciona Qdrant y cómo participa en la recuperación de un sistema RAG?",
+    "relevant_files": ["many-qdrant-01.md","many-qdrant-02.md","many-qdrant-03.md","many-qdrant-04.md","many-qdrant-05.md","many-qdrant-06.md","many-qdrant-07.md","many-qdrant-08.md","many-qdrant-09.md","many-qdrant-10.md"],
+    "relevant_documents": ["many-qdrant-01","many-qdrant-02","many-qdrant-03","many-qdrant-04","many-qdrant-05","many-qdrant-06","many-qdrant-07","many-qdrant-08","many-qdrant-09","many-qdrant-10"]
+  },
+  {
+    "id": "many-02-qdrant",
+    "question": "¿Qué elementos intervienen al guardar y buscar embeddings en Qdrant?",
+    "relevant_files": ["many-qdrant-01.md","many-qdrant-02.md","many-qdrant-03.md","many-qdrant-04.md","many-qdrant-05.md","many-qdrant-06.md","many-qdrant-07.md","many-qdrant-08.md","many-qdrant-09.md","many-qdrant-10.md"],
+    "relevant_documents": ["many-qdrant-01","many-qdrant-02","many-qdrant-03","many-qdrant-04","many-qdrant-05","many-qdrant-06","many-qdrant-07","many-qdrant-08","many-qdrant-09","many-qdrant-10"]
+  },
+  {
+    "id": "many-03-evaluation",
+    "question": "¿Cómo se evalúa la recuperación RAG con precision, recall, MRR, threshold y limit?",
+    "relevant_files": ["many-eval-01.md","many-eval-02.md","many-eval-03.md","many-eval-04.md","many-eval-05.md","many-eval-06.md","many-eval-07.md","many-eval-08.md","many-eval-09.md","many-eval-10.md"],
+    "relevant_documents": ["many-eval-01","many-eval-02","many-eval-03","many-eval-04","many-eval-05","many-eval-06","many-eval-07","many-eval-08","many-eval-09","many-eval-10"]
+  },
+  {
+    "id": "many-04-evaluation",
+    "question": "¿Qué decisiones hay que tomar para medir muchas fuentes relevantes por consulta?",
+    "relevant_files": ["many-eval-01.md","many-eval-02.md","many-eval-03.md","many-eval-04.md","many-eval-05.md","many-eval-06.md","many-eval-07.md","many-eval-08.md","many-eval-09.md","many-eval-10.md"],
+    "relevant_documents": ["many-eval-01","many-eval-02","many-eval-03","many-eval-04","many-eval-05","many-eval-06","many-eval-07","many-eval-08","many-eval-09","many-eval-10"]
+  }
+]
