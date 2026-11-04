@@ -22,6 +22,7 @@ import type {
   GraphologyExport,
   MaterialDto,
   MaterialFile,
+  NewCourse,
   StudentProfile,
 } from '../types'
 
@@ -42,6 +43,7 @@ interface AppDataContextValue {
   loadError: string | null
 
   sendPrompt: (courseId: string, content: string) => void
+  addCourse: (course: NewCourse) => Promise<Course>
   addMaterials: (courseId: string, files: File[]) => Promise<MaterialFile[]>
   removeMaterial: (courseId: string, materialId: string) => Promise<void>
 }
@@ -254,7 +256,17 @@ export function AppDataProvider({
     [api]
   )
 
-  // Crear Curso
+  // Course creation
+  const addCourse = useCallback(async (input: NewCourse) => {
+    const response = await api.createCourse(input)
+    const course = response.data
+    setCourses((current) => [course, ...current])
+    setMaterialsByCourse((current) => ({ ...current, [course.id]: [] }))
+    setMessagesByCourse((current) => ({ ...current, [course.id]: [] }))
+    setGraphsByCourse((current) => ({ ...current, [course.id]: { nodes: [], edges: [] } }))
+    return course
+  }, [api])
+
   // Context value
 
   const value = useMemo(
@@ -268,6 +280,7 @@ export function AppDataProvider({
       graphsByCourse,
       loadError,
       sendPrompt,
+      addCourse,
       addMaterials,
       removeMaterial,
     }),
@@ -281,6 +294,7 @@ export function AppDataProvider({
       graphsByCourse,
       loadError,
       sendPrompt,
+      addCourse,
       addMaterials,
       removeMaterial,
     ]

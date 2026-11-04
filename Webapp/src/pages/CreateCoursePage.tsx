@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { PageHeading } from '../components/ui/PageHeading'
 import { useAppData } from '../contexts/AppDataContext'
 
-import { compatible_file_formats } from '../types'
+import { MaterialDropzone } from '../components/materials/MaterialDropzone'
 
 export function CreateCoursePage() {
   const { addCourse, addMaterials } = useAppData()
@@ -104,24 +104,22 @@ export function CreateCoursePage() {
                 </label>
 
                 <label className="course-field">
-                  <span>Descripción <b>*</b></span>
+                  <span>Descripción</span>
                   <textarea
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
                     placeholder="Describe brevemente de qué trata el curso..."
                     rows={4}
-                    required
                   />
                 </label>
 
                 <label className="course-field">
-                  <span>Objetivos y alcance <b>*</b></span>
+                  <span>Objetivos y alcance</span>
                   <textarea
                     value={objectives}
                     onChange={(event) => setObjectives(event.target.value)}
                     placeholder="¿Qué conocimientos esperas adquirir? ¿Qué contenidos abarca el curso?"
                     rows={5}
-                    required
                   />
                 </label>
               </div>
@@ -146,23 +144,11 @@ export function CreateCoursePage() {
               <span className="eyebrow">MATERIAL DE ESTUDIO</span>
               <h2>Comienza con una buena base</h2>
               <p>
-                Agrega apuFailed to resolve import "../config/config"ntes, guías y documentos para que tu tutor
+                Agrega apuntes, guías y documentos para que tu tutor
                 pueda utilizarlos como contexto durante las sesiones.
               </p>
-
-              <label className="material-upload-button">
-                <input
-                  type="file"
-                  accept={compatible_file_formats}
-                  multiple
-                  hidden
-                  onChange={(event) => {
-                    handleFiles(event.target.files)
-                    event.target.value = ''
-                  }}
-                />
-                <span aria-hidden="true">＋</span> Agregar materiales
-              </label>
+              {/* TODO: Agregar archivos a carro con función  */}
+              <MaterialDropzone onFiles={console.log("Documento Subido")} />
             </section>
 
             <section className="storage-card">

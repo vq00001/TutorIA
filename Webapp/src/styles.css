@@ -78,10 +78,10 @@
   --surface: #262637;
   --surface-soft: #313244;
 
-  --text: #cdd6f4;
+  --text: #dae1f7;
   --text-muted: #a6adc8;
   --text-faint: #7f849c;
-  --text-strong: #f5e0dc;
+  --text-strong: #ffffff;
 
   --border: #38384b;
   --border-strong: #494960;
@@ -133,6 +133,25 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+select {
+  display: grid;
+  gap: 5px;
+
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+label select {
+  min-width: 165px;
+  padding: 9px;
+
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+
+  background: var(--surface);
+  color: var(--text);
 }
 
 
@@ -203,6 +222,9 @@ button:disabled {
 
 .brand-mark span {
   color: #f9e2af;
+  position: absolute;  /* 2. Breaks free from normal text flow */
+  top: 25px;          /* 3. Distance from the top edge of the div */
+  left: 45px;
 }
 
 .brand-name {
@@ -1197,8 +1219,8 @@ button:disabled {
 
   margin: 7px 0;
 
-  color: var(--text-muted);
-  font-size: 9px;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .file-icon {

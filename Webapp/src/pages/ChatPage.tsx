@@ -69,6 +69,10 @@ export function ChatPage() {
 
   return (
     <div className="chat-page">
+      <div className="page-breadcrumb">
+        <Link to="/">Inicio</Link> / Responder Consultas
+      </div>
+
       {/* Course heading */}
       <div className="chat-page-heading">
 
@@ -78,12 +82,13 @@ export function ChatPage() {
           </span>
 
           <div>
-            <h1><Link to="/" style={{ color: 'var(--yellow)' }}>Mis cursos</Link> / {course.name}</h1>
+            <h1>{course.name}</h1>
           </div>
           <div className="chat-session-bar">
             <span className="live-dot" />
             Sesión de aprendizaje · {course.name}
           </div>
+          <Link className="chat-exams-link" to={`/cursos/${course.id}/examenes`}>Ver exámenes →</Link>
 
         </div>
       </div>

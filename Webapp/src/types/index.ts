@@ -8,6 +8,8 @@ export const compatible_file_formats = ".txt,text/plain,.md,text/markdown"
 export interface Course {
   id: string;
   name: string;
+  description?: string;
+  objectives?: string;
   subject: string;
   progress: number;
   color: string;
@@ -18,7 +20,7 @@ export interface Course {
 
 export interface NewCourse {
   name: string;
-  desciption: string;
+  description: string;
   objectives: string;
 }
 

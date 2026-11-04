@@ -1,5 +1,7 @@
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import type { ResolvedTheme, ThemePreference } from '../types'
 
-interface ThemeContextValue {
+export interface ThemeContextValue {
   theme: ResolvedTheme
   preference: ThemePreference
   setPreference: (theme: ThemePreference) => void
