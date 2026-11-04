@@ -1,11 +1,12 @@
 import { demoDatabase } from '../data/demoDatabase'
-import type { ChatMessageDto, Course, DashboardSummary, GraphologyExport, JsonApiResponse, MaterialDto, StudentProfile } from '../types'
+import type { ChatMessageDto, Course, DashboardSummary, GraphologyExport, JsonApiResponse, MaterialDto, NewCourse, StudentProfile } from '../types'
 
 /** Adapter boundary: the in-memory implementation can be replaced by fetch/database services. */
 export interface TutorIADataApi {
   getStudentProfile(): Promise<JsonApiResponse<StudentProfile>>
   getDashboardSummary(): Promise<JsonApiResponse<DashboardSummary>>
   getCourses(): Promise<JsonApiResponse<Course[]>>
+  createCourse(course: NewCourse): Promise<JsonApiResponse<Course>>
   getCourseMaterials(courseId: string): Promise<JsonApiResponse<MaterialDto[]>>
   getCourseMessages(courseId: string): Promise<JsonApiResponse<ChatMessageDto[]>>
   getCourseGraph(courseId: string): Promise<JsonApiResponse<GraphologyExport>>
@@ -21,6 +22,26 @@ export const databaseApi: TutorIADataApi = {
   async getStudentProfile() { await delay(); return jsonResponse(demoDatabase.profile) },
   async getDashboardSummary() { await delay(); return jsonResponse(demoDatabase.summary) },
   async getCourses() { await delay(); return jsonResponse(demoDatabase.courses) },
+  async createCourse(input) {
+    await delay()
+    const course: Course = {
+      id: crypto.randomUUID(),
+      name: input.name,
+      description: input.description,
+      objectives: input.objectives,
+      subject: 'Nuevo curso',
+      progress: 0,
+      color: 'mauve',
+      icon: '✦',
+      nextTopic: input.objectives,
+      lastActivity: 'Recién creado',
+    }
+    demoDatabase.courses.unshift(course)
+    demoDatabase.materialsByCourse[course.id] = []
+    demoDatabase.messagesByCourse[course.id] = []
+    demoDatabase.graphsByCourse[course.id] = { nodes: [], edges: [] }
+    return jsonResponse(course)
+  },
   async getCourseMaterials(courseId) { await delay(); return jsonResponse(demoDatabase.materialsByCourse[courseId] ?? []) },
   async getCourseMessages(courseId) { await delay(); return jsonResponse(demoDatabase.messagesByCourse[courseId] ?? []) },
   async getCourseGraph(courseId) { await delay(); return jsonResponse(demoDatabase.graphsByCourse[courseId] ?? { nodes: [], edges: [] }) },
