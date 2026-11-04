@@ -6,12 +6,14 @@ import { AppShell } from './components/layout/AppShell'
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })))
 const ChatPage = lazy(() => import('./pages/ChatPage').then((m) => ({ default: m.ChatPage })))
 const MaterialsPage = lazy(() => import('./pages/MaterialsPage').then((m) => ({ default: m.MaterialsPage })))
+const CreateCoursePage = lazy(() => import('./pages/CreateCoursePage').then((m) => ({ default: m.CreateCoursePage })))
 const GraphPage = lazy(() => import('./pages/GraphPage').then((m) => ({ default: m.GraphPage })))
 
 export default function App() {
   return <AppDataProvider><AppShell><Suspense fallback={<div className="page-loading">Cargando módulo…</div>}><Routes>
     <Route path="/" element={<HomePage />} />
     <Route path="/cursos/:courseId" element={<ChatPage />} />
+    <Route path="/cursos/crear" element={<CreateCoursePage />} />
     <Route path="/cursos/:courseId/grafo" element={<GraphPage />} />
     <Route path="/curso/:courseId" element={<ChatPage />} />
     <Route path="/materiales" element={<MaterialsPage />} />
