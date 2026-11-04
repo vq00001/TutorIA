@@ -1,7 +1,0 @@
-.DS_Store
-Thumbs.db
-.env
-.env.*
-!.env.example
-Webapp/node_modules/
-Webapp/dist/
