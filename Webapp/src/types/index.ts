@@ -1,0 +1,25 @@
+export type ThemePreference = 'system' | 'latte' | 'mocha'
+export type ResolvedTheme = Exclude<ThemePreference, 'system'>
+
+export interface Course { id: string; name: string; subject: string; progress: number; color: string; icon: string; nextTopic: string; lastActivity: string }
+export interface StudentProfile { id: string; displayName: string; role: string }
+export interface DashboardSummary {
+  studyHours: number; studyHoursPeriod: string; studyHoursByDay: number[]; streakDays: number; masteredConcepts: number
+  masteredConceptsChange: number; roadmapStep: number; roadmapTotal: number; nextSessionMinutes: number; nextCourseId: string
+}
+export interface MaterialFile { id: string; courseId: string; name: string; size: number; addedAt: Date }
+export type MaterialDto = Omit<MaterialFile, 'addedAt'> & { addedAt: string }
+export interface ChartPoint { label: string; [series: string]: string | number }
+export interface ChartSeries { key: string; label: string; color: string }
+export interface ChartPayload { title: string; description?: string; data: ChartPoint[]; series: ChartSeries[]; xAxisLabel?: string; yAxisLabel?: string }
+export type MessagePart = { type: 'markdown'; content: string } | { type: 'chart'; chart: ChartPayload }
+export interface ChatMessage { id: string; role: 'user' | 'assistant'; parts: MessagePart[]; createdAt: Date; awaitingResponse?: boolean }
+export type ChatMessageDto = Omit<ChatMessage, 'createdAt'> & { createdAt: string }
+export interface JsonApiResponse<T> { data: T }
+export interface GraphologyNodeExport { key: string; attributes?: Record<string, unknown> }
+export interface GraphologyEdgeExport { key?: string; source: string; target: string; attributes?: Record<string, unknown> }
+export interface GraphologyExport {
+  attributes?: Record<string, unknown>
+  nodes: Array<GraphologyNodeExport | [string, Record<string, unknown>?]>
+  edges: Array<GraphologyEdgeExport | [string, string, string, Record<string, unknown>?]>
+}

@@ -1,0 +1,6 @@
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { ChartPayload } from '../../types'
+
+export function ChartCard({ chart }: { chart: ChartPayload }) {
+  return <figure className="chart-card"><figcaption><strong>{chart.title}</strong>{chart.description && <small>{chart.description}</small>}</figcaption><div className="chart-area"><ResponsiveContainer width="100%" height="100%"><LineChart data={chart.data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--border)" /><XAxis dataKey="label" stroke="var(--text-muted)" label={chart.xAxisLabel ? { value: chart.xAxisLabel, position: 'insideBottom', offset: -2 } : undefined} /><YAxis stroke="var(--text-muted)" label={chart.yAxisLabel ? { value: chart.yAxisLabel, angle: -90, position: 'insideLeft' } : undefined} /><Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />{chart.series.map((series) => <Line key={series.key} type="monotone" dataKey={series.key} name={series.label} stroke={series.color} strokeWidth={2.5} dot={{ r: 3 }} />)}</LineChart></ResponsiveContainer></div></figure>
+}
