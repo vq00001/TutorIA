@@ -59,7 +59,7 @@ def test_DAT_04_10_11_vectors_and_course_scope(database, monkeypatch):
     admin, url = database
     uid, cid, sid = prepare(admin, url, monkeypatch)
     accepted, _ = publish(admin, url, monkeypatch, uid, cid)
-    configure(monkeypatch,url)
+    configure(monkeypatch, url)
     with transaction(uid) as conn:
         assert list_courses(conn=conn)["data"][0]["id"] == cid
         assert list_materials(cid, conn=conn)["data"][0]["versionId"] == UUID(accepted["versionId"])

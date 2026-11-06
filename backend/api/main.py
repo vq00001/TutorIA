@@ -13,7 +13,18 @@ from fastapi.routing import APIRoute
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from backend.api import auth, chat, courses, dashboard, exams, graph, learning, materials
+from backend.api import (
+    auth,
+    chat,
+    courses,
+    dashboard,
+    deletions,
+    embeddings,
+    exams,
+    graph,
+    learning,
+    materials,
+)
 from backend.api.common import ApiError, csrf
 from backend.api.serialization import utc_endpoint
 from backend.db.connection import engine
@@ -54,6 +65,8 @@ async def lifespan(app):
             != expected
         ):
             raise RuntimeError("Run Alembic migrations before starting the API")
+        if not conn.execute(text("SELECT auth.restore_is_ready()")).scalar_one():
+            raise RuntimeError("Restore verification must complete before serving requests")
     yield
 
 
@@ -104,27 +117,47 @@ async def validation_error(request, exc):
 
 @app.exception_handler(IntegrityError)
 async def integrity_error(request, exc):
-    message = str(exc.orig)
+    message = getattr(getattr(exc.orig, "diag", None), "message_primary", "")
     code = next(
         (
             c
-            for c in ("LAST_COORDINATOR", "DUPLICATE_DOCUMENT", "GRAPH_CYCLE", "ATTEMPT_CLOSED")
-            if c in message
+            for c in (
+                "LAST_COORDINATOR",
+                "DUPLICATE_DOCUMENT",
+                "GRAPH_CYCLE",
+                "ATTEMPT_CLOSED",
+                "INVALID_GRADE",
+                "INVALID_TRANSITION",
+                "CONFIRMATION_REQUIRED",
+                "GRADE_IN_PROGRESS",
+                "GENERATION_QUOTA_EXCEEDED",
+            )
+            if c == message
         ),
         "CONSTRAINT_CONFLICT",
     )
-    return error_response(request, code, 409)
+    return error_response(request, code, 429 if code == "GENERATION_QUOTA_EXCEEDED" else 409)
 
 
 @app.exception_handler(DBAPIError)
 async def database_error(request, exc):
+    if getattr(exc.orig, "sqlstate", None) == "42501":
+        return error_response(request, "FORBIDDEN", 403)
     return error_response(request, "DATABASE_UNAVAILABLE", 503)
 
 
+@app.exception_handler(Exception)
+async def unexpected_error(request, exc):
+    return error_response(request, "INTERNAL_ERROR", 500)
+
+
 @app.get("/health")
+@app.get("/api/v1/health")
 def health():
     with engine().connect() as conn:
         conn.execute(text("SELECT 1"))
+        if not conn.execute(text("SELECT auth.restore_is_ready()")).scalar_one():
+            raise ApiError("RESTORE_NOT_VERIFIED", 503)
     return {"status": "ok"}
 
 
@@ -137,6 +170,8 @@ for router in (
     exams.router,
     learning.router,
     dashboard.router,
+    deletions.router,
+    embeddings.router,
 ):
     for route in router.routes:
         if isinstance(route, APIRoute):

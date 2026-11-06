@@ -13,6 +13,8 @@ export interface ExamSummary {
   questionCount: number
   status: ExamStatus
   score?: number
+  attemptId?: string
+  attemptStatus?: string
 }
 
 export interface ExamQuestion {

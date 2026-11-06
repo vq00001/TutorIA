@@ -8,6 +8,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false)
   const [resetToken, setResetToken] = useState('')
   const [forgot, setForgot] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState('')
   const refresh = () => request<{data:{status:string}}>('/student/me').then(r => setState(r.data.status)).catch(() => setState('anonymous'))
   useEffect(() => {
     const url = new URL(location.href)
@@ -37,7 +38,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         await request('/auth/register', { method: 'POST', body: JSON.stringify({ ...body, nickname: data.get('nickname'), displayName: data.get('displayName'), acceptTerms: data.get('terms') === 'on', acknowledgeAI: data.get('ai') === 'on' }) })
         setRegister(false); setError('Revisa tu correo para verificar la cuenta.')
       } else {
-        await request('/auth/login', { method: 'POST', body: JSON.stringify(body) }); await refresh()
+        await request('/auth/login', { method: 'POST', body: JSON.stringify(body) }); setPendingEmail(String(data.get('email') ?? '')); await refresh()
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo acceder.') }
     finally { setBusy(false) }
@@ -45,7 +46,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (state === 'active' && !resetToken) return <><button style={{position:'fixed',bottom:12,left:12,zIndex:100}} className="secondary-button" onClick={()=>{void request('/auth/logout',{method:'POST'}).then(()=>location.reload()).catch(e=>setError(e.message))}}>Cerrar sesión</button>{children}</>
   if (state === 'loading') return <div className="page-loading">Comprobando sesión…</div>
   return <main style={{ maxWidth: 440, margin: '8vh auto', padding: 24 }}><h1>TutorIA</h1>
-    {state === 'pending' && !resetToken ? <div><p>Tu cuenta está pendiente de verificación. Abre el enlace que enviamos a tu correo y recarga esta página.</p><button className="secondary-button" onClick={()=>{void request('/auth/logout',{method:'POST'}).then(()=>setState('anonymous')).catch(e=>setError(e.message))}}>Usar otra cuenta</button></div> : <form onSubmit={submit}>
+    {state === 'pending' && !resetToken ? <div><p>Tu cuenta está pendiente de verificación. Abre el enlace que enviamos a tu correo y recarga esta página.</p><form onSubmit={event=>{event.preventDefault();setBusy(true);void request('/auth/resend-verification',{method:'POST',body:JSON.stringify({email:pendingEmail})}).then(()=>setError('Si la cuenta está pendiente, enviaremos un nuevo enlace.')).catch(e=>setError(e.message)).finally(()=>setBusy(false))}}><label className="exam-field">Correo de la cuenta pendiente<input type="email" required value={pendingEmail} onChange={e=>setPendingEmail(e.target.value)}/></label><button className="secondary-button" disabled={busy}>Reenviar verificación</button></form><button className="secondary-button" onClick={()=>{void request('/auth/logout',{method:'POST'}).then(()=>setState('anonymous')).catch(e=>setError(e.message))}}>Usar otra cuenta</button></div> : <form onSubmit={submit}>
       <h2>{resetToken?'Nueva contraseña':forgot?'Recuperar acceso':register ? 'Crear cuenta' : 'Iniciar sesión'}</h2>
       {register && <><label className="exam-field">Alias<input name="displayName" required maxLength={100} /></label><label className="exam-field">Nickname<input name="nickname" required pattern="[a-zA-Z0-9_]{3,50}" /></label></>}
       {!resetToken&&<label className="exam-field">Correo<input name="email" type="email" autoComplete="email" required /></label>}

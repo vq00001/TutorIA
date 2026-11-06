@@ -1,50 +1,163 @@
+x-labels: &labels
+  org.tutoria.test.run: ${TEST_RUN_ID:?}
+  org.tutoria.test.owner: tutoria-harness-v1
+x-service: &service
+  labels: *labels
+  networks: [test-only]
+  pids_limit: 128
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://tutoria_api:${TEST_API_PASSWORD:?}@db-test:5432/${TEST_DB_NAME:?}
+  APP_ORIGIN: https://web-test:8443
+  OLLAMA_URL: http://ai-stub:11434
+  MODEL_LLM: synthetic
+  MODEL_LLM_REVISION: fixture-v1
+  EMBEDDING_SPACE_ID: 9f8f3dd3-e2b5-49ce-9fce-888ce2e6e725
+  SMTP_HOST: mail-stub
+  SMTP_PORT: 1025
+  SMTP_FROM: TutorIA <noreply@example.com>
+  SMTP_STARTTLS: 'false'
+  LEDGER_KEY: ${TEST_LEDGER_KEY:?}
+  LEDGER_PATH: /ledger
 services:
   db-test:
     image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
     environment:
       POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:?}
     volumes: [test-data:/var/lib/postgresql]
-    labels:
-      org.tutoria.test.run: ${TEST_RUN_ID:?}
-      org.tutoria.test.owner: tutoria-harness-v1
+    labels: *labels
+    networks: [test-only]
     mem_limit: 768m
-    cpus: 0.75
+    cpus: 0.35
     pids_limit: 128
     healthcheck:
       test: [CMD-SHELL, 'pg_isready -U postgres']
       interval: 2s
       timeout: 2s
       retries: 60
-    networks: [test-only]
+  api-test:
+    <<: *service
+    image: ${TEST_API_IMAGE:?}
+    environment: *app-env
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    cpus: 0.20
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+  worker-test:
+    <<: *service
+    image: ${TEST_API_IMAGE:?}
+    command: [python, -m, backend.workers.main]
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgresql+psycopg://tutoria_worker:${TEST_WORKER_PASSWORD:?}@db-test:5432/${TEST_DB_NAME:?}
+    volumes: [test-ledger:/ledger]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 256m
+    cpus: 0.25
+  scheduler-test:
+    <<: *service
+    image: ${TEST_API_IMAGE:?}
+    command: [python, -m, backend.workers.scheduler]
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgresql+psycopg://tutoria_worker:${TEST_WORKER_PASSWORD:?}@db-test:5432/${TEST_DB_NAME:?}
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 96m
+    cpus: 0.05
+  web-test:
+    <<: *service
+    image: ${TEST_WEB_IMAGE:?}
+    volumes: [test-tls:/runtime:ro]
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    mem_limit: 96m
+    cpus: 0.10
+    healthcheck:
+      test: [CMD, wget, -q, --no-check-certificate, -O, /dev/null, 'https://127.0.0.1:8443/']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  ai-stub:
+    <<: *service
+    image: ${TEST_RUNNER_IMAGE:?}
+    command: [uvicorn, tests.stubs.ai:app, --host, 0.0.0.0, --port, '11434', --no-access-log]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    cpus: 0.10
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:11434/health',timeout=3)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  mail-stub:
+    <<: *service
+    image: ${TEST_RUNNER_IMAGE:?}
+    command: [python, -m, tests.stubs.mail]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 48m
+    cpus: 0.05
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8025/health',timeout=3)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
   test-runner:
-    image: ${TEST_RUNNER_IMAGE:?Prepare test tools first}
+    <<: *service
+    image: ${TEST_RUNNER_IMAGE:?}
     environment:
       TEST_RUN_ID: ${TEST_RUN_ID:?}
       TEST_NONCE: ${TEST_NONCE:?}
       TEST_DB_PASSWORD: ${TEST_DB_PASSWORD:?}
+      TEST_API_PASSWORD: ${TEST_API_PASSWORD:?}
+      TEST_WORKER_PASSWORD: ${TEST_WORKER_PASSWORD:?}
+      TEST_DB_NAME: ${TEST_DB_NAME:?}
       TEST_DB_HOST: db-test
+      TEST_SEED: ${TEST_SEED:?}
+      TEST_ORDER: ${TEST_ORDER:?}
+      TEST_PROFILE: ${TEST_PROFILE:?}
+      TEST_HYPOTHESIS_EXAMPLES: ${TEST_HYPOTHESIS_EXAMPLES:?}
       HYPOTHESIS_STORAGE_DIRECTORY: /tmp/hypothesis
-    labels:
-      org.tutoria.test.run: ${TEST_RUN_ID:?}
-      org.tutoria.test.owner: tutoria-harness-v1
+      TEST_SUMMARY_DIR: /reports
+    volumes: [test-tls:/runtime, test-reports:/reports]
     read_only: true
     tmpfs: [/tmp]
+    mem_limit: 384m
+    cpus: 0.40
+  browser-test:
+    <<: *service
+    image: ${TEST_BROWSER_IMAGE:?}
+    environment:
+      TEST_RUN_ID: ${TEST_RUN_ID:?}
+      TEST_SEED: ${TEST_SEED:?}
+      NODE_EXTRA_CA_CERTS: /runtime/ca.crt
+      HOME: /tmp/browser-home
+      TEST_REPORTS_DIR: /tmp/coverage
+      TEST_SUMMARY_DIR: /reports
+    volumes: [test-tls:/runtime:ro, test-reports:/reports]
+    read_only: true
+    tmpfs: [/tmp, /app/Webapp/node_modules/.vite-temp]
     mem_limit: 768m
-    cpus: 0.75
-    pids_limit: 128
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    networks: [test-only]
-    depends_on:
-      db-test: {condition: service_healthy}
+    cpus: 0.50
 networks:
   test-only:
     internal: true
-    labels:
-      org.tutoria.test.run: ${TEST_RUN_ID:?}
-      org.tutoria.test.owner: tutoria-harness-v1
+    labels: *labels
 volumes:
   test-data:
-    labels:
-      org.tutoria.test.run: ${TEST_RUN_ID:?}
-      org.tutoria.test.owner: tutoria-harness-v1
+    labels: *labels
+  test-ledger:
+    labels: *labels
+  test-tls:
+    labels: *labels
+  test-reports:
+    labels: *labels

@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { request } from '../services/http'
+import type { MaterialUploadResult } from '../services/uploadResults'
 
 import {
   createContext,
@@ -46,7 +47,7 @@ interface AppDataContextValue {
 
   sendPrompt: (courseId: string, content: string) => void
   addCourse: (course: NewCourse) => Promise<Course>
-  addMaterials: (courseId: string, files: File[]) => Promise<MaterialFile[]>
+  addMaterials: (courseId: string, files: File[]) => Promise<{ materials: MaterialFile[]; results: MaterialUploadResult[] }>
   removeMaterial: (courseId: string, materialId: string) => Promise<void>
 }
 
@@ -241,7 +242,7 @@ export function AppDataProvider({
         ],
       }))
 
-      return created
+      return { materials: created, results: response.results }
     },
     [api]
   )

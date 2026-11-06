@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { request } from '../services/http'
+import { ManualReview } from '../components/exams/ManualReview'
 
 interface Question {
   id:string; kind:string; prompt:string; topic:string; max_points:number; options:Array<{id:string;text:string}>
@@ -12,19 +13,23 @@ interface Attempt { id:string;status:string;deadline_at:string;serverNow:string;
 
 export function TakeExamPage() {
   const {courseId='',examId=''}=useParams()
+  const [search]=useSearchParams()
+  const requestedAttempt=search.get('attemptId')
   const [attempt,setAttempt]=useState<Attempt|null>(null)
   const [error,setError]=useState('')
   const [busy,setBusy]=useState(false)
   const [remaining,setRemaining]=useState(0)
   useEffect(()=>{
     let active=true
-    void request<{data:Attempt}>(`/courses/${courseId}/exams/${examId}/attempts`,{method:'POST',body:'{}'})
+    const load=requestedAttempt?request<{data:Attempt}>(`/attempts/${requestedAttempt}`):request<{data:Attempt}>(`/courses/${courseId}/exams/${examId}/attempts`,{method:'POST',body:'{}'})
+    void load
       .then(r=>{if(active)setAttempt(r.data)}).catch(e=>{if(active)setError(e.message)})
     return ()=>{active=false}
-  },[courseId,examId])
+  },[courseId,examId,requestedAttempt])
   useEffect(()=>{
     if(!attempt)return
     const deadline=Date.now()+new Date(attempt.deadline_at).getTime()-new Date(attempt.serverNow).getTime()
+    setRemaining(Math.max(0,Math.ceil((deadline-Date.now())/1000)))
     const timer=setInterval(()=>setRemaining(Math.max(0,Math.ceil((deadline-Date.now())/1000))),1000)
     return ()=>clearInterval(timer)
   },[attempt?.id,attempt?.serverNow])
@@ -50,6 +55,7 @@ export function TakeExamPage() {
     finally{setBusy(false)}
   }
   if(!attempt)return <div className="page-loading">{error||'Cargando intento…'}</div>
+  if(attempt.status==='invalidated')return <section className="take-exam-page"><Link to={`/cursos/${courseId}/examenes`}>← Volver a prácticas</Link><h1>Evaluación retirada</h1><p>Una fuente fue retirada del curso. Esta práctica ya no está disponible y sus resultados no aportan evidencia de dominio.</p></section>
   const closed=attempt.status!=='in_progress'||remaining<=0
   return <section className="take-exam-page"><Link to={`/cursos/${courseId}/examenes`}>← Volver a prácticas</Link><h1>Práctica personal</h1>
     <p>Estado: {attempt.status} · Tiempo restante: {Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</p>
@@ -64,6 +70,7 @@ export function TakeExamPage() {
       }}>{o.text}</button>)}</div>}
       {q.grade&&<p>{q.grade.feedback} {q.grade.points!==null&&`(${q.grade.points} puntos)`}</p>}
       {q.grade?.grader_version==='manual_self'&&<p>Autoevaluación personal: este puntaje no aporta evidencia de dominio.</p>}
+      {attempt.status==='needs_review'&&q.grade?.status==='needs_review'&&q.answer&&<ManualReview attemptId={attempt.id} answerId={q.answer.id} maximum={Number(q.max_points)} onReviewed={async()=>{setAttempt((await request<{data:Attempt}>(`/attempts/${attempt.id}`)).data)}}/>}
       {q.review&&<p>{q.review.explanation}</p>}
     </article>)}
     {!closed&&<button className="primary-button" disabled={busy} onClick={()=>void submit()}>Entregar práctica</button>}

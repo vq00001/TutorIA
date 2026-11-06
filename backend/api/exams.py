@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 from hashlib import sha256
 from typing import Literal
 from uuid import UUID, uuid4
@@ -68,8 +69,12 @@ def list_exams(cid: UUID, conn=Depends(connection, scope="function")):
     return {
         "data": rows(
             conn,
-            """SELECT e.*,(SELECT count(*) FROM app.questions q WHERE q.exam_id=e.id) question_count
-      FROM app.exams e WHERE course_id=:cid ORDER BY created_at DESC,id LIMIT 100""",
+            """SELECT e.*,(SELECT count(*) FROM app.questions q WHERE q.exam_id=e.id) question_count,
+        latest.id latest_attempt_id,latest.status latest_attempt_status,latest.score_percent latest_score
+      FROM app.exams e LEFT JOIN LATERAL(SELECT a.id,a.status,a.score_percent FROM app.exam_attempts a
+        WHERE a.exam_id=e.id AND a.course_id=e.course_id AND a.user_id=e.user_id
+        ORDER BY a.attempt_no DESC,a.id DESC LIMIT 1) latest ON true
+      WHERE e.course_id=:cid ORDER BY e.created_at DESC,e.id LIMIT 100""",
             cid=cid,
         )
     }
@@ -86,7 +91,8 @@ def create_exam(
     course(conn, cid, write=True)
 
     def create():
-        c = one(conn, "SELECT * FROM app.courses WHERE id=:id FOR UPDATE", id=cid)
+        conn.execute(text("SELECT auth.lock_course(:id)"), dict(id=cid))
+        c = one(conn, "SELECT * FROM app.courses WHERE id=:id", id=cid)
         gid, eid = uuid4(), uuid4()
         conn.execute(
             text("""INSERT INTO app.generation_runs(id,course_id,user_id,kind,provider,model_name,model_revision,prompt_version,
@@ -142,7 +148,10 @@ def start(
         raise ApiError("EXAM_NOT_READY")
 
     def create():
-        conn.execute(text("SELECT id FROM app.exams WHERE id=:id FOR UPDATE"), dict(id=eid))
+        conn.execute(text("SELECT auth.lock_course(:id)"), dict(id=cid))
+        locked = one(conn, "SELECT status FROM app.exams WHERE id=:id FOR UPDATE", id=eid)
+        if not locked or locked["status"] != "ready":
+            raise ApiError("EXAM_NOT_READY")
         existing = one(
             conn,
             "SELECT id FROM app.exam_attempts WHERE exam_id=:id AND status='in_progress'",
@@ -170,6 +179,16 @@ def start(
 @router.get("/attempts/{aid}")
 def get_attempt(aid: UUID, conn=Depends(connection, scope="function")):
     a = attempt(conn, aid)
+    if a["status"] == "invalidated":
+        return {
+            "data": {
+                **a,
+                "score_percent": None,
+                "serverNow": now(),
+                "questions": [],
+                "reason": "SOURCE_REMOVED",
+            }
+        }
     questions = rows(
         conn,
         """SELECT q.id,q.position,q.kind,q.prompt,q.max_points,c.label topic FROM app.questions q
@@ -206,7 +225,7 @@ def get_attempt(aid: UUID, conn=Depends(connection, scope="function")):
         grade = (
             one(
                 conn,
-                "SELECT points,status,feedback,method FROM app.grades WHERE answer_id=:id ORDER BY revision DESC LIMIT 1",
+                "SELECT points,status,feedback,method,grader_version FROM app.grades WHERE answer_id=:id ORDER BY revision DESC LIMIT 1",
                 id=answer["id"],
             )
             if answer and keys
@@ -234,8 +253,13 @@ def save_answer(
     request: Request,
     conn=Depends(connection, scope="function"),
 ):
-    a = attempt(conn, aid)
-    conn.execute(text("SELECT id FROM app.exam_attempts WHERE id=:id FOR UPDATE"), dict(id=aid))
+    visible = attempt(conn, aid)
+    conn.execute(text("SELECT auth.lock_course(:id)"), dict(id=visible["course_id"]))
+    a = one(
+        conn,
+        "SELECT * FROM app.exam_attempts WHERE id=:id AND user_id=auth.uid() FOR UPDATE",
+        id=aid,
+    )
     if a["status"] != "in_progress" or a["deadline_at"] <= now():
         raise ApiError("ATTEMPT_CLOSED")
     q = one(
@@ -252,6 +276,15 @@ def save_answer(
         raise ApiError("INVALID_ANSWER", 422)
     if q["kind"] in ("alternatives", "true_false") and len(body.optionIds) > 1:
         raise ApiError("INVALID_ANSWER", 422)
+    if len(set(body.optionIds)) != len(body.optionIds):
+        raise ApiError("INVALID_ANSWER", 422)
+    if body.optionIds:
+        valid = {
+            r["id"]
+            for r in rows(conn, "SELECT id FROM app.question_options WHERE question_id=:id", id=qid)
+        }
+        if not set(body.optionIds) <= valid:
+            raise ApiError("INVALID_ANSWER", 422)
 
     def save():
         old = one(
@@ -308,3 +341,53 @@ def submit(aid: UUID, request: Request, conn=Depends(connection, scope="function
 
     idempotent(conn, request, {}, close)
     return {"data": {"id": aid, "status": attempt(conn, aid)["status"]}}
+
+
+class ManualReviewInput(Input):
+    points: Decimal = Field(ge=0, max_digits=8, decimal_places=5)
+    feedback: str = Field(default="", max_length=10000)
+
+
+@router.post("/attempts/{aid}/answers/{answerid}/review", status_code=201)
+def manual_review(
+    aid: UUID,
+    answerid: UUID,
+    body: ManualReviewInput,
+    request: Request,
+    conn=Depends(connection, scope="function"),
+):
+    visible = attempt(conn, aid)
+    if visible["status"] not in ("graded", "needs_review"):
+        raise ApiError("ATTEMPT_CLOSED")
+
+    def revise():
+        gid = uuid4()
+        one(
+            conn,
+            "SELECT auth.manual_review(:aid,:answer,:points,:feedback,:gid,:rid) AS id",
+            aid=aid,
+            answer=answerid,
+            points=body.points,
+            feedback=body.feedback,
+            gid=gid,
+            rid=uuid4(),
+        )
+        return {"id": str(gid), "attemptId": str(aid), "method": "manual_self"}
+
+    return {"data": idempotent(conn, request, body.model_dump(), revise)}
+
+
+@router.post("/attempts/{aid}/regrade", status_code=202)
+def request_regrade(aid: UUID, request: Request, conn=Depends(connection, scope="function")):
+    attempt(conn, aid)
+
+    def queue():
+        jid = uuid4()
+        one(
+            conn, "SELECT auth.request_regrade(:aid,:jid,:rid) AS id", aid=aid, jid=jid, rid=uuid4()
+        )
+        return {"id": str(jid), "attemptId": str(aid), "status": "queued"}
+
+    result = idempotent(conn, request, {}, queue)
+    current = one(conn, "SELECT state FROM app.jobs WHERE id=:id", id=UUID(result["id"]))
+    return {"data": {**result, "status": current["state"] if current else "unavailable"}}

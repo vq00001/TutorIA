@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ExamBuilder } from '../components/exams/ExamBuilder'
 import { ExamCard } from '../components/exams/ExamCard'
 import { useAppData } from '../contexts/AppDataContext'
-import { loadCourseExams, loadCourseTopics, rescheduleExam } from '../data/exams'
+import { loadCourseExams, loadCourseTopics } from '../data/exams'
 import type { ExamSummary } from '../types/exams'
 
 const KnowledgeGraph = lazy(() => import('../components/graph/KnowledgeGraph').then((module) => ({ default: module.KnowledgeGraph })))
@@ -26,7 +26,7 @@ export function ExamPage() {
     void Promise.all([loadCourseExams(courseId), loadCourseTopics(courseId)]).then(([loadedExams, loadedTopics]) => {
       setExams(loadedExams)
       setTopics(loadedTopics)
-    })
+    }).catch(error=>setNotice(error instanceof Error?error.message:'No se pudieron cargar las prácticas.'))
   }, [courseId])
 
   const shownExams = useMemo(() => exams.filter((exam) => tab === 'history' ? exam.status === 'completed' : exam.status !== 'completed'), [exams, tab])
@@ -41,14 +41,6 @@ export function ExamPage() {
     setTab('upcoming')
   }
 
-  const handleReschedule = (exam: ExamSummary) => {
-    const scheduledAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    void rescheduleExam(exam.id, scheduledAt).then(() => {
-      setExams((current) => current.map((item) => item.id === exam.id ? { ...item, scheduledAt } : item))
-      setNotice(`“${exam.title}” se reprogramó para dentro de una semana.`)
-    })
-  }
-
   return <section className="exam-page">
     <div className="page-breadcrumb"><Link to={`/cursos/${course.id}`}><ArrowLeft size={13} /> {course.name}</Link><span>/</span> Exámenes</div>
     <header className="exam-page-heading"><div><span className="eyebrow">PRACTICA Y MIDE TU AVANCE</span><h1>Exámenes</h1><p>Revisa tus evaluaciones y prepara una práctica a tu medida.</p></div><span className={`course-emblem ${course.color}-emblem`}>{course.icon}</span></header>
@@ -61,7 +53,7 @@ export function ExamPage() {
         {notice && <div className="exam-notice" role="status"><BookOpenCheck size={16} />{notice}<button onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div>}
         {tab === 'upcoming' && <p className="exam-section-intro">Evaluaciones programadas y prácticas recomendadas según tu avance en {course.name}.</p>}
         {tab === 'history' && <p className="exam-section-intro">Consulta tus exámenes rendidos y sus resultados.</p>}
-        <div className="exam-card-list">{shownExams.map((exam) => <ExamCard key={exam.id} exam={exam} courseId={course.id} onReschedule={handleReschedule} />)}</div>
+        <div className="exam-card-list">{shownExams.map((exam) => <ExamCard key={exam.id} exam={exam} courseId={course.id} />)}</div>
         {shownExams.length === 0 && <div className="exam-empty"><BookOpenCheck size={25} /><strong>{tab === 'history' ? 'Aún no hay exámenes rendidos' : 'No tienes exámenes próximos'}</strong><span>Genera una práctica personal para empezar a estudiar.</span></div>}
       </main>
       <aside className="exam-aside">

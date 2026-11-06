@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/playwright:v1.56.1-noble@sha256:f1e7e01021efd65dd1a2c56064be399f3e4de00fd021ac561325f2bfbb2b837a
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+WORKDIR /app/Webapp
+COPY Webapp/package.json Webapp/package-lock.json ./
+RUN npm ci
+RUN ln -s /app/Webapp/node_modules /app/node_modules
+COPY Webapp ./
+COPY tests/e2e /app/tests/e2e
+RUN mkdir /reports && chown 10001:10001 /reports
+USER 10001:10001
+CMD ["npm", "run", "test:e2e"]

@@ -1,9 +1,20 @@
-FROM python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2
+FROM python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2 AS python
+FROM pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
+COPY --from=python /usr/local /usr/local
+COPY --from=python /usr/lib/x86_64-linux-gnu/libffi.so.8* /usr/lib/x86_64-linux-gnu/
+COPY --from=python /usr/lib/x86_64-linux-gnu/libbz2.so.1* /usr/lib/x86_64-linux-gnu/
+COPY --from=python /usr/lib/x86_64-linux-gnu/liblzma.so.5* /usr/lib/x86_64-linux-gnu/
+COPY --from=python /usr/lib/x86_64-linux-gnu/libexpat.so.1* /usr/lib/x86_64-linux-gnu/
+COPY --from=python /usr/lib/x86_64-linux-gnu/libsqlite3.so.0* /usr/lib/x86_64-linux-gnu/
+RUN ldconfig && python --version && pg_dump --version && pg_restore --version
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
 WORKDIR /app
 COPY backend/requirements.test.lock /app/requirements.test.lock
 RUN pip install --no-cache-dir --require-hashes -r requirements.test.lock
 COPY backend /app/backend
 COPY tests /app/tests
+COPY scripts /app/scripts
 COPY alembic.ini /app/
-CMD ["pytest", "-p", "no:cacheprovider", "-q", "backend/tests", "tests/integration"]
+RUN useradd --uid 10001 --create-home tutoria-test && mkdir /runtime /reports && chown tutoria-test /runtime /reports
+USER tutoria-test
+CMD ["pytest", "-p", "no:cacheprovider", "-p", "tests.harness.pytest_report", "-q", "--tb=short", "backend/tests", "tests/integration"]

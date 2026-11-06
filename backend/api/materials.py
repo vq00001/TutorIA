@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import Response
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from backend.api.common import (
     ApiError,
@@ -16,7 +17,8 @@ from backend.api.common import (
 )
 from backend.db.connection import one, rows
 from backend.services.documents import MAX_FILE_BYTES, validate_file
-from backend.services.processing import prepare_run
+from backend.services.embedding_migrations import prepare_run
+from backend.services.uploads import inspect_upload
 
 router = APIRouter()
 
@@ -104,18 +106,6 @@ def accept_file(conn, cid, uid, name, data, mid=None):
     )
     if duplicate:
         raise ApiError("DUPLICATE_DOCUMENT", 409)
-    used = one(
-        conn,
-        "SELECT coalesce(sum(size_bytes),0) AS n FROM app.document_versions WHERE course_id=:cid AND status<>'purged'",
-        cid=cid,
-    )["n"]
-    daily = one(
-        conn,
-        "SELECT coalesce(sum(size_bytes),0) AS n FROM app.document_versions WHERE uploaded_by=:uid AND created_at>=now()-interval '24 hours'",
-        uid=uid,
-    )["n"]
-    if used + len(data) > 2_000_000_000 or daily + len(data) > 1_000_000_000:
-        raise ApiError("UPLOAD_QUOTA_EXCEEDED", 429)
     space = one(
         conn,
         "SELECT active_space_id,pending_space_id FROM app.course_embedding_config WHERE course_id=:cid",
@@ -123,8 +113,6 @@ def accept_file(conn, cid, uid, name, data, mid=None):
     )
     if not space:
         raise ApiError("EMBEDDING_SPACE_NOT_CONFIGURED", 503)
-    if space["pending_space_id"]:
-        raise ApiError("EMBEDDING_MIGRATION_IN_PROGRESS", 503)
     if mid is None:
         mid = uuid4()
         conn.execute(
@@ -143,21 +131,27 @@ def accept_file(conn, cid, uid, name, data, mid=None):
         id=mid,
     )["n"]
     vid = uuid4()
-    conn.execute(
-        text("""INSERT INTO app.document_versions(id,course_id,document_id,version_no,original_name,mime_type,size_bytes,sha256,uploaded_by)
+    try:
+        conn.execute(
+            text("""INSERT INTO app.document_versions(id,course_id,document_id,version_no,original_name,mime_type,size_bytes,sha256,uploaded_by)
       VALUES(:id,:cid,:mid,:n,:name,:mime,:size,:hash,:uid)"""),
-        dict(
-            id=vid,
-            cid=cid,
-            mid=mid,
-            n=version,
-            name=name,
-            mime=mime,
-            size=len(data),
-            hash=hashed,
-            uid=uid,
-        ),
-    )
+            dict(
+                id=vid,
+                cid=cid,
+                mid=mid,
+                n=version,
+                name=name,
+                mime=mime,
+                size=len(data),
+                hash=hashed,
+                uid=uid,
+            ),
+        )
+    except IntegrityError as exc:
+        code = getattr(getattr(exc.orig, "diag", None), "message_primary", "")
+        if code in ("UPLOAD_QUOTA_EXCEEDED", "DUPLICATE_DOCUMENT"):
+            raise ApiError(code, 429 if code == "UPLOAD_QUOTA_EXCEEDED" else 409) from exc
+        raise
     conn.execute(
         text(
             "INSERT INTO app.file_contents(version_id,course_id,document_id,bytes) VALUES(:vid,:cid,:mid,:bytes)"
@@ -165,6 +159,8 @@ def accept_file(conn, cid, uid, name, data, mid=None):
         dict(vid=vid, cid=cid, mid=mid, bytes=data),
     )
     rid = prepare_run(conn, cid, mid, vid, space["active_space_id"], uid)
+    if space["pending_space_id"]:
+        prepare_run(conn, cid, mid, vid, space["pending_space_id"], uid)
     return dict(materialId=str(mid), versionId=str(vid), runId=str(rid), status="queued")
 
 
@@ -172,43 +168,46 @@ def accept_file(conn, cid, uid, name, data, mid=None):
 async def upload(
     cid: UUID, request: Request, files: list[UploadFile] = File(), uid=Depends(current_user)
 ):
-    # Stream each file with a hard bound before retaining accepted bytes.
+    # Multipart files are already spooled by the request parser. Hash them in
+    # bounded chunks, then load only one accepted file at a time.
     from backend.db.connection import transaction
 
-    if not 1 <= len(files) <= 10:
-        raise ApiError("INVALID_FILE_COUNT", 422)
-    values = []
-    for f in files:
-        data = bytearray()
-        while part := await f.read(65536):
-            data.extend(part)
-            if len(data) > MAX_FILE_BYTES:
-                raise ApiError("FILE_TOO_LARGE", 413)
-        values.append((f.filename or "", bytes(data)))
-    with transaction(uid) as conn:
-        course(conn, cid, write=True)
+    try:
+        if not 1 <= len(files) <= 10:
+            raise ApiError("INVALID_FILE_COUNT", 422)
+        values = [await inspect_upload(file, MAX_FILE_BYTES) for file in files]
+        with transaction(uid) as conn:
+            course(conn, cid, write=True)
 
-        def accept():
-            results = []
-            for name, data in values:
-                try:
-                    with conn.begin_nested():
-                        result = accept_file(conn, cid, uid, name, data)
-                    results.append({"name": name, "data": result})
-                except (ApiError, ValueError) as exc:
-                    results.append(
-                        {"name": name, "error": {"code": getattr(exc, "code", "INVALID_DOCUMENT")}}
-                    )
-            return {"results": results}
+            def accept():
+                results = []
+                for file, summary in zip(files, values):
+                    if summary.error:
+                        results.append({"name": summary.name, "error": {"code": summary.error}})
+                        continue
+                    try:
+                        with conn.begin_nested():
+                            data = file.file.read(MAX_FILE_BYTES + 1)
+                            result = accept_file(conn, cid, uid, summary.name, data)
+                        results.append({"name": summary.name, "data": result})
+                    except (ApiError, ValueError) as exc:
+                        results.append(
+                            {
+                                "name": summary.name,
+                                "error": {"code": getattr(exc, "code", "INVALID_DOCUMENT")},
+                            }
+                        )
+                return {"results": results}
 
-        result = idempotent(
-            conn, request, [(name, sha256(data).hexdigest()) for name, data in values], accept
-        )
-        # Recheck every existing resource on replay; never serve cached titles/content.
-        for item in result["results"]:
-            if "data" in item:
-                material(conn, cid, UUID(item["data"]["materialId"]))
-        return {"data": result}
+            result = idempotent(conn, request, [(s.name, s.size, s.digest) for s in values], accept)
+            # Recheck access even when replaying the result of an earlier batch.
+            for item in result["results"]:
+                if "data" in item:
+                    material(conn, cid, UUID(item["data"]["materialId"]))
+            return {"data": result}
+    finally:
+        for file in files:
+            await file.close()
 
 
 @router.post("/courses/{cid}/materials/{mid}/versions", status_code=202)

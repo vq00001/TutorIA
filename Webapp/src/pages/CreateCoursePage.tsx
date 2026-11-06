@@ -6,6 +6,7 @@ import { PageHeading } from '../components/ui/PageHeading'
 import { useAppData } from '../contexts/AppDataContext'
 
 import { MaterialDropzone } from '../components/materials/MaterialDropzone'
+import { describeUploadResults } from '../services/uploadResults'
 
 export function CreateCoursePage() {
   const { addCourse, addMaterials } = useAppData()
@@ -17,6 +18,7 @@ export function CreateCoursePage() {
   const [materials, setMaterials] = useState<File[]>([])
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [createdCourseId, setCreatedCourseId] = useState<string|null>(null)
 
   function handleFiles(files: File[]) {
     if (!files) return
@@ -27,6 +29,10 @@ export function CreateCoursePage() {
 
     if (accepted.length !== files.length) {
       setNotice('Solo se admiten TXT y Markdown UTF-8 de hasta 30 MB.')
+    }
+    if (materials.length + accepted.length > 10) {
+      setNotice('Puedes adjuntar hasta 10 archivos al crear el curso.')
+      return
     }
 
     setMaterials((previous) => [...previous, ...accepted])
@@ -40,12 +46,14 @@ export function CreateCoursePage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    if (loading || createdCourseId) return
 
     if (!name.trim() || !description.trim() || !objectives.trim()) {
       setNotice('Completa todos los campos obligatorios.')
       return
     }
 
+    let createdId: string | null = null
     try {
       setLoading(true)
       setNotice('')
@@ -55,14 +63,20 @@ export function CreateCoursePage() {
         description: description.trim(),
         objectives: objectives.trim(),
       })
+      createdId = course.id
+      setCreatedCourseId(course.id)
 
       if (materials.length > 0) {
-        await addMaterials(course.id, materials)
+        const result = await addMaterials(course.id, materials)
+        if (result.results.some(item=>item.error)) {
+          setNotice(`El curso se creó. ${describeUploadResults(result.results)} Revisa los materiales para continuar.`)
+          return
+        }
       }
 
       navigate(`/cursos/${course.id}`)
     } catch {
-      setNotice('No se pudo crear el curso. Inténtalo nuevamente.')
+      setNotice(createdId ? 'El curso se creó, pero no pudimos confirmar la carga de los archivos. Revisa los materiales antes de volver a subirlos.' : 'No se pudo crear el curso. Inténtalo nuevamente.')
     } finally {
       setLoading(false)
     }
@@ -133,9 +147,10 @@ export function CreateCoursePage() {
 
             <div className="course-form-actions">
               <Link className="course-cancel" to="/">Cancelar</Link>
-              <button type="submit" disabled={loading}>
-                {loading ? 'Creando curso...' : 'Crear curso'}
+              <button type="submit" disabled={loading || Boolean(createdCourseId)}>
+                {loading ? 'Creando curso...' : createdCourseId ? 'Curso creado' : 'Crear curso'}
               </button>
+              {createdCourseId && <><Link to={`/cursos/${createdCourseId}`}>Abrir curso</Link><Link to={`/materiales?courseId=${createdCourseId}`}>Revisar materiales</Link></>}
             </div>
           </main>
 
@@ -147,7 +162,6 @@ export function CreateCoursePage() {
                 Agrega apuntes, guías y documentos para que tu tutor
                 pueda utilizarlos como contexto durante las sesiones.
               </p>
-              {/* TODO: Agregar archivos a carro con función  */}
               <MaterialDropzone onFiles={handleFiles} />
             </section>
 

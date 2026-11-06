@@ -1,10 +1,10 @@
 import base64
 from uuid import uuid4
 
-from backend.api.main import app
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+from backend.api.main import app
 from tests.integration.test_materials import configure
 
 
@@ -36,6 +36,7 @@ def test_registration_verification_session_csrf_and_revocation(database, monkeyp
         "backend.api.auth.send_token", lambda email, purpose, raw: sent.append((purpose, raw))
     )
     with TestClient(app, base_url="https://testserver") as client:
+        assert client.get("/api/v1/health").json() == {"status": "ok"}
         assert client.get("/api/v1/student/me").status_code == 401
         assert client.post("/api/v1/auth/register", json={}).status_code == 403
         csrf = client.get("/api/v1/auth/csrf").json()["data"]["csrfToken"]

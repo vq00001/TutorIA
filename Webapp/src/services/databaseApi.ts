@@ -1,5 +1,6 @@
 import type { ChatMessageDto, Course, DashboardSummary, GraphologyExport, JsonApiResponse, MaterialDto, NewCourse, StudentProfile } from '../types'
 import { allPages, request } from './http'
+import type { MaterialUploadResult } from './uploadResults'
 
 export interface TutorIADataApi {
   getStudentProfile(): Promise<JsonApiResponse<StudentProfile>>
@@ -10,7 +11,7 @@ export interface TutorIADataApi {
   getCourseMessages(courseId: string): Promise<JsonApiResponse<ChatMessageDto[]>>
   sendMessage(courseId: string, content: string): Promise<JsonApiResponse<ChatMessageDto[]>>
   getCourseGraph(courseId: string): Promise<JsonApiResponse<GraphologyExport>>
-  createCourseMaterials(courseId: string, files: File[]): Promise<JsonApiResponse<MaterialDto[]>>
+  createCourseMaterials(courseId: string, files: File[]): Promise<JsonApiResponse<MaterialDto[]> & { results: MaterialUploadResult[] }>
   deleteCourseMaterial(courseId: string, materialId: string): Promise<JsonApiResponse<{ deleted: boolean }>>
 }
 const conversations = new Map<string, string>()
@@ -57,10 +58,9 @@ export const databaseApi: TutorIADataApi = {
   async createCourseMaterials(id, files) {
     const body = new FormData()
     for (const file of files) body.append('files', file, file.name)
-    const result = await request<{data:{results:Array<{data?:unknown;error?:{code:string}}>}}>(`/courses/${id}/materials`, { method: 'POST', body })
-    const errors = result.data.results.filter(r => r.error)
-    if (errors.length) throw new Error(errors.map(r => r.error?.code).join(', '))
-    return this.getCourseMaterials(id)
+    const result = await request<{data:{results:MaterialUploadResult[]}}>(`/courses/${id}/materials`, { method: 'POST', body })
+    const materials = await this.getCourseMaterials(id)
+    return { ...materials, results: result.data.results }
   },
   async deleteCourseMaterial(id, mid) {
     await request(`/courses/${id}/materials/${mid}`, { method: 'DELETE' })

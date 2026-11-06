@@ -8,6 +8,7 @@ from sqlalchemy import text
 from backend.api.common import enqueue, json_value
 from backend.db.connection import one, transaction
 from backend.services.documents import validate_file
+from backend.services.embedding_migrations import prepare_run, try_cutover
 
 
 def source_chunks(content, config):
@@ -249,6 +250,10 @@ def ingest(job, lease):
             ),
             dict(id=run["id"]),
         )
+        if run["embedding_space_id"] != config["active_space_id"]:
+            try_cutover(conn, job["course_id"])
+            lease.complete(conn)
+            return
         conn.execute(
             text("UPDATE app.document_versions SET status='ready',error_code=NULL WHERE id=:id"),
             dict(id=run["version_id"]),
@@ -267,4 +272,15 @@ def ingest(job, lease):
             dict(id=job["course_id"]),
         )
         enqueue(conn, "extract_concepts", run["id"], job["course_id"], job["requested_by"])
+        if config["pending_space_id"]:
+            prepare_run(
+                conn,
+                job["course_id"],
+                run["document_id"],
+                run["version_id"],
+                config["pending_space_id"],
+                job["requested_by"],
+                run["parameters"],
+            )
+            try_cutover(conn, job["course_id"])
         lease.complete(conn)

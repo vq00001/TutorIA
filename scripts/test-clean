@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ "$#" -ne 2 ] || [ "$1" != "--run-id" ]; then
+  echo 'Usage: scripts/test-clean --run-id <canonical-uuid>' >&2
+  exit 2
+fi
+exec "$SCRIPT_DIR/../backend/.venv/bin/python" "$SCRIPT_DIR/test_runner.py" --clean-run-id "$2"

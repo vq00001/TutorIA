@@ -148,14 +148,6 @@ def send(
             id=tid,
         ):
             raise ApiError("GENERATION_IN_PROGRESS")
-        if (
-            one(
-                conn,
-                "SELECT count(*) AS n FROM app.generation_runs WHERE user_id=auth.uid() AND status IN ('queued','running')",
-            )["n"]
-            >= 2
-        ):
-            raise ApiError("GENERATION_QUOTA_EXCEEDED", 429)
         n = one(
             conn,
             "SELECT coalesce(max(sequence_no),0)+1 AS n FROM app.messages WHERE conversation_id=:id",

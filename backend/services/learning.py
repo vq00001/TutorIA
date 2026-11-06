@@ -3,6 +3,14 @@
 from decimal import Decimal
 from heapq import heappop, heappush
 
+MASTERY_VERSION = "beta_v1"
+ROADMAP_VERSION = "toposort_v1"
+ROADMAP_PARAMETERS = {
+    "level_order": ["reinforce", "developing", "unknown", "mastered"],
+    "tie_breakers": ["canonical_key", "id"],
+    "dependencies": ["prerequisite"],
+}
+
 
 def mastery(events):
     alpha = beta = Decimal(1)
@@ -30,7 +38,7 @@ def mastery(events):
         evidenceCount=count,
         level=level,
         masteryScore=score if count else None,
-        algorithmVersion="beta_v1",
+        algorithmVersion=MASTERY_VERSION,
     )
 
 
@@ -53,7 +61,7 @@ def roadmap(concepts, edges, goals):
         if cid not in required:
             required.add(cid)
             pending.extend(parents[cid])
-    rank = {"reinforce": 0, "developing": 1, "unknown": 2, "mastered": 3}
+    rank = {level: index for index, level in enumerate(ROADMAP_PARAMETERS["level_order"])}
     degrees = {cid: len(parents[cid] & required) for cid in required}
     heap = []
 
@@ -69,7 +77,9 @@ def roadmap(concepts, edges, goals):
         _, _, cid = heappop(heap)
         c = by_id[cid]
         state = (
-            "completed"
+            "blocked"
+            if c.get("status", "approved") != "approved"
+            else "completed"
             if c.get("level") == "mastered"
             else "blocked"
             if not c.get("has_source", False)
@@ -81,7 +91,11 @@ def roadmap(concepts, edges, goals):
                 position=len(result) + 1,
                 state=state,
                 estimatedMinutes=c["estimated_minutes"],
-                reason="NO_SOURCE" if state == "blocked" else "prerequisite_order",
+                reason="RETIRED_CONCEPT"
+                if c.get("status") == "retired"
+                else "NO_SOURCE"
+                if state == "blocked"
+                else "prerequisite_order",
             )
         )
         for child in children[cid] & required:

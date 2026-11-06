@@ -1,0 +1,1468 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "DAT-01",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_01_03_rls_and_pool_context"
+      ]
+    },
+    {
+      "id": "DAT-02",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_02_private_conversation"
+      ]
+    },
+    {
+      "id": "DAT-03",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_01_03_rls_and_pool_context"
+      ]
+    },
+    {
+      "id": "DAT-04",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_04_10_11_vectors_and_course_scope"
+      ]
+    },
+    {
+      "id": "DAT-05",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_documents.py::test_DAT_05_decimal_byte_boundary"
+      ]
+    },
+    {
+      "id": "DAT-06",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_documents.py::test_DAT_06_strict_utf8_and_markdown"
+      ]
+    },
+    {
+      "id": "DAT-07",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_http_auth.py::test_registration_verification_session_csrf_and_revocation"
+      ]
+    },
+    {
+      "id": "DAT-08",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_08_failed_replacement_preserves_published_original"
+      ]
+    },
+    {
+      "id": "DAT-09",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_09_expired_lease_cannot_publish"
+      ]
+    },
+    {
+      "id": "DAT-10",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_04_10_11_vectors_and_course_scope"
+      ]
+    },
+    {
+      "id": "DAT-11",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_04_10_11_vectors_and_course_scope"
+      ]
+    },
+    {
+      "id": "DAT-12",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_embedding_migration.py::test_DAT_12_all_document_pointers_switch_with_query_space",
+        "tests/integration/test_embedding_migration.py::test_upload_during_pending_migration_gets_both_spaces",
+        "tests/integration/test_embedding_migration.py::test_cancel_pending_migration_keeps_old_corpus"
+      ]
+    },
+    {
+      "id": "DAT-13",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_13_cycle_rejected_in_sql"
+      ]
+    },
+    {
+      "id": "DAT-14",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_14_last_coordinator"
+      ]
+    },
+    {
+      "id": "DAT-15",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_api_integrity.py::test_duplicate_foreign_options_and_closed_attempt_cannot_save"
+      ]
+    },
+    {
+      "id": "DAT-16",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision"
+      ]
+    },
+    {
+      "id": "DAT-17",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_api_integrity.py::test_duplicate_foreign_options_and_closed_attempt_cannot_save"
+      ]
+    },
+    {
+      "id": "DAT-18",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence"
+      ]
+    },
+    {
+      "id": "DAT-19",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision",
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence"
+      ]
+    },
+    {
+      "id": "DAT-20",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "implemented",
+      "tests": [
+        "backend/tests/test_learning.py::test_DAT_20_mastery"
+      ]
+    },
+    {
+      "id": "DAT-21",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_learning.py::test_DAT_21_prerequisite_closure_and_stable_ties",
+        "backend/tests/test_learning.py::test_retired_prerequisite_remains_blocked_even_if_previously_mastered",
+        "tests/integration/test_roadmap_refresh.py::test_retired_prerequisite_is_retained_as_blocked_instead_of_omitted"
+      ]
+    },
+    {
+      "id": "DAT-22",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "DAT-23",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "DAT-24",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_embedding_migration.py::test_DAT_24_withdrawal_hides_originals_and_fragments_before_purge",
+        "tests/integration/test_grading_integrity.py::test_source_withdrawal_cancels_active_generations_and_redacts_every_derived_message"
+      ]
+    },
+    {
+      "id": "DAT-25",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_failed_exam_keeps_input_lineage_and_source_removal_redacts_its_title",
+        "tests/integration/test_purge.py::test_DAT_25_document_purge_redacts_source_derivatives"
+      ]
+    },
+    {
+      "id": "DAT-26",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_backup_restore.py::test_DAT_26_restore_replays_external_ledger_before_opening_gate",
+        "tests/integration/test_backup_restore.py::test_restore_verifier_rejects_disabled_row_security"
+      ]
+    },
+    {
+      "id": "DAT-27",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_generation_quotas.py::test_active_generation_hidden_by_departure_still_uses_the_user_slot"
+      ]
+    },
+    {
+      "id": "DAT-28",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence"
+      ]
+    },
+    {
+      "id": "TEST-001",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts"
+      ]
+    },
+    {
+      "id": "TEST-002",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-003",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_runner_control.py::test_signal_handler_keeps_the_original_signal_number"
+      ]
+    },
+    {
+      "id": "TEST-004",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_control.py::test_TEST_004_live_owner_is_never_reconciled"
+      ]
+    },
+    {
+      "id": "TEST-005",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-006",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-007",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_control.py::test_TEST_007_host_credentials_are_not_inherited"
+      ]
+    },
+    {
+      "id": "TEST-008",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_control.py::test_TEST_008_unsafe_rendered_configuration_is_rejected"
+      ]
+    },
+    {
+      "id": "TEST-009",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_control.py::test_TEST_009_run_ids_cannot_be_fuzzy",
+        "tests/harness/test_control.py::test_TEST_009_cleanup_path_must_be_exact"
+      ]
+    },
+    {
+      "id": "TEST-010",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_control.py::test_TEST_008_unsafe_rendered_configuration_is_rejected"
+      ]
+    },
+    {
+      "id": "TEST-011",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-012",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-013",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_01_03_rls_and_pool_context"
+      ]
+    },
+    {
+      "id": "TEST-014",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-015",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-016",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_04_10_11_vectors_and_course_scope",
+        "tests/integration/test_api_integrity.py::test_duplicate_foreign_options_and_closed_attempt_cannot_save"
+      ]
+    },
+    {
+      "id": "TEST-017",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_api_integrity.py::test_public_text_is_trimmed_but_password_whitespace_is_preserved",
+        "tests/integration/test_api_integrity.py::test_registration_and_recovery_do_not_disclose_existing_email"
+      ]
+    },
+    {
+      "id": "TEST-018",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_http_auth.py::test_registration_verification_session_csrf_and_revocation",
+        "tests/integration/test_api_integrity.py::test_registration_and_recovery_do_not_disclose_existing_email",
+        "tests/integration/test_api_integrity.py::test_suspended_account_cannot_consume_pending_verification_token"
+      ]
+    },
+    {
+      "id": "TEST-019",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_http_auth.py::test_registration_verification_session_csrf_and_revocation",
+        "tests/integration/test_api_integrity.py::test_email_change_keeps_original_until_verification_then_revokes_sessions"
+      ]
+    },
+    {
+      "id": "TEST-020",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-021",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_01_03_rls_and_pool_context",
+        "tests/integration/test_database.py::test_DAT_02_private_conversation"
+      ]
+    },
+    {
+      "id": "TEST-022",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_backup_restore.py::test_restore_verifier_rejects_disabled_row_security",
+        "tests/integration/test_roadmap_refresh.py::test_catalogs_and_published_roadmap_contents_are_immutable"
+      ]
+    },
+    {
+      "id": "TEST-023",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_14_last_coordinator",
+        "tests/integration/test_purge.py::test_account_delete_rejects_last_coordinator"
+      ]
+    },
+    {
+      "id": "TEST-024",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_generation_quotas.py::test_active_generation_hidden_by_departure_still_uses_the_user_slot"
+      ]
+    },
+    {
+      "id": "TEST-025",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts"
+      ]
+    },
+    {
+      "id": "TEST-026",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_upload_quotas.py::test_mixed_batch_keeps_valid_files_closes_streams_and_replays_without_new_usage",
+        "backend/tests/test_documents.py::test_DAT_05_decimal_byte_boundary"
+      ]
+    },
+    {
+      "id": "TEST-027",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_documents.py::test_DAT_06_strict_utf8_and_markdown",
+        "backend/tests/test_documents.py::test_invalid_material"
+      ]
+    },
+    {
+      "id": "TEST-028",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_upload_quotas.py::test_course_quota_counts_withdrawn_originals_hidden_by_rls",
+        "tests/integration/test_upload_quotas.py::test_daily_quota_survives_purge_counts_other_courses_and_expires",
+        "tests/integration/test_upload_quotas.py::test_simultaneous_uploads_to_different_courses_cannot_exceed_user_quota",
+        "tests/integration/test_generation_quotas.py::test_cross_course_generation_race_reserves_only_the_remaining_slot",
+        "tests/integration/test_generation_quotas.py::test_versioned_limit_releases_terminal_slots_and_idempotent_replay_needs_no_slot",
+        "tests/integration/test_generation_quotas.py::test_active_generation_hidden_by_departure_still_uses_the_user_slot"
+      ]
+    },
+    {
+      "id": "TEST-029",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_08_failed_replacement_preserves_published_original",
+        "tests/integration/test_embedding_migration.py::test_DAT_12_all_document_pointers_switch_with_query_space"
+      ]
+    },
+    {
+      "id": "TEST-030",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_08_failed_replacement_preserves_published_original",
+        "tests/integration/test_materials.py::test_DAT_09_expired_lease_cannot_publish"
+      ]
+    },
+    {
+      "id": "TEST-031",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_documents.py::test_source_offsets_preserve_unicode"
+      ]
+    },
+    {
+      "id": "TEST-032",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_documents.py::test_invalid_vectors",
+        "backend/tests/test_documents.py::test_vector_normalization",
+        "backend/tests/test_documents.py::test_large_finite_vectors_normalize_without_overflow",
+        "tests/integration/test_materials.py::test_DAT_04_10_11_vectors_and_course_scope"
+      ]
+    },
+    {
+      "id": "TEST-033",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_materials.py::test_DAT_04_10_11_vectors_and_course_scope"
+      ]
+    },
+    {
+      "id": "TEST-034",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-035",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_embedding_migration.py::test_DAT_12_all_document_pointers_switch_with_query_space",
+        "tests/integration/test_embedding_migration.py::test_upload_during_pending_migration_gets_both_spaces",
+        "tests/integration/test_embedding_migration.py::test_cancel_pending_migration_keeps_old_corpus"
+      ]
+    },
+    {
+      "id": "TEST-036",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "not_applicable",
+      "tests": [],
+      "justification": "No HNSW index or ANN retrieval is enabled; exact pgvector is the only implemented retrieval path."
+    },
+    {
+      "id": "TEST-037",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts",
+        "tests/integration/test_database.py::test_DAT_02_private_conversation"
+      ]
+    },
+    {
+      "id": "TEST-038",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts"
+      ]
+    },
+    {
+      "id": "TEST-039",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-040",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_http_auth.py::test_registration_verification_session_csrf_and_revocation",
+        "tests/integration/test_upload_quotas.py::test_mixed_batch_keeps_valid_files_closes_streams_and_replays_without_new_usage"
+      ]
+    },
+    {
+      "id": "TEST-041",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_api_contracts.py::test_stable_cursor_round_trip",
+        "backend/tests/test_api_contracts.py::test_untrusted_cursor_shape_rejected",
+        "backend/tests/test_api_contracts.py::test_missing_cursor_is_initial_page_and_size_is_bounded",
+        "backend/tests/test_serialization.py::test_timestamps_are_utc_but_source_text_is_preserved",
+        "backend/tests/test_api_contracts.py::test_database_generation_quota_maps_to_public_429_without_database_details"
+      ]
+    },
+    {
+      "id": "TEST-042",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-043",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-044",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_embedding_migration.py::test_DAT_24_withdrawal_hides_originals_and_fragments_before_purge",
+        "tests/integration/test_grading_integrity.py::test_source_withdrawal_cancels_active_generations_and_redacts_every_derived_message"
+      ]
+    },
+    {
+      "id": "TEST-045",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-046",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_database.py::test_DAT_13_cycle_rejected_in_sql"
+      ]
+    },
+    {
+      "id": "TEST-047",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts",
+        "tests/integration/test_roadmap_refresh.py::test_retired_prerequisite_is_retained_as_blocked_instead_of_omitted"
+      ]
+    },
+    {
+      "id": "TEST-048",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision"
+      ]
+    },
+    {
+      "id": "TEST-049",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts",
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision"
+      ]
+    },
+    {
+      "id": "TEST-050",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_api_integrity.py::test_duplicate_foreign_options_and_closed_attempt_cannot_save"
+      ]
+    },
+    {
+      "id": "TEST-051",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-052",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_api_integrity.py::test_duplicate_foreign_options_and_closed_attempt_cannot_save",
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision"
+      ]
+    },
+    {
+      "id": "TEST-053",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence",
+        "tests/integration/test_api_integrity.py::test_grade_range_and_review_null_invariant"
+      ]
+    },
+    {
+      "id": "TEST-054",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence"
+      ]
+    },
+    {
+      "id": "TEST-055",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_learning.py::test_DAT_20_mastery",
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision",
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence"
+      ]
+    },
+    {
+      "id": "TEST-056",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_learning.py::test_mastery_bounds_and_rebuild",
+        "tests/integration/test_grading_integrity.py::test_only_first_graded_attempt_contributes_and_replay_does_not_bump_revision"
+      ]
+    },
+    {
+      "id": "TEST-057",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_learning.py::test_DAT_21_prerequisite_closure_and_stable_ties",
+        "backend/tests/test_learning.py::test_topological_chain_never_omits_ancestors",
+        "tests/integration/test_roadmap_refresh.py::test_default_goal_is_reused_and_only_it_gains_new_approved_concepts"
+      ]
+    },
+    {
+      "id": "TEST-058",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_roadmap_refresh.py::test_default_goal_is_reused_and_only_it_gains_new_approved_concepts",
+        "tests/integration/test_roadmap_refresh.py::test_grading_enqueues_fenced_refresh_without_changing_published_snapshot",
+        "tests/integration/test_roadmap_refresh.py::test_retired_prerequisite_is_retained_as_blocked_instead_of_omitted"
+      ]
+    },
+    {
+      "id": "TEST-059",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-060",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-061",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-062",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_generation_quotas.py::test_expired_leases_retry_with_jitter_then_release_the_generation_slot",
+        "tests/integration/test_roadmap_refresh.py::test_grading_enqueues_fenced_refresh_without_changing_published_snapshot"
+      ]
+    },
+    {
+      "id": "TEST-063",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_generation_quotas.py::test_expired_leases_retry_with_jitter_then_release_the_generation_slot",
+        "tests/integration/test_generation_quotas.py::test_unclaimable_job_is_reconciled_without_an_execution"
+      ]
+    },
+    {
+      "id": "TEST-064",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-065",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_grading_integrity.py::test_invalid_llm_grade_retries_append_revision_and_manual_self_removes_evidence"
+      ]
+    },
+    {
+      "id": "TEST-066",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-067",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_purge.py::test_DAT_25_document_purge_redacts_source_derivatives",
+        "tests/integration/test_grading_integrity.py::test_failed_exam_keeps_input_lineage_and_source_removal_redacts_its_title"
+      ]
+    },
+    {
+      "id": "TEST-068",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_purge.py::test_account_purge_preserves_shared_materials_and_other_accounts",
+        "tests/integration/test_purge.py::test_course_purge_requires_confirmation_and_keeps_global_users",
+        "tests/integration/test_purge.py::test_account_delete_rejects_last_coordinator"
+      ]
+    },
+    {
+      "id": "TEST-069",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_purge.py::test_retention_does_not_remove_an_old_active_original",
+        "tests/integration/test_upload_quotas.py::test_daily_quota_survives_purge_counts_other_courses_and_expires",
+        "backend/tests/test_operations.py::test_ledger_expiry_uses_authenticated_time_not_file_mtime"
+      ]
+    },
+    {
+      "id": "TEST-070",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/integration/test_backup_restore.py::test_DAT_26_restore_replays_external_ledger_before_opening_gate"
+      ]
+    },
+    {
+      "id": "TEST-071",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_operations.py::test_backup_envelope_roundtrip_authenticates_all_archive_bytes",
+        "backend/tests/test_operations.py::test_backup_metadata_tampering_is_not_accepted",
+        "backend/tests/test_operations.py::test_restore_refuses_production_name_before_touching_database",
+        "tests/integration/test_backup_restore.py::test_restore_verifier_rejects_disabled_row_security"
+      ]
+    },
+    {
+      "id": "TEST-072",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_worker_diagnostics.py::test_worker_diagnostic_exposes_category_and_sqlstate_without_sql_or_messages"
+      ]
+    },
+    {
+      "id": "TEST-073",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts"
+      ]
+    },
+    {
+      "id": "TEST-074",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "Webapp/src/pages/MaterialsPage.test.tsx",
+        "Webapp/src/components/GraphActions.test.tsx"
+      ]
+    },
+    {
+      "id": "TEST-075",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/e2e/learning-flow.spec.ts",
+        "tests/integration/test_http_auth.py::test_registration_verification_session_csrf_and_revocation"
+      ]
+    },
+    {
+      "id": "TEST-076",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-077",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_learning.py::test_topological_chain_never_omits_ancestors"
+      ]
+    },
+    {
+      "id": "TEST-078",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "backend/tests/test_learning.py::test_mastery_bounds_and_rebuild"
+      ]
+    },
+    {
+      "id": "TEST-079",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-080",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-081",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-082",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    },
+    {
+      "id": "TEST-083",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "partial",
+      "tests": [
+        "tests/harness/test_control.py::test_expected_manifest_is_within_budget",
+        "tests/harness/test_control.py::test_TEST_008_unsafe_rendered_configuration_is_rejected"
+      ]
+    },
+    {
+      "id": "TEST-084",
+      "profiles": [
+        "standard",
+        "full",
+        "live-ai",
+        "performance"
+      ],
+      "status": "missing",
+      "tests": []
+    }
+  ]
+}

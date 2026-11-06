@@ -1,9 +1,10 @@
 from decimal import Decimal
 
 import pytest
-from backend.services.learning import mastery, roadmap
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from backend.services.learning import mastery, roadmap
 
 
 @pytest.mark.parametrize(
@@ -59,3 +60,10 @@ def test_topological_chain_never_omits_ancestors(n):
     edges = [(str(i), str(i + 1)) for i in range(n - 1)]
     steps = roadmap(nodes, edges, [str(n - 1)])
     assert [s["conceptId"] for s in steps] == [str(i) for i in range(n)]
+
+
+def test_retired_prerequisite_remains_blocked_even_if_previously_mastered():
+    retired = {**node("a", "mastered"), "status": "retired"}
+    steps = roadmap([retired, node("b")], [("a", "b")], ["b"])
+    assert [step["conceptId"] for step in steps] == ["a", "b"]
+    assert steps[0]["state"] == "blocked" and steps[0]["reason"] == "RETIRED_CONCEPT"

@@ -1,3 +1,5 @@
+import json
+import re
 import time
 from datetime import datetime, timezone
 from socket import gethostname
@@ -11,6 +13,44 @@ from backend.workers.concepts import extract_concepts
 from backend.workers.exams import generate_exam, grade_attempt
 from backend.workers.ingest import ingest
 from backend.workers.purge import purge
+from backend.workers.roadmaps import refresh_roadmap
+
+
+def failure_diagnostic(kind, exc):
+    """Allowlisted diagnostics: never include provider/SQL exception messages."""
+    category = type(exc).__name__
+    sqlstate = getattr(getattr(exc, "orig", None), "sqlstate", None)
+    return {
+        "event": "worker_failure",
+        "kind": kind
+        if kind
+        in {
+            "ingest_document",
+            "generate_chat",
+            "generate_exam",
+            "grade_attempt",
+            "purge",
+            "extract_concepts",
+            "refresh_roadmap",
+        }
+        else "unknown",
+        "category": category
+        if category
+        in {
+            "ValueError",
+            "ValidationError",
+            "IntegrityError",
+            "ProgrammingError",
+            "OperationalError",
+            "HTTPError",
+            "ConnectionError",
+            "ReadTimeout",
+        }
+        else "ProcessingError",
+        "sqlState": sqlstate
+        if isinstance(sqlstate, str) and re.fullmatch(r"[A-Z0-9]{5}", sqlstate)
+        else None,
+    }
 
 
 class Lease:
@@ -37,6 +77,17 @@ class Lease:
         while not self.stop.wait(30):
             try:
                 with transaction(self.job["requested_by"]) as conn:
+                    if self.job["kind"] == "purge":
+                        renewed = one(
+                            conn,
+                            "SELECT auth.heartbeat_purge_job(:id,:token) AS renewed",
+                            id=self.job["id"],
+                            token=self.job["lease_token"],
+                        )
+                        if not renewed["renewed"]:
+                            self.lost.set()
+                            return
+                        continue
                     row = one(
                         conn,
                         """UPDATE app.jobs SET lease_until=clock_timestamp()+interval '120 seconds'
@@ -77,8 +128,11 @@ class Lease:
 def main():
     while True:
         with transaction() as conn:
-            conn.execute(text("SELECT auth.recover_jobs()"))
-            job = one(conn, "SELECT * FROM auth.claim_job(:worker)", worker=gethostname())
+            if one(conn, "SELECT auth.restore_is_ready() AS ready")["ready"]:
+                conn.execute(text("SELECT auth.recover_jobs()"))
+                job = one(conn, "SELECT * FROM auth.claim_job(:worker)", worker=gethostname())
+            else:
+                job = None
         if not job:
             time.sleep(1)
             continue
@@ -92,17 +146,25 @@ def main():
                 "grade_attempt": grade_attempt,
                 "purge": purge,
                 "extract_concepts": extract_concepts,
+                "refresh_roadmap": refresh_roadmap,
             }
             if job["kind"] not in handlers:
                 raise ValueError("UNKNOWN_JOB_KIND")
             handlers[job["kind"]](job, lease)
         except Exception as exc:
+            print(json.dumps(failure_diagnostic(job["kind"], exc)), flush=True)
             code = (
                 str(exc)
                 if isinstance(exc, ValueError) and str(exc).isupper() and len(str(exc)) < 80
                 else "PROCESSING_FAILED"
             )
             with transaction(job["requested_by"]) as conn:
+                if job["kind"] == "purge":
+                    conn.execute(
+                        text("SELECT auth.fail_purge_job(:id,:token,:code)"),
+                        dict(id=job["id"], token=job["lease_token"], code=code),
+                    )
+                    continue
                 updated = one(
                     conn,
                     """UPDATE app.jobs SET state='failed',error_code=:code,lease_token=NULL,lease_until=NULL

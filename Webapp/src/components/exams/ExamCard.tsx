@@ -7,6 +7,7 @@ export function ExamCard({ exam, courseId, onReschedule }: { exam: ExamSummary; 
   const completed = exam.status === 'completed'
   const available = exam.status === 'available'
   const date = new Date(exam.scheduledAt)
+  const attemptPath=`/cursos/${courseId}/examen/${exam.id}${exam.attemptId?'?attemptId='+encodeURIComponent(exam.attemptId):''}`
   const dateLabel = available ? 'Disponible ahora' : date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
 
   return <article className="exam-card">
@@ -17,9 +18,10 @@ export function ExamCard({ exam, courseId, onReschedule }: { exam: ExamSummary; 
       <div className="exam-topics">{exam.topics.map((topic) => <span key={topic}>{topic}</span>)}</div>
     </div>
     <div className="exam-card-actions">
-      {available && <Link className="primary-button" to={`/cursos/${courseId}/examen/${exam.id}`}>Comenzar <ArrowRight size={15} /></Link>}
+      {available && <Link className="primary-button" to={attemptPath}>{exam.attemptId?'Continuar':'Comenzar'} <ArrowRight size={15} /></Link>}
       {!completed && onReschedule && <button className="secondary-button" onClick={() => onReschedule(exam)}><RotateCcw size={14} /> Reprogramar</button>}
-      {completed && <Link className="secondary-button" to={`/cursos/${courseId}/examen/${exam.id}`}>Ver revisión <ArrowRight size={14} /></Link>}
+      {exam.attemptStatus==='needs_review'&&<span>Pendiente de revisión · sin puntaje final</span>}
+      {completed && exam.attemptId && <Link className="secondary-button" to={attemptPath}>Ver revisión <ArrowRight size={14} /></Link>}
     </div>
   </article>
 }

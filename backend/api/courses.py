@@ -1,11 +1,13 @@
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import Field
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from backend.api.auth import Input
 from backend.api.common import ApiError, connection, course, idempotent, match
+from backend.api.cursors import decode_cursor, encode_cursor
 from backend.db.connection import one, rows
 from backend.security.tokens import digest, token
 
@@ -26,8 +28,55 @@ class AcceptInvite(Input):
     token: str = Field(min_length=20, max_length=128)
 
 
-def dto(c):
-    return dict(
+class CourseDto(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    objectives: str
+    subject: str
+    color: str
+    icon: str
+    rowVersion: int
+    myRole: str
+    status: str
+    corpusRevision: int
+    graphRevision: int
+    progress: float
+    nextTopic: str
+    lastActivity: datetime | None
+
+
+def dto(c, conn):
+    metrics = one(
+        conn,
+        """SELECT
+      (SELECT count(*) FROM app.concepts WHERE course_id=:cid AND status='approved') total,
+      (SELECT count(*) FROM app.concept_mastery m JOIN app.concepts p ON p.id=m.concept_id AND p.course_id=m.course_id
+         WHERE m.course_id=:cid AND m.user_id=auth.uid() AND m.level='mastered' AND p.status='approved') mastered,
+      (SELECT max(at) FROM (
+         SELECT created_at at FROM app.messages WHERE course_id=:cid AND user_id=auth.uid()
+         UNION ALL SELECT coalesce(submitted_at,started_at) FROM app.exam_attempts WHERE course_id=:cid AND user_id=auth.uid()
+         UNION ALL SELECT last_heartbeat_at FROM app.study_sessions WHERE course_id=:cid AND user_id=auth.uid()) a) last_activity""",
+        cid=c["id"],
+    )
+    next_step = one(
+        conn,
+        """SELECT p.label FROM app.roadmaps r JOIN app.roadmap_steps s ON s.roadmap_id=r.id
+      JOIN app.concepts p ON p.course_id=s.course_id AND p.id=s.concept_id
+      JOIN app.learning_profiles lp ON lp.course_id=r.course_id AND lp.user_id=r.user_id
+      JOIN app.learning_goals g ON g.id=r.goal_id
+      WHERE r.course_id=:cid AND r.user_id=auth.uid() AND r.status='active' AND g.status='active'
+      AND r.corpus_revision=:cr AND r.graph_revision=:gr AND r.mastery_revision=lp.mastery_revision
+      AND s.state IN ('pending','in_progress') AND p.status='approved'
+      AND NOT EXISTS(SELECT FROM app.concept_edges e JOIN app.roadmap_steps pre
+        ON pre.roadmap_id=r.id AND pre.concept_id=e.source_id
+        WHERE e.course_id=r.course_id AND e.target_id=s.concept_id AND e.relation='prerequisite' AND e.status='approved' AND pre.state<>'completed')
+      ORDER BY r.created_at DESC,r.id,s.position LIMIT 1""",
+        cid=c["id"],
+        cr=c["corpus_revision"],
+        gr=c["graph_revision"],
+    )
+    return CourseDto(
         id=c["id"],
         name=c["name"],
         description=c["description"],
@@ -40,29 +89,35 @@ def dto(c):
         status=c["status"],
         corpusRevision=c["corpus_revision"],
         graphRevision=c["graph_revision"],
-        progress=0,
-        nextTopic="",
-        lastActivity=None,
-    )
+        progress=100 * metrics["mastered"] / metrics["total"] if metrics["total"] else 0,
+        nextTopic=next_step["label"] if next_step else "",
+        lastActivity=metrics["last_activity"],
+    ).model_dump()
 
 
 @router.get("/courses")
 def list_courses(
-    limit: int = 50, cursor: UUID | None = None, conn=Depends(connection, scope="function")
+    limit: int = 50, cursor: str | None = None, conn=Depends(connection, scope="function")
 ):
     if not 1 <= limit <= 100:
         raise ApiError("INVALID_LIMIT", 422)
+    after_at, after_id = decode_cursor(cursor)
     result = rows(
         conn,
         """SELECT c.*,m.role my_role FROM app.courses c JOIN app.memberships m
        ON m.course_id=c.id AND m.user_id=auth.uid() AND m.status='active'
-       WHERE (CAST(:cursor AS uuid) IS NULL OR c.id>CAST(:cursor AS uuid)) ORDER BY c.id LIMIT :limit""",
-        cursor=str(cursor) if cursor else None,
+       WHERE (CAST(:after_at AS timestamptz) IS NULL OR (c.created_at,c.id)>(CAST(:after_at AS timestamptz),CAST(:after_id AS uuid))) ORDER BY c.created_at,c.id LIMIT :limit""",
+        after_at=after_at,
+        after_id=after_id,
         limit=limit + 1,
     )
     return {
-        "data": [dto(c) for c in result[:limit]],
-        "meta": {"nextCursor": str(result[limit - 1]["id"]) if len(result) > limit else None},
+        "data": [dto(c, conn) for c in result[:limit]],
+        "meta": {
+            "nextCursor": encode_cursor(result[limit - 1]["created_at"], result[limit - 1]["id"])
+            if len(result) > limit
+            else None
+        },
     }
 
 
@@ -87,12 +142,12 @@ def create_course(body: CourseInput, request: Request, conn=Depends(connection, 
         return {"id": str(cid)}
 
     resource = idempotent(conn, request, body.model_dump(), create)
-    return {"data": dto(course(conn, UUID(resource["id"])))}
+    return {"data": dto(course(conn, UUID(resource["id"])), conn)}
 
 
 @router.get("/courses/{cid}")
 def get_course(cid: UUID, conn=Depends(connection, scope="function")):
-    return {"data": dto(course(conn, cid))}
+    return {"data": dto(course(conn, cid), conn)}
 
 
 @router.patch("/courses/{cid}")
@@ -144,7 +199,7 @@ def accept(body: AcceptInvite, request: Request, conn=Depends(connection, scope=
         return {"id": str(result["id"])}
 
     resource = idempotent(conn, request, body.model_dump(), perform)
-    return {"data": dto(course(conn, UUID(resource["id"])))}
+    return {"data": dto(course(conn, UUID(resource["id"])), conn)}
 
 
 class MemberInput(Input):
