@@ -1,72 +1,18 @@
-"""Orquestación de ingestión y recuperación del pipeline RAG."""
-
-from __future__ import annotations
-
+"""Offline preview and authenticated HTTP ingestion; SQL writes belong to workers."""
 from pathlib import Path
-from typing import Any
+from uuid import uuid4
 
 from .chunking import chunk_text
-from .config import Config
-from .context import generate_chunk_context
-from .documents import document_id, read_document
-from .embeddings import embed
-from .models import Child, Parent
-from .vector_store import QdrantStore
+from .documents import read_document
 
 
-def prepare_document(
-    config: Config, file: Path, root: Path | None = None
-) -> tuple[list[Parent], list[Child]]:
-    """Lee y chunkea un archivo sin llamar todavía a Ollama ni Qdrant."""
-    return chunk_text(read_document(file), document_id(file, root), config)
+def prepare_document(config,file:Path,root:Path|None=None):
+    return chunk_text(read_document(file),str(uuid4()),config)
 
 
-def ingest_document(
-    config: Config, file: Path, root: Path | None = None
-) -> tuple[int, int]:
-    """Indexa un documento: lectura, chunking, embeddings y persistencia."""
-    parents, children = prepare_document(config, file, root)
-    if not children:
-        return 0, 0
-    if config.use_context:
-        # El contexto se genera una sola vez por parent, no una vez por child.
-        contexts = {
-            parent.id: generate_chunk_context(
-                config,
-                " > ".join([Path(parent.doc_id).stem, *parent.path]),
-                parent.text,
-            )
-            for parent in parents
-        }
-        for child in children:
-            context = contexts[child.parent_id]
-            child.embed_text = "\n".join(
-                value for value in (child.embed_text, context) if value
-            )
-    vectors = embed(config, [child.embed_text for child in children])
-    store = QdrantStore(config)
-    store.ensure_collections(len(vectors[0]))
-    store.save(parents, children, vectors)
-    return len(parents), len(children)
+def ingest_document(config,file:Path,root:Path|None=None):
+    raise RuntimeError('Use authenticated POST /api/v1/courses/{courseId}/materials; direct CLI writes are disabled')
 
 
-def retrieve_documents(
-    config: Config,
-    question: str,
-    limit: int | None = None,
-    score_threshold: float | None = None,
-) -> list[dict[str, Any]]:
-    """Recupera parents relevantes para una pregunta mediante búsqueda semántica."""
-    if not question.strip():
-        raise ValueError("La pregunta no puede estar vacía")
-    limit = limit or config.limit_query
-    if limit <= 0:
-        raise ValueError("El límite debe ser mayor que cero")
-    vectors = embed(config, [question])
-    store = QdrantStore(config)
-    store.ensure_collections(len(vectors[0]))
-    results = store.search(vectors[0], limit)
-    threshold = (
-        config.similarity_threshold if score_threshold is None else score_threshold
-    )
-    return [result for result in results if result["score"] >= threshold]
+def retrieve_documents(config,question,limit=None,score_threshold=None):
+    raise RuntimeError('Use the authenticated course chat API; unscoped CLI search is disabled')

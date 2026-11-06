@@ -1,0 +1,9 @@
+FROM python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
+WORKDIR /app
+COPY backend/requirements.test.lock /app/requirements.test.lock
+RUN pip install --no-cache-dir --require-hashes -r requirements.test.lock
+COPY backend /app/backend
+COPY tests /app/tests
+COPY alembic.ini /app/
+CMD ["pytest", "-p", "no:cacheprovider", "-q", "backend/tests", "tests/integration"]

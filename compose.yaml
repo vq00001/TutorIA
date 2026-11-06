@@ -1,47 +1,95 @@
 name: tutoria
 
+x-app: &app
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+
+x-env: &env
+  DATABASE_URL: postgresql+psycopg://tutoria_api:${API_DB_PASSWORD:?Set API_DB_PASSWORD}@db:5432/${POSTGRES_DB:-tutoria}
+  APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN}
+  OLLAMA_URL: http://ollama:11434
+  MODEL_LLM: ${MODEL_LLM:-qwen3:1.7b}
+  MODEL_LLM_REVISION: ${MODEL_LLM_REVISION:-}
+  EMBEDDING_SPACE_ID: ${EMBEDDING_SPACE_ID:-}
+  SMTP_HOST: ${SMTP_HOST:-mail}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_FROM: ${SMTP_FROM:-TutorIA <noreply@tutoria.local>}
+  SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  LEDGER_KEY: ${LEDGER_KEY:-}
+  LEDGER_PATH: /ledger
+
 services:
-  webapp:
-    build:
-      context: ./Webapp
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "${WEBAPP_PORT:-8080}:80"
+  db:
+    image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tutoria}
+      POSTGRES_USER: ${POSTGRES_USER:-tutoria_migrator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      API_DB_PASSWORD: ${API_DB_PASSWORD:?Set API_DB_PASSWORD}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:?Set WORKER_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./backend/db/init.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
-      interval: 30s
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 24
+  migrate:
+    <<: *app
+    environment:
+      MIGRATION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-tutoria_migrator}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tutoria}
+    command: [alembic, upgrade, head]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    <<: *app
+    environment: *env
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 5s
-
+      retries: 12
+  worker:
+    <<: *app
+    environment:
+      <<: *env
+      DATABASE_URL: postgresql+psycopg://tutoria_worker:${WORKER_DB_PASSWORD:?Set WORKER_DB_PASSWORD}@db:5432/${POSTGRES_DB:-tutoria}
+    command: [python, -m, backend.workers.main]
+    volumes: [deletion_ledger:/ledger]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  webapp:
+    build: {context: ./Webapp}
+    ports: ['127.0.0.1:${WEBAPP_PORT:-8080}:80']
+    depends_on:
+      api: {condition: service_healthy}
+  scheduler:
+    <<: *app
+    environment:
+      <<: *env
+      DATABASE_URL: postgresql+psycopg://tutoria_worker:${WORKER_DB_PASSWORD:?Set WORKER_DB_PASSWORD}@db:5432/${POSTGRES_DB:-tutoria}
+    command: [python, -m, backend.workers.scheduler]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
   ollama:
-    build:
-      context: ./backend/ollama
-      dockerfile: Dockerfile
-
-    container_name: rag-ollama
-
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-
-    restart: unless-stopped
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: rag-qdrant
-    ports:
-      - "${QDRANT_PORT:-6333}:6333"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    restart: unless-stopped
+    image: ollama/ollama:0.12.6@sha256:a61a8fd395dbb931cc8cb1b5da7a2510746575c87113fdc45b647ee59ef7f808
+    volumes: [ollama_data:/root/.ollama]
+  mail:
+    image: axllent/mailpit:v1.27.10@sha256:b1f1be18af530d939a11ee8820b379e0c88eeec204d904bfad68862adced3a5a
+    ports: ['127.0.0.1:8025:8025']
 
 volumes:
+  postgres_data:
   ollama_data:
-  qdrant_data:
-
-    # Future backend integration:
-    # Add a `backend` service here and expose its API on container port 8000.
-    # Nginx in Webapp proxies /api/* to http://backend:8000/api/* over Compose DNS.
+  deletion_ledger:

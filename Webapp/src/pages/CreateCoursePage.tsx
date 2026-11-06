@@ -18,15 +18,15 @@ export function CreateCoursePage() {
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function handleFiles(files: FileList | null) {
+  function handleFiles(files: File[]) {
     if (!files) return
 
     const accepted = Array.from(files).filter((file) =>
-      file.name.toLowerCase().endsWith('.txt')
+      /\.(txt|md|markdown)$/i.test(file.name) && file.size <= 30_000_000
     )
 
     if (accepted.length !== files.length) {
-      setNotice('Solo se admiten archivos .txt.')
+      setNotice('Solo se admiten TXT y Markdown UTF-8 de hasta 30 MB.')
     }
 
     setMaterials((previous) => [...previous, ...accepted])
@@ -148,7 +148,7 @@ export function CreateCoursePage() {
                 pueda utilizarlos como contexto durante las sesiones.
               </p>
               {/* TODO: Agregar archivos a carro con función  */}
-              <MaterialDropzone onFiles={console.log("Documento Subido")} />
+              <MaterialDropzone onFiles={handleFiles} />
             </section>
 
             <section className="storage-card">

@@ -1,0 +1,50 @@
+services:
+  db-test:
+    image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
+    environment:
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:?}
+    volumes: [test-data:/var/lib/postgresql]
+    labels:
+      org.tutoria.test.run: ${TEST_RUN_ID:?}
+      org.tutoria.test.owner: tutoria-harness-v1
+    mem_limit: 768m
+    cpus: 0.75
+    pids_limit: 128
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 2s
+      retries: 60
+    networks: [test-only]
+  test-runner:
+    image: ${TEST_RUNNER_IMAGE:?Prepare test tools first}
+    environment:
+      TEST_RUN_ID: ${TEST_RUN_ID:?}
+      TEST_NONCE: ${TEST_NONCE:?}
+      TEST_DB_PASSWORD: ${TEST_DB_PASSWORD:?}
+      TEST_DB_HOST: db-test
+      HYPOTHESIS_STORAGE_DIRECTORY: /tmp/hypothesis
+    labels:
+      org.tutoria.test.run: ${TEST_RUN_ID:?}
+      org.tutoria.test.owner: tutoria-harness-v1
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 768m
+    cpus: 0.75
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [test-only]
+    depends_on:
+      db-test: {condition: service_healthy}
+networks:
+  test-only:
+    internal: true
+    labels:
+      org.tutoria.test.run: ${TEST_RUN_ID:?}
+      org.tutoria.test.owner: tutoria-harness-v1
+volumes:
+  test-data:
+    labels:
+      org.tutoria.test.run: ${TEST_RUN_ID:?}
+      org.tutoria.test.owner: tutoria-harness-v1

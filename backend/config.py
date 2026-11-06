@@ -53,7 +53,7 @@ class Config:
     similarity_threshold: float = 0.5
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Config:
         """Construye la configuración usando `.env` y valores predeterminados."""
 
         ollama_port = os.getenv("OLLAMA_PORT", "11434")

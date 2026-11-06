@@ -6,6 +6,7 @@ export type ResolvedTheme = Exclude<ThemePreference, 'system'>
 export const compatible_file_formats = ".txt,text/plain,.md,text/markdown"
 
 export interface Course {
+  myRole?: 'coordinator' | 'student';
   id: string;
   name: string;
   description?: string;
@@ -34,13 +35,13 @@ export interface DashboardSummary {
   studyHours: number; studyHoursPeriod: string; studyHoursByDay: number[]; streakDays: number; masteredConcepts: number
   masteredConceptsChange: number; roadmapStep: number; roadmapTotal: number; nextSessionMinutes: number; nextCourseId: string
 }
-export interface MaterialFile { id: string; courseId: string; name: string; size: number; addedAt: Date }
+export interface MaterialFile { id: string; courseId: string; name: string; size: number; addedAt: Date; status?:string; errorCode?:string|null; activeRunId?:string|null; versionId?:string; rowVersion?:number }
 export type MaterialDto = Omit<MaterialFile, 'addedAt'> & { addedAt: string }
 export interface ChartPoint { label: string;[series: string]: string | number }
 export interface ChartSeries { key: string; label: string; color: string }
 export interface ChartPayload { title: string; description?: string; data: ChartPoint[]; series: ChartSeries[]; xAxisLabel?: string; yAxisLabel?: string }
 export type MessagePart = { type: 'markdown'; content: string } | { type: 'chart'; chart: ChartPayload }
-export interface ChatMessage { id: string; role: 'user' | 'assistant'; parts: MessagePart[]; createdAt: Date; awaitingResponse?: boolean }
+export interface ChatMessage { id: string; role: 'user' | 'assistant'; parts: MessagePart[]; createdAt: Date; awaitingResponse?: boolean; citations?: Array<{id:string;label:string;status:string;contentUrl?:string|null}> }
 export type ChatMessageDto = Omit<ChatMessage, 'createdAt'> & { createdAt: string }
 export interface JsonApiResponse<T> { data: T }
 export interface GraphologyNodeExport { key: string; attributes?: Record<string, unknown> }

@@ -1,116 +1,71 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Bookmark, Check, Flag, Send, X } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useAppData } from '../contexts/AppDataContext'
-import { loadExamDefinition, submitExam } from '../data/exams'
-import type { ExamDefinition } from '../types/exams'
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { request } from '../services/http'
 
-const KnowledgeGraph = lazy(() => import('../components/graph/KnowledgeGraph').then((module) => ({ default: module.KnowledgeGraph })))
-type AnswerMap = Record<string, number[] | string>
+interface Question {
+  id:string; kind:string; prompt:string; topic:string; max_points:number; options:Array<{id:string;text:string}>
+  answer:{id:string;text_answer:string|null;optionIds:string[];flagged:boolean;row_version:number}|null
+  grade:{points:number|null;status:string;feedback:string;grader_version?:string}|null
+  review?:{expected_answer:string|null;explanation:string;option_ids:string[]}
+}
+interface Attempt { id:string;status:string;deadline_at:string;serverNow:string;score_percent:number|null;questions:Question[] }
 
-/** Vista para rendir un examen, guardar avance, marcar preguntas y entregar. */
 export function TakeExamPage() {
-  const { courseId = '', examId = '' } = useParams()
-  const navigate = useNavigate()
-  const { status, courses, graphsByCourse } = useAppData()
-  const course = courses.find((item) => item.id === courseId)
-  const [exam, setExam] = useState<ExamDefinition | null>(null)
-  const [answers, setAnswers] = useState<AnswerMap>({})
-  const [flagged, setFlagged] = useState<string[]>([])
-  const [activeQuestion, setActiveQuestion] = useState(0)
-  const [submitted, setSubmitted] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    if (!courseId || !examId) return
-    void loadExamDefinition(courseId, examId).then((definition) => {
-      setExam(definition)
-      // Restaura el borrador local hasta que exista persistencia de borradores en el servidor.
-      const saved = localStorage.getItem(`exam-draft:${definition.id}`)
-      if (saved) {
-        try {
-          const draft = JSON.parse(saved) as { answers?: AnswerMap; flagged?: string[] }
-          setAnswers(draft.answers ?? {})
-          setFlagged(draft.flagged ?? [])
-        } catch {
-          localStorage.removeItem(`exam-draft:${definition.id}`)
-        }
-      }
-    })
-  }, [courseId, examId])
-
-  const questions = exam?.questions ?? []
-  const current = questions[activeQuestion]
-  const answeredCount = useMemo(() => questions.filter((question) => {
-    const answer = answers[question.id]
-    return Array.isArray(answer) ? answer.length > 0 : Boolean(answer?.trim())
-  }).length, [answers, questions])
-  const progress = questions.length ? Math.round(answeredCount / questions.length * 100) : 0
-
-  if (status === 'loading' || !exam) return <div className="page-loading">Cargando examen…</div>
-  if (!course) return <div className="load-error">Curso no encontrado. <Link to="/">Volver a mis cursos</Link></div>
-  const graph = graphsByCourse[course.id]
-
-  const setChoice = (questionId: string, option: number, multiple: boolean) => {
-    if (submitted) return
-    setAnswers((currentAnswers) => {
-      const old = Array.isArray(currentAnswers[questionId]) ? currentAnswers[questionId] as number[] : []
-      const next = multiple ? old.includes(option) ? old.filter((item) => item !== option) : [...old, option] : [option]
-      return { ...currentAnswers, [questionId]: next }
-    })
-  }
-
-  const saveAndExit = () => {
-    // Placeholder local para conservar el progreso hasta que exista el endpoint de borradores.
-    localStorage.setItem(`exam-draft:${exam.id}`, JSON.stringify({ answers, flagged, savedAt: new Date().toISOString() }))
-    navigate(`/cursos/${course.id}/examenes`)
-  }
-
-  const handleSubmit = async () => {
-    if (submitted) return
-    setSaving(true)
+  const {courseId='',examId=''}=useParams()
+  const [attempt,setAttempt]=useState<Attempt|null>(null)
+  const [error,setError]=useState('')
+  const [busy,setBusy]=useState(false)
+  const [remaining,setRemaining]=useState(0)
+  useEffect(()=>{
+    let active=true
+    void request<{data:Attempt}>(`/courses/${courseId}/exams/${examId}/attempts`,{method:'POST',body:'{}'})
+      .then(r=>{if(active)setAttempt(r.data)}).catch(e=>{if(active)setError(e.message)})
+    return ()=>{active=false}
+  },[courseId,examId])
+  useEffect(()=>{
+    if(!attempt)return
+    const deadline=Date.now()+new Date(attempt.deadline_at).getTime()-new Date(attempt.serverNow).getTime()
+    const timer=setInterval(()=>setRemaining(Math.max(0,Math.ceil((deadline-Date.now())/1000))),1000)
+    return ()=>clearInterval(timer)
+  },[attempt?.id,attempt?.serverNow])
+  useEffect(()=>{
+    if(!attempt||!['in_progress','submitted','grading'].includes(attempt.status))return
+    const timer=setInterval(()=>{void request<{data:Attempt}>(`/attempts/${attempt.id}`).then(r=>setAttempt(r.data)).catch(e=>setError(e.message))},3000)
+    return ()=>clearInterval(timer)
+  },[attempt?.id,attempt?.status])
+  const save=async(q:Question,textAnswer:string|null,optionIds:string[])=>{
+    if(!attempt)return
+    setBusy(true);setError('')
     try {
-      await submitExam(exam.id, answers)
-      setSubmitted(true)
-      localStorage.removeItem(`exam-draft:${exam.id}`)
-    } finally { setSaving(false) }
+      await request(`/attempts/${attempt.id}/answers/${q.id}`,{method:'PUT',headers:{'If-Match':String(q.answer?.row_version??0)},body:JSON.stringify({textAnswer,optionIds,flagged:q.answer?.flagged??false})})
+      setAttempt((await request<{data:Attempt}>(`/attempts/${attempt.id}`)).data)
+    }catch(e){setError(e instanceof Error?e.message:'No se guardó la respuesta.')}
+    finally{setBusy(false)}
   }
-
-  const isAnswered = (questionId: string) => {
-    const answer = answers[questionId]
-    return Array.isArray(answer) ? answer.length > 0 : Boolean(answer?.trim())
+  const submit=async()=>{
+    if(!attempt)return
+    setBusy(true)
+    try{await request(`/attempts/${attempt.id}/submit`,{method:'POST',body:'{}'});setAttempt((await request<{data:Attempt}>(`/attempts/${attempt.id}`)).data)}
+    catch(e){setError(e instanceof Error?e.message:'No se entregó la práctica.')}
+    finally{setBusy(false)}
   }
-  const isCorrect = (questionId: string) => {
-    const question = questions.find((item) => item.id === questionId)
-    if (!question?.correctAnswers) return undefined
-    const answer = answers[questionId]
-    const selected = Array.isArray(answer) ? [...answer].sort() : []
-    const expected = [...question.correctAnswers].sort()
-    return selected.length === expected.length && selected.every((value, index) => value === expected[index])
-  }
-
-  return <section className="take-exam-page">
-    <header className="take-exam-header"><div className="take-exam-title"><Link to={`/cursos/${course.id}/examenes`} aria-label="Volver a exámenes"><ArrowLeft size={18} /></Link><div><div className="page-breadcrumb"><Link to={`/cursos/${course.id}/examenes`}>{course.name} / Exámenes</Link></div><h1>{exam.title}</h1></div></div><button className="secondary-button" onClick={saveAndExit}><Bookmark size={15} /> Guardar y salir</button></header>
-    <div className="take-exam-layout">
-      <main className="question-panel">
-        <div className="question-progress"><div><span>Progreso</span><strong>{answeredCount} de {questions.length} respondidas</strong></div><span>{progress}%</span><div className="progress-track"><i style={{ width: `${progress}%` }} /></div></div>
-        {submitted && <div className="submission-banner"><Check size={17} /> Examen entregado. Revisa tus respuestas y explicaciones.</div>}
-        {current && <article className="exam-question"><div className="question-kicker"><span>Pregunta {activeQuestion + 1} de {questions.length}</span><button className={flagged.includes(current.id) ? 'flag-button flagged' : 'flag-button'} onClick={() => setFlagged((old) => old.includes(current.id) ? old.filter((id) => id !== current.id) : [...old, current.id])} aria-pressed={flagged.includes(current.id)}><Flag size={15} /> {flagged.includes(current.id) ? 'Marcada' : 'Marcar pregunta'}</button></div><span className="question-topic">{current.topic}</span><h2>{current.prompt}</h2>
-          {(current.type === 'alternatives' || current.type === 'multiple' || current.type === 'true-false') && <div className="answer-options">{current.options?.map((option, index) => {
-            const selected = (answers[current.id] as number[] | undefined)?.includes(index) ?? false
-            const correct = current.correctAnswers?.includes(index) ?? false
-            return <button key={option} className={`answer-option ${selected ? 'selected' : ''} ${submitted && correct ? 'answer-correct' : ''} ${submitted && selected && !correct ? 'answer-incorrect' : ''}`} onClick={() => setChoice(current.id, index, current.type === 'multiple')} disabled={submitted} aria-pressed={selected}><span className="answer-marker">{submitted && correct ? <Check size={13} /> : current.type === 'multiple' ? selected ? '✓' : '' : String.fromCharCode(65 + index)}</span><span>{option}</span>{submitted && selected && !correct && <X size={15} />}</button>
-          })}</div>}
-          {current.type === 'development' && <label className="development-answer"><span>Tu respuesta</span><textarea value={(answers[current.id] as string) ?? ''} onChange={(event) => setAnswers((old) => ({ ...old, [current.id]: event.target.value }))} placeholder="Escribe tu respuesta…" disabled={submitted} rows={7} /></label>}
-          {submitted && current.type !== 'development' && <div className={`answer-feedback ${isCorrect(current.id) ? 'feedback-correct' : 'feedback-incorrect'}`}><strong>{isCorrect(current.id) ? 'Respuesta correcta' : 'Respuesta incorrecta'}</strong>{current.explanation && <p>{current.explanation}</p>}</div>}
-          {submitted && current.type === 'development' && <div className="answer-feedback"><strong>Respuesta de referencia</strong><p>{current.expectedAnswer}</p>{current.explanation && <p>{current.explanation}</p>}</div>}
-        </article>}
-        <div className="question-navigation"><button className="secondary-button" disabled={activeQuestion === 0} onClick={() => setActiveQuestion((index) => index - 1)}>Anterior</button><span>{activeQuestion + 1} / {questions.length}</span><button className="primary-button" disabled={activeQuestion >= questions.length - 1} onClick={() => setActiveQuestion((index) => index + 1)}>Siguiente</button></div>
-      </main>
-      <aside className="take-exam-aside"><section className="question-overview"><div className="overview-heading"><div><h2>Preguntas</h2><p>Selecciona un número para navegar</p></div><span>{questions.length}</span></div><div className="question-number-grid">{questions.map((question, index) => <button key={question.id} onClick={() => setActiveQuestion(index)} className={`question-number ${activeQuestion === index ? 'current' : ''} ${isAnswered(question.id) ? 'answered' : ''} ${flagged.includes(question.id) ? 'is-flagged' : ''} ${submitted && isCorrect(question.id) === true ? 'review-correct' : ''} ${submitted && isCorrect(question.id) === false ? 'review-incorrect' : ''}`} aria-label={`Pregunta ${index + 1}${isAnswered(question.id) ? ', respondida' : ', sin responder'}${flagged.includes(question.id) ? ', marcada' : ''}`}>{flagged.includes(question.id) && <Flag size={11} fill="currentColor" />}{index + 1}</button>)}</div><div className="overview-legend"><span><i className="legend-answered" />Respondida</span><span><i />Saltada</span><span><Flag size={11} />Marcada</span></div></section>
-        <section className="take-graph-card"><div className="exam-aside-heading"><div><h2>Ruta de aprendizaje</h2><p>{course.name}</p></div><Link to={`/cursos/${course.id}/grafo`}>↗</Link></div>{graph?.nodes.length ? <Suspense fallback={<div className="graph-loading">Cargando grafo…</div>}><KnowledgeGraph data={graph} /></Suspense> : <div className="exam-graph-empty">El grafo aparecerá cuando haya conceptos disponibles.</div>}</section>
-        <button className="submit-exam-button" onClick={() => void handleSubmit()} disabled={saving || submitted}>{submitted ? <><Check size={16} /> Examen entregado</> : saving ? 'Entregando…' : <><Send size={16} /> Entregar examen</>}</button>
-      </aside>
-    </div>
+  if(!attempt)return <div className="page-loading">{error||'Cargando intento…'}</div>
+  const closed=attempt.status!=='in_progress'||remaining<=0
+  return <section className="take-exam-page"><Link to={`/cursos/${courseId}/examenes`}>← Volver a prácticas</Link><h1>Práctica personal</h1>
+    <p>Estado: {attempt.status} · Tiempo restante: {Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</p>
+    {attempt.score_percent!==null&&<p>Puntaje: {Number(attempt.score_percent).toFixed(2)}%</p>}
+    {attempt.status==='needs_review'&&<p>Hay respuestas pendientes de revisión. Aún no hay puntaje final.</p>}
+    {error&&<p role="alert">{error}</p>}
+    {attempt.questions.map((q,i)=><article className="exam-question" key={q.id}><span>{i+1}. {q.topic}</span><h2>{q.prompt}</h2>
+      {q.kind==='development'?<textarea key={`${q.id}:${q.answer?.row_version??0}`} defaultValue={q.answer?.text_answer??''} disabled={closed||busy} rows={6} onBlur={e=>{if(!closed&&e.target.value!==(q.answer?.text_answer??''))void save(q,e.target.value,[])}}/>:
+      <div className="answer-options">{q.options.map(o=><button key={o.id} disabled={closed||busy} className={`answer-option ${q.answer?.optionIds.includes(o.id)?'selected':''}`} onClick={()=>{
+        const old=q.answer?.optionIds??[]
+        void save(q,null,q.kind==='multiple'?(old.includes(o.id)?old.filter(id=>id!==o.id):[...old,o.id]):[o.id])
+      }}>{o.text}</button>)}</div>}
+      {q.grade&&<p>{q.grade.feedback} {q.grade.points!==null&&`(${q.grade.points} puntos)`}</p>}
+      {q.grade?.grader_version==='manual_self'&&<p>Autoevaluación personal: este puntaje no aporta evidencia de dominio.</p>}
+      {q.review&&<p>{q.review.explanation}</p>}
+    </article>)}
+    {!closed&&<button className="primary-button" disabled={busy} onClick={()=>void submit()}>Entregar práctica</button>}
   </section>
 }

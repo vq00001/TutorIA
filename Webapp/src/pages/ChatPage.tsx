@@ -69,6 +69,7 @@ export function ChatPage() {
 
   return (
     <div className="chat-page">
+      {data.loadError && <p role="alert">{data.loadError}</p>}
       <div className="page-breadcrumb">
         <Link to="/">Inicio</Link> / Responder Consultas
       </div>

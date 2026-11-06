@@ -1,3 +1,5 @@
+import { useLocation } from 'react-router-dom'
+import { request } from '../services/http'
 
 import {
   createContext,
@@ -114,46 +116,11 @@ export function AppDataProvider({
           api.getCourses(),
         ])
 
-        const loaded = await Promise.all(
-          coursesResponse.data.map(async (course) => {
-            const [materials, chat, graph] = await Promise.all([
-              api.getCourseMaterials(course.id),
-              api.getCourseMessages(course.id),
-              api.getCourseGraph(course.id),
-            ])
-
-            return {
-              id: course.id,
-              materials: materials.data.map(adaptMaterial),
-              messages: chat.data.map(adaptMessage),
-              graph: graph.data,
-            }
-          })
-        )
-
         if (!active) return
 
         setProfile(profileResponse.data)
         setSummary(summaryResponse.data)
         setCourses(coursesResponse.data)
-
-        setMaterialsByCourse(
-          Object.fromEntries(
-            loaded.map((item) => [item.id, item.materials])
-          )
-        )
-
-        setMessagesByCourse(
-          Object.fromEntries(
-            loaded.map((item) => [item.id, item.messages])
-          )
-        )
-
-        setGraphsByCourse(
-          Object.fromEntries(
-            loaded.map((item) => [item.id, item.graph])
-          )
-        )
 
         setStatus('ready')
       } catch (error) {
@@ -175,6 +142,46 @@ export function AppDataProvider({
       active = false
     }
   }, [api])
+
+  const location = useLocation()
+  const routeId = /^\/(?:cursos|curso)\/([^/]+)/.exec(location.pathname)?.[1]
+  const selectedId = location.pathname === '/materiales' ? new URLSearchParams(location.search).get('courseId') ?? courses[0]?.id : routeId
+  useEffect(() => {
+    if (status !== 'ready' || !selectedId || !courses.some(c => c.id === selectedId)) return
+    let active = true
+    const refresh = async () => {
+      try {
+        const [materials, messages, graph] = await Promise.all([api.getCourseMaterials(selectedId), api.getCourseMessages(selectedId), api.getCourseGraph(selectedId)])
+        if (!active) return
+        setMaterialsByCourse(current => ({ ...current, [selectedId]: materials.data.map(adaptMaterial) }))
+        setMessagesByCourse(current => ({ ...current, [selectedId]: messages.data.map(adaptMessage) }))
+        setGraphsByCourse(current => ({ ...current, [selectedId]: graph.data }))
+      } catch(e) { if(active) setLoadError(e instanceof Error ? e.message : 'No se pudo actualizar el curso.') }
+    }
+    void refresh()
+    const timer = setInterval(() => { if(document.visibilityState === 'visible') void refresh() }, 5000)
+    return () => { active = false; clearInterval(timer) }
+  }, [api, status, selectedId, courses])
+
+  useEffect(() => {
+    if(status !== 'ready' || !selectedId || !courses.some(c => c.id === selectedId)) return
+    let active = true
+    let sessionId = ''
+    let interaction = Date.now()
+    const interact = () => { interaction = Date.now() }
+    const beat = async () => {
+      if(!active || document.visibilityState !== 'visible' || Date.now() - interaction >= 120000) return
+      try {
+        if(!sessionId) sessionId = (await request<{data:{id:string}}>('/study-sessions', {method:'POST',body:JSON.stringify({courseId:selectedId})})).data.id
+        const result = await request<{data:{status:string}}>(`/study-sessions/${sessionId}/heartbeat`, {method:'POST',body:'{}'})
+        if(result.data.status === 'closed') sessionId = ''
+      } catch { sessionId = '' }
+    }
+    for(const event of ['pointerdown', 'keydown', 'scroll']) window.addEventListener(event,interact)
+    void beat()
+    const timer = setInterval(() => void beat(),30000)
+    return () => { active = false; clearInterval(timer); for(const event of ['pointerdown','keydown','scroll']) window.removeEventListener(event,interact) }
+  }, [selectedId, status, courses])
 
   // Chat messages
 
@@ -206,8 +213,14 @@ export function AppDataProvider({
           },
         ],
       }))
+      void api.sendMessage(courseId, content).then(response => {
+        setMessagesByCourse(current => ({ ...current, [courseId]: response.data.map(adaptMessage) }))
+      }).catch(error => {
+        setLoadError(error instanceof Error ? error.message : 'No se pudo enviar el mensaje.')
+        void api.getCourseMessages(courseId).then(response => setMessagesByCourse(current => ({ ...current, [courseId]: response.data.map(adaptMessage) })))
+      })
     },
-    []
+    [api]
   )
 
   // Materials management
@@ -216,10 +229,7 @@ export function AppDataProvider({
     async (courseId: string, files: File[]) => {
       const response = await api.createCourseMaterials(
         courseId,
-        files.map(({ name, size }) => ({
-          name,
-          size,
-        }))
+        files
       )
 
       const created = response.data.map(adaptMaterial)
@@ -228,7 +238,6 @@ export function AppDataProvider({
         ...current,
         [courseId]: [
           ...created,
-          ...(current[courseId] ?? []),
         ],
       }))
 

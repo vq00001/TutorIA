@@ -19,8 +19,9 @@ def iter_documents(path: Path) -> list[Path]:
 
 
 def read_document(path: Path) -> str:
-    """Lee un documento UTF-8 y reemplaza bytes que no puedan decodificarse."""
-    return path.read_text(encoding="utf-8", errors="replace")
+    """Valida UTF-8 estricto; los originales no se alteran."""
+    from .services.documents import validate_file
+    return validate_file(path.name,path.read_bytes())[2]
 
 
 def document_id(path: Path, root: Path | None = None) -> str:
