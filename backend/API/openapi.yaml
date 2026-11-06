@@ -1,0 +1,1170 @@
+# TODO
+# Ver en estos archivos que cosas necesita el frontend
+# Wedapp/src/types/index.ts
+# Wedapp/src/types/exams.ts
+
+
+# Se deben de loggear los usuarios, tambien registrar y salir de la seccion.
+# Los usuarios deben poder crear cursos, tambien salir de estos
+# Se deben de poder invitar a otros usuarios a los cursos, y aceptar o rechazar invitaciones
+# Los usuarios deben poder subir documentos a los cursos a los que pertenecen, y poder ver los documentos subidos por otros usuarios
+# Los usuarios deben poder realizar consultas al LLM.
+# Los usuarios deben poder generar examenes de un tema dado en el curso, y ver los examenes ya realizados y los pendientes
+# Los usuarios deben poder ver el progreso de un curso, y ver el grafo de conocimiento del curso
+# Los usuarios deben poder ver las notificaciones de eventos importantes en el curso
+# Los usuarios deben poder ver los materiales generados de un curso
+# Los usuarios deben poder ver la informacion de los documentos asociados al curso
+# Los usuarios deben poder ver la informacion de los cursos y de los usuarios que estan en estos (informacion reducida de los otros usuarios)
+# Los usuarios deben poder ver la informacion de su propio usuario (informacion completa)
+# Los usuarios deben poder modificar la informacion de su propio usuario (informacion completa)
+# Los usuarios deben poder eliminar su propio usuario
+# Los usuarios deben poder configurar los cursos en los que tienen los permisos para hacerlo
+# Los usuarios deben poder eliminar los documentos si es que tienen los permisos para hacerlo
+# Los usuarios deben poder eliminar los cursos si es que tienen los permisos para hacerlo
+# Los usuarios deben poder ver las conversaciones que han tenido con el LLM, retomarlas, y poder eliminar estas conversaciones
+# En las respuestas del LLM, en el body, ademas de la respuesta a la pregunta como tal, se debe de indicar de si se usaron documentos para responder, y si es asi, cuales fueron estos documentos
+# Se puede solicitar las preguntas de un examen, y posteriormente a que el usuario las responda, esta se envian al backend, en donde este las evalua y retorna la calificacion obtenida, ademas de la respuesta correcta a cada pregunta, y si es que se usaron documentos para responder, y si es asi, cuales fueron estos documentos
+# Debe de exponerse un endpoint para indicar el estado del backend, para que el frontend pueda saber si este esta funcionando correctamente
+# Debe de poder verse el estado de procesamiento de los documentos subidos, para que el frontend pueda mostrarle al usuario si es que estos ya estan listos para ser usados por el LLM
+# Los usuarios deben poder ver el historial de sus actividades en el sistema, incluyendo las consultas realizadas al LLM, los documentos subidos, los examenes realizados, y cualquier otra actividad relevante.
+
+
+openapi: 3.1.0
+info:
+  title: TutorIA API
+  description: API para cursos, aprendizaje asistido por LLM y evaluación.
+  version: 1.0.0
+  license:
+    name: Proprietary
+servers:
+  - url: /api/v1
+    description: API relativa al proxy del frontend
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Courses
+  - name: Documents
+  - name: Conversations
+  - name: Exams
+  - name: Learning
+  - name: Notifications
+  - name: Activity
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Comprueba el estado del backend
+      security: []
+      responses:
+        '200':
+          description: Backend disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registra un usuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Usuario registrado y sesión iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Inicia sesión
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cierra la sesión actual
+      responses:
+        '204':
+          description: Sesión cerrada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Obtiene el perfil completo del usuario actual
+      responses:
+        '200':
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+    patch:
+      tags: [Users]
+      summary: Modifica el perfil del usuario actual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Users]
+      summary: Elimina la cuenta del usuario actual
+      responses:
+        '204':
+          description: Cuenta eliminada
+
+  /dashboard/summary:
+    get:
+      tags: [Learning]
+      summary: Obtiene el resumen del panel del usuario
+      responses:
+        '200':
+          description: Resumen de aprendizaje
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+
+  /courses:
+    get:
+      tags: [Courses]
+      summary: Lista los cursos del usuario
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Cursos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseListResponse'
+    post:
+      tags: [Courses]
+      summary: Crea un curso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseRequest'
+      responses:
+        '201':
+          description: Curso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /courses/{courseId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Courses]
+      summary: Obtiene la información de un curso
+      responses:
+        '200':
+          description: Curso y miembros resumidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Courses]
+      summary: Configura un curso
+      description: Requiere permisos de propietario o administrador del curso.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCourseRequest'
+      responses:
+        '200':
+          description: Curso actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Courses]
+      summary: Elimina un curso
+      description: Requiere permisos de propietario o administrador del curso.
+      responses:
+        '204':
+          description: Curso eliminado
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /courses/{courseId}/leave:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Courses]
+      summary: Abandona un curso
+      operationId: leaveCourse
+      responses:
+        '204':
+          description: Usuario retirado del curso
+
+  /courses/{courseId}/members:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Courses]
+      summary: Lista los miembros de un curso
+      responses:
+        '200':
+          description: Miembros con información reducida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberListResponse'
+  /courses/{courseId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Courses]
+      summary: Configura permisos de un miembro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMemberRequest'
+      responses:
+        '200':
+          description: Miembro actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /courses/{courseId}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Courses]
+      summary: Invita a un usuario a un curso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteRequest'
+      responses:
+        '201':
+          description: Invitación creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /invitations:
+    get:
+      tags: [Courses]
+      summary: Lista las invitaciones pendientes del usuario actual
+      responses:
+        '200':
+          description: Invitaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationListResponse'
+  /invitations/{invitationId}:
+    parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Courses]
+      summary: Acepta o rechaza una invitación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationDecisionRequest'
+      responses:
+        '200':
+          description: Invitación procesada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResponse'
+
+  /courses/{courseId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Documents]
+      summary: Lista los documentos asociados al curso
+      responses:
+        '200':
+          description: Documentos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+    post:
+      tags: [Documents]
+      summary: Sube documentos al curso
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '202':
+          description: Documentos aceptados para procesamiento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+        '415':
+          description: Tipo de archivo no soportado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /courses/{courseId}/documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documents]
+      summary: Obtiene la información de un documento
+      responses:
+        '200':
+          description: Documento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+    delete:
+      tags: [Documents]
+      summary: Elimina un documento
+      description: Requiere permisos de propietario o administrador del curso.
+      responses:
+        '204':
+          description: Documento eliminado
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /courses/{courseId}/documents/{documentId}/status:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documents]
+      summary: Consulta el estado de procesamiento de un documento
+      responses:
+        '200':
+          description: Estado de procesamiento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentStatusResponse'
+
+  /courses/{courseId}/conversations:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Conversations]
+      summary: Lista las conversaciones del usuario en el curso
+      responses:
+        '200':
+          description: Conversaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListResponse'
+    post:
+      tags: [Conversations]
+      summary: Crea una conversación y realiza una consulta al LLM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+      responses:
+        '201':
+          description: Conversación con la respuesta del LLM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+
+  /courses/{courseId}/conversations/{conversationId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: conversationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Conversations]
+      summary: Retoma una conversación
+      responses:
+        '200':
+          description: Mensajes de la conversación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+    delete:
+      tags: [Conversations]
+      summary: Elimina una conversación
+      responses:
+        '204':
+          description: Conversación eliminada
+
+  /courses/{courseId}/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: conversationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Conversations]
+      summary: Envía una pregunta a una conversación existente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+      responses:
+        '201':
+          description: Respuesta del LLM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /courses/{courseId}/exams:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Exams]
+      summary: Lista exámenes pendientes y realizados
+      responses:
+        '200':
+          description: Exámenes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamSummaryListResponse'
+    post:
+      tags: [Exams]
+      summary: Genera un examen sobre un tema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateExamRequest'
+      responses:
+        '201':
+          description: Examen generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResponse'
+
+  /courses/{courseId}/exams/{examId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+    get:
+      tags: [Exams]
+      summary: Obtiene las preguntas de un examen
+      responses:
+        '200':
+          description: Preguntas sin respuestas correctas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResponse'
+
+  /courses/{courseId}/exams/{examId}/submissions:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+    post:
+      tags: [Exams]
+      summary: Envía y evalúa las respuestas de un examen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitExamRequest'
+      responses:
+        '200':
+          description: Resultado evaluado con respuestas correctas y fuentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResultResponse'
+
+  /courses/{courseId}/progress:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Obtiene el progreso del curso
+      responses:
+        '200':
+          description: Progreso y conceptos dominados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseProgressResponse'
+
+  /courses/{courseId}/knowledge-graph:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Obtiene el grafo de conocimiento del curso
+      responses:
+        '200':
+          description: Grafo en formato compatible con Graphology
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphResponse'
+
+  /courses/{courseId}/materials:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Lista los materiales generados del curso
+      responses:
+        '200':
+          description: Materiales
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedMaterialListResponse'
+
+  /courses/{courseId}/notifications:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Notifications]
+      summary: Lista notificaciones de eventos del curso
+      responses:
+        '200':
+          description: Notificaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Lista notificaciones del usuario actual
+      responses:
+        '200':
+          description: Notificaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+
+  /activity:
+    get:
+      tags: [Activity]
+      summary: Lista el historial de actividad del usuario
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [login, logout, course, invitation, document, llm_query, exam, profile]
+      responses:
+        '200':
+          description: Historial de actividades
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CourseId:
+      name: courseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ExamId:
+      name: examId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    Unauthorized:
+      description: Autenticación requerida o inválida
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: El usuario no tiene permisos suficientes
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: El recurso ya existe
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ValidationError:
+      description: Datos inválidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServiceUnavailable:
+      description: Servicio no disponible
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+    HealthResponse:
+      type: object
+      required: [status, timestamp, services]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        timestamp: { type: string, format: date-time }
+        version: { type: string }
+        services:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [up, down, degraded]
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 8 }
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    AuthResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [accessToken, tokenType, user]
+          properties:
+            accessToken: { type: string }
+            tokenType: { type: string, enum: [Bearer] }
+            expiresIn: { type: integer }
+            user: { $ref: '#/components/schemas/User' }
+    User:
+      type: object
+      required: [id, email, displayName, role, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        role: { type: string, enum: [student, teacher, admin] }
+        avatarUrl: { type: string, format: uri, nullable: true }
+        createdAt: { type: string, format: date-time }
+    UserResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email }
+        avatarUrl: { type: string, format: uri, nullable: true }
+        password: { type: string, format: password, minLength: 8 }
+    Course:
+      type: object
+      required: [id, name, subject, progress, color, icon, nextTopic, lastActivity]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        objectives: { type: string }
+        subject: { type: string }
+        progress: { type: number, minimum: 0, maximum: 100 }
+        color: { type: string }
+        icon: { type: string }
+        nextTopic: { type: string }
+        lastActivity: { type: string }
+        ownerId: { type: string, format: uuid }
+        members: { type: array, items: { $ref: '#/components/schemas/Member' } }
+    CourseResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Course' }
+    CourseListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Course' }
+        meta: { $ref: '#/components/schemas/Pagination' }
+    CreateCourseRequest:
+      type: object
+      required: [name, description, objectives]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string }
+        objectives: { type: string }
+        subject: { type: string }
+        color: { type: string }
+        icon: { type: string }
+    UpdateCourseRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string }
+        objectives: { type: string }
+        color: { type: string }
+        icon: { type: string }
+    Member:
+      type: object
+      required: [userId, displayName, role, joinedAt]
+      properties:
+        userId: { type: string, format: uuid }
+        displayName: { type: string }
+        role: { type: string, enum: [owner, admin, editor, member] }
+        joinedAt: { type: string, format: date-time }
+    MemberResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Member' }
+    MemberListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Member' } }
+    UpdateMemberRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [admin, editor, member] }
+    InviteRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    Invitation:
+      type: object
+      required: [id, courseId, courseName, email, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        courseName: { type: string }
+        email: { type: string, format: email }
+        status: { type: string, enum: [pending, accepted, rejected, expired] }
+        createdAt: { type: string, format: date-time }
+    InvitationResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Invitation' }
+    InvitationListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Invitation' } }
+    InvitationDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [accept, reject] }
+    Document:
+      type: object
+      required: [id, courseId, name, size, mimeType, status, uploadedBy, uploadedAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        name: { type: string }
+        size: { type: integer, minimum: 0 }
+        mimeType: { type: string, enum: [text/plain, text/markdown] }
+        status: { type: string, enum: [queued, processing, ready, failed] }
+        errorMessage: { type: string, nullable: true }
+        uploadedBy: { $ref: '#/components/schemas/Member' }
+        uploadedAt: { type: string, format: date-time }
+        processedAt: { type: string, format: date-time, nullable: true }
+    DocumentResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Document' }
+    DocumentListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Document' } }
+    DocumentStatusResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [documentId, status]
+          properties:
+            documentId: { type: string, format: uuid }
+            status: { type: string, enum: [queued, processing, ready, failed] }
+            progress: { type: integer, minimum: 0, maximum: 100 }
+            errorMessage: { type: string, nullable: true }
+    SourceDocument:
+      type: object
+      required: [documentId, name]
+      properties:
+        documentId: { type: string, format: uuid }
+        name: { type: string }
+        relevance: { type: number, minimum: 0, maximum: 1 }
+    Message:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        usedDocuments: { type: boolean }
+        sourceDocuments: { type: array, items: { $ref: '#/components/schemas/SourceDocument' } }
+    MessageResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Message' }
+    Conversation:
+      type: object
+      required: [id, courseId, title, messages, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        title: { type: string }
+        messages: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ConversationResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Conversation' }
+    ConversationListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+    AskRequest:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 1 }
+        includeDocuments: { type: boolean, default: true }
+    ExamSummary:
+      type: object
+      required: [id, courseId, title, topics, durationMinutes, questionCount, status]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        title: { type: string }
+        type: { type: string }
+        topics: { type: array, items: { type: string } }
+        scheduledAt: { type: string, format: date-time, nullable: true }
+        durationMinutes: { type: integer, minimum: 1 }
+        questionCount: { type: integer, minimum: 1 }
+        status: { type: string, enum: [upcoming, available, completed] }
+        score: { type: number, minimum: 0, maximum: 100, nullable: true }
+    ExamQuestion:
+      type: object
+      required: [id, type, topic, prompt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [alternatives, multiple, development, true-false] }
+        topic: { type: string }
+        prompt: { type: string }
+        options: { type: array, items: { type: string } }
+    Exam:
+      type: object
+      required: [id, courseId, title, durationMinutes, questions]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        title: { type: string }
+        durationMinutes: { type: integer, minimum: 1 }
+        questions: { type: array, items: { $ref: '#/components/schemas/ExamQuestion' } }
+    ExamResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Exam' }
+    ExamSummaryListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/ExamSummary' } }
+    GenerateExamRequest:
+      type: object
+      required: [topic, questionCount]
+      properties:
+        topic: { type: string, minLength: 1 }
+        questionCount: { type: integer, minimum: 1, maximum: 50 }
+        durationMinutes: { type: integer, minimum: 1, default: 30 }
+        questionTypes:
+          type: array
+          items: { type: string, enum: [alternatives, multiple, development, true-false] }
+    SubmitExamRequest:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            required: [questionId, answer]
+            properties:
+              questionId: { type: string, format: uuid }
+              answer: { type: string }
+    ExamResult:
+      type: object
+      required: [examId, score, answers]
+      properties:
+        examId: { type: string, format: uuid }
+        score: { type: number, minimum: 0, maximum: 100 }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [questionId, answer, correct]
+            properties:
+              questionId: { type: string, format: uuid }
+              answer: { type: string }
+              correctAnswer: { type: string }
+              correct: { type: boolean }
+              explanation: { type: string }
+              usedDocuments: { type: boolean }
+              sourceDocuments: { type: array, items: { $ref: '#/components/schemas/SourceDocument' } }
+    ExamResultResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/ExamResult' }
+    GenerateMaterial:
+      type: object
+      required: [id, courseId, title, type, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        title: { type: string }
+        type: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+    GeneratedMaterialListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/GenerateMaterial' } }
+    CourseProgress:
+      type: object
+      required: [courseId, progress, masteredConcepts]
+      properties:
+        courseId: { type: string, format: uuid }
+        progress: { type: number, minimum: 0, maximum: 100 }
+        masteredConcepts: { type: integer, minimum: 0 }
+        masteredConceptsChange: { type: number }
+        nextTopic: { type: string }
+    CourseProgressResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/CourseProgress' }
+    KnowledgeGraphResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [nodes, edges]
+          properties:
+            attributes: { type: object, additionalProperties: true }
+            nodes: { type: array, items: { type: object, additionalProperties: true } }
+            edges: { type: array, items: { type: object, additionalProperties: true } }
+    Notification:
+      type: object
+      required: [id, type, title, message, read, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid, nullable: true }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    NotificationListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+    Activity:
+      type: object
+      required: [id, type, description, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        description: { type: string }
+        courseId: { type: string, format: uuid, nullable: true }
+        metadata: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+    ActivityListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Activity' } }
+        meta: { $ref: '#/components/schemas/Pagination' }
+    DashboardSummaryResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [studyHours, studyHoursPeriod, studyHoursByDay, streakDays, masteredConcepts, roadmapStep, roadmapTotal, nextSessionMinutes]
+          properties:
+            studyHours: { type: number, minimum: 0 }
+            studyHoursPeriod: { type: string }
+            studyHoursByDay: { type: array, minItems: 7, maxItems: 7, items: { type: number, minimum: 0 } }
+            streakDays: { type: integer, minimum: 0 }
+            masteredConcepts: { type: integer, minimum: 0 }
+            masteredConceptsChange: { type: number }
+            roadmapStep: { type: integer, minimum: 0 }
+            roadmapTotal: { type: integer, minimum: 0 }
+            nextSessionMinutes: { type: integer, minimum: 0 }
+            nextCourseId: { type: string, format: uuid, nullable: true }
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
