@@ -7,10 +7,14 @@ The frontend lives in `Webapp/`. It is a React + TypeScript + Vite SPA; its curr
 From this directory:
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
 Open <http://localhost:8080>. Set `WEBAPP_PORT` in the shell or a root `.env` file to change the host port, for example `WEBAPP_PORT=8090`.
+The webapp is currently built as a static site and does not require frontend
+environment variables. The root `.env.example` also contains the optional RAG
+settings used when running the backend directly on the host.
 
 The `webapp` image uses a multi-stage build: Node compiles the Vite app, then Nginx serves the static output. Nginx falls back to `index.html` for React Router URLs and reserves `/api/` as the backend proxy path.
 

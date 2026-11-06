@@ -21,7 +21,7 @@ Ollama.
 2. Crea el archivo de configuración local:
 
    ```bash
-   cp .env.example .env
+   cp ../.env.example ../.env
    ```
 
 3. Levanta Qdrant y Ollama:
@@ -95,8 +95,8 @@ Ejecuta `make help` para ver todos los comandos:
 
 ## Configuración
 
-La configuración se define en `.env`. Consulta
-[`.env.example`](.env.example) para ver todas las opciones disponibles,
+La configuración se define en el `.env` de la raíz del repositorio. Consulta
+[`.env.example`](../.env.example) para ver todas las opciones disponibles,
 incluyendo:
 
 - URLs y puertos de Ollama y Qdrant.
