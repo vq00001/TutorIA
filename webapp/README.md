@@ -5,6 +5,7 @@ Aplicación web React + TypeScript para un tutor de aprendizaje. Incluye inicio,
 ## Ejecutar
 
 ```bash
+# desde ./webapp
 npm install
 npm run dev
 ```
@@ -34,8 +35,3 @@ docs/            contrato de datos
 
 Las páginas componen la disposición; `KnowledgeGraph`, `MessageRenderer`, `ChatComposer` y los componentes de materiales mantienen responsabilidades acotadas para poder reubicarlos o reutilizarlos. Catppuccin Latte/Mocha sigue por defecto la preferencia del sistema operativo y permite guardar una elección manual.
 
-## Integrar servicios reales
-
-Implementa `TutorIADataApi` en `src/services/databaseApi.ts` con `fetch` u otro cliente y pásalo a `AppDataProvider`. Los componentes no llaman endpoints directamente. Los tipos, envoltorios JSON, operaciones y campos están descritos en [docs/data-contract.md](docs/data-contract.md).
-
-El mock conserva archivos solo como nombre y tamaño, en memoria durante la sesión. El transporte y persistencia del contenido real del archivo deben añadirse en el servicio de materiales.
