@@ -8,6 +8,7 @@ interface Question {
   answer:{id:string;text_answer:string|null;optionIds:string[];flagged:boolean;row_version:number}|null
   grade:{points:number|null;status:string;feedback:string;grader_version?:string}|null
   review?:{expected_answer:string|null;explanation:string;option_ids:string[]}
+  usedDocuments?:Array<{id:string;name:string;contentUrl:string}>
 }
 interface Attempt { id:string;status:string;deadline_at:string;serverNow:string;score_percent:number|null;questions:Question[] }
 
@@ -72,6 +73,7 @@ export function TakeExamPage() {
       {q.grade?.grader_version==='manual_self'&&<p>Autoevaluación personal: este puntaje no aporta evidencia de dominio.</p>}
       {attempt.status==='needs_review'&&q.grade?.status==='needs_review'&&q.answer&&<ManualReview attemptId={attempt.id} answerId={q.answer.id} maximum={Number(q.max_points)} onReviewed={async()=>{setAttempt((await request<{data:Attempt}>(`/attempts/${attempt.id}`)).data)}}/>}
       {q.review&&<p>{q.review.explanation}</p>}
+      {q.review&&<section aria-label="Respuesta correcta"><strong>Respuesta esperada:</strong><p>{q.review.expected_answer??q.options.filter(o=>q.review!.option_ids.includes(o.id)).map(o=>o.text).join(' · ')}</p><p>{q.usedDocuments?.length?'Documentos utilizados:':'Sin documentos disponibles para esta pregunta.'}</p>{q.usedDocuments?.map(d=><p key={d.id}><a href={d.contentUrl}>{d.name}</a></p>)}</section>}
     </article>)}
     {!closed&&<button className="primary-button" disabled={busy} onClick={()=>void submit()}>Entregar práctica</button>}
   </section>

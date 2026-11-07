@@ -9,7 +9,7 @@ import { useAppData } from '../../contexts/AppDataContext'
 
 import { compatible_file_formats } from '../../types'
 
-export function ChatComposer({ courseId }: { courseId: string }) {
+export function ChatComposer({ courseId, onSend, busy=false }: { courseId: string; onSend?:(content:string)=>void;busy?:boolean }) {
   const [value, setValue] = useState('')
   const [attached, setAttached] = useState<string[]>([])
 
@@ -22,9 +22,10 @@ export function ChatComposer({ courseId }: { courseId: string }) {
   function submit(event: FormEvent) {
     event.preventDefault()
 
-    if (!value.trim()) return
+    if (!value.trim() || busy) return
 
-    sendPrompt(courseId, value.trim())
+    if(onSend) onSend(value.trim())
+    else sendPrompt(courseId, value.trim())
     setValue('')
     setAttached([])
   }

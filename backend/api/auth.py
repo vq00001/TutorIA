@@ -74,6 +74,7 @@ class PasswordChange(Input):
 class Profile(Input):
     displayName: str = Field(min_length=1, max_length=100)
     timezone: str = Field(max_length=64)
+    nickname: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_]{3,50}$")
 
     @field_validator("timezone")
     @classmethod
@@ -190,6 +191,7 @@ def login(body: Login, response: Response, request: Request):
           VALUES(:id,:uid,:hash,now(),now()+interval '7 days')"""),
             dict(id=uuid4(), uid=user["id"], hash=hashed),
         )
+        audit(conn, "account.login", user["id"])
     response.set_cookie(
         "tutoria_session",
         raw,
@@ -203,6 +205,7 @@ def login(body: Login, response: Response, request: Request):
 
 @router.post("/auth/logout", status_code=204)
 def logout(request: Request, response: Response, conn=Depends(connection, scope="function")):
+    audit(conn, "account.logout", one(conn, "SELECT auth.uid() AS id")["id"])
     conn.execute(
         text("UPDATE app.auth_sessions SET revoked_at=now() WHERE token_hash=:hash"),
         dict(hash=digest(request.cookies.get("tutoria_session", ""))),
@@ -366,7 +369,10 @@ def edit_profile(body: Profile, request: Request, conn=Depends(connection, scope
     user = one(conn, "SELECT row_version FROM app.users WHERE id=auth.uid() FOR UPDATE")
     match(request, user)
     conn.execute(
-        text("UPDATE app.users SET display_name=:name,timezone=:zone WHERE id=auth.uid()"),
-        dict(name=body.displayName, zone=body.timezone),
+        text(
+            "UPDATE app.users SET display_name=:name,timezone=:zone,nickname=coalesce(:nick,nickname) WHERE id=auth.uid()"
+        ),
+        dict(name=body.displayName, zone=body.timezone, nick=body.nickname),
     )
+    audit(conn, "profile.updated", one(conn, "SELECT auth.uid() AS id")["id"])
     return me(conn)

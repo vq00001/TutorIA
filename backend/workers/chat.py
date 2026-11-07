@@ -144,5 +144,24 @@ def generate_chat(job, lease):
                 ),
                 dict(id=g["id"], cr=current["corpus_revision"]),
             )
+            if g["parameters"].get("artifactKind"):
+                conn.execute(
+                    text("""INSERT INTO app.generated_artifacts(id,course_id,user_id,generation_id,kind,title,content)
+                  VALUES(:id,:cid,:uid,:gid,:kind,:title,CAST(:content AS jsonb))"""),
+                    dict(
+                        id=uuid4(),
+                        cid=job["course_id"],
+                        uid=job["requested_by"],
+                        gid=g["id"],
+                        kind=g["parameters"]["artifactKind"],
+                        title=g["parameters"]["artifactTitle"],
+                        content=json_value(
+                            {
+                                "markdown": output["answer"],
+                                "citedParentIds": list(dict.fromkeys(output["citations"])),
+                            }
+                        ),
+                    ),
+                )
             lease.complete(conn)
             return

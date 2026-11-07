@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { ChatComposer } from '../components/chat/ChatComposer'
 import { MessageRenderer } from '../components/chat/MessageRenderer'
 import { useAppData } from '../contexts/AppDataContext'
+import { useConversations } from '../services/useConversations'
 
 const KnowledgeGraph = lazy(() =>
   import('../components/graph/KnowledgeGraph').then((module) => ({
@@ -14,12 +15,12 @@ const KnowledgeGraph = lazy(() =>
 export function ChatPage() {
   const { courseId } = useParams()
   const data = useAppData()
+  const chat = useConversations(courseId??'')
+  const [title,setTitle]=useState('')
 
   const course = data.courses.find((item) => item.id === courseId)
 
-  const messages = course
-    ? (data.messagesByCourse[course.id] ?? [])
-    : []
+  const messages = chat.messages
 
   const materials = course
     ? (data.materialsByCourse[course.id] ?? [])
@@ -90,6 +91,8 @@ export function ChatPage() {
             Sesión de aprendizaje · {course.name}
           </div>
           <Link className="chat-exams-link" to={`/cursos/${course.id}/examenes`}>Ver exámenes →</Link>
+          <Link to={`/cursos/${course.id}/configuracion`}>Información y miembros</Link>
+          <Link to={`/cursos/${course.id}/generados`}>Materiales generados</Link>
 
         </div>
       </div>
@@ -97,6 +100,13 @@ export function ChatPage() {
       <div className="chat-layout">
         {/* Main chat panel */}
         <section className="chat-main-panel">
+          <div className="conversation-controls">
+            <label>Conversación<select aria-label="Conversación" value={chat.selected} disabled={chat.busy} onChange={e=>chat.select(e.target.value)}><option value="">Selecciona una conversación</option>{chat.threads.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+            <input aria-label="Título de la nueva conversación" placeholder="Nueva conversación" maxLength={255} value={title} onChange={e=>setTitle(e.target.value)}/>
+            <button disabled={chat.busy} onClick={()=>{void chat.create(title).then(()=>setTitle('')).catch(()=>{})}}>Nueva conversación</button>
+            <button disabled={chat.busy||!chat.selected} onClick={()=>{if(window.confirm('¿Eliminar esta conversación y sus mensajes?'))void chat.remove()}}>Eliminar conversación</button>
+          </div>
+          {chat.error&&<p role="alert">{chat.error}</p>}
 
           <div className="messages-scroll" ref={scrollRef}>
             <div className="session-date">Sesión actual</div>
@@ -145,7 +155,7 @@ export function ChatPage() {
 
           {/* Message composer */}
           <div className="chat-compose-area">
-            <ChatComposer courseId={course.id} />
+            <ChatComposer courseId={course.id} onSend={content=>void chat.send(content)} busy={chat.busy||messages.some(m=>m.awaitingResponse)} />
 
             <small className="privacy-note">
               ✦ TutorIA puede cometer errores. Contrasta información importante

@@ -239,9 +239,23 @@ def get_attempt(aid: UUID, conn=Depends(connection, scope="function")):
                 if answer
                 else None,
                 "grade": grade,
+                "usedDocuments": rows(
+                    conn,
+                    '''SELECT DISTINCT d.id,v.original_name AS name,
+                  '/api/v1/courses/'||d.course_id||'/materials/'||d.id||'/versions/'||v.id||'/content' AS "contentUrl"
+                  FROM app.question_sources s JOIN app.parent_chunks p ON p.id=s.parent_id AND p.course_id=s.course_id
+                  JOIN app.processing_runs r ON r.id=p.run_id JOIN app.document_versions v ON v.id=r.version_id
+                  JOIN app.documents d ON d.id=v.document_id WHERE s.question_id=:id AND d.status='active'
+                  ORDER BY d.id,v.original_name,"contentUrl"''',
+                    id=q["id"],
+                )
+                if keys
+                else [],
                 **({"review": keys[q["id"]]} if q["id"] in keys else {}),
             }
         )
+    for question in public:
+        question["usesDocuments"] = bool(question["usedDocuments"])
     return {"data": {**a, "serverNow": now(), "questions": public}}
 
 

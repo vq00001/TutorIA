@@ -14,8 +14,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from backend.api import (
+    artifacts,
     auth,
     chat,
+    community,
     courses,
     dashboard,
     deletions,
@@ -162,6 +164,8 @@ def health():
 
 
 for router in (
+    artifacts.router,
+    community.router,
     auth.router,
     courses.router,
     materials.router,

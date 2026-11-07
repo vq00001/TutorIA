@@ -34,6 +34,7 @@ import type {
 type LoadStatus = 'loading' | 'ready' | 'error'
 
 interface AppDataContextValue {
+  refreshAccount: () => Promise<void>
   status: LoadStatus
   profile: StudentProfile | null
   summary: DashboardSummary | null
@@ -278,9 +279,15 @@ export function AppDataProvider({
   }, [api])
 
   // Context value
+  const refreshAccount = useCallback(async () => {
+    const [user, list, totals] = await Promise.all([api.getStudentProfile(), api.getCourses(), api.getDashboardSummary()])
+    setProfile(user.data); setCourses(list.data); setSummary(totals.data)
+    setLoadError(null)
+  }, [api])
 
   const value = useMemo(
     () => ({
+      refreshAccount,
       status,
       profile,
       summary,
@@ -295,6 +302,7 @@ export function AppDataProvider({
       removeMaterial,
     }),
     [
+      refreshAccount,
       status,
       profile,
       summary,

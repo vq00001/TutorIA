@@ -168,14 +168,22 @@ def edit_course(
 
 @router.get("/courses/{cid}/members")
 def members(cid: UUID, conn=Depends(connection, scope="function")):
-    course(conn, cid, coordinator=True)
+    course(conn, cid)
     return {
         "data": rows(
             conn,
-            "SELECT user_id AS id,role,status FROM app.memberships WHERE course_id=:id ORDER BY user_id",
+            "SELECT * FROM auth.course_members(:id)",
             id=cid,
         )
     }
+
+
+@router.post("/courses/{cid}/leave")
+def leave(cid: UUID, conn=Depends(connection, scope="function")):
+    course(conn, cid)
+    conn.execute(text("SELECT auth.leave_course(:id)"), dict(id=cid))
+    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+    return {"data": {"status": "left"}}
 
 
 @router.post("/courses/{cid}/invites", status_code=201)

@@ -43,6 +43,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
 
         <nav className="main-nav" aria-label="Navegación principal">
+          <NavLink to="/cuenta" onClick={close}>Mi cuenta</NavLink>
+          <NavLink to="/invitaciones" onClick={close}>Invitaciones</NavLink>
+          <NavLink to="/notificaciones" onClick={close}>Notificaciones</NavLink>
+          <NavLink to="/actividad" onClick={close}>Mi actividad</NavLink>
           <NavLink to="/" end onClick={close}>
             ⌂ <span>Inicio</span>
           </NavLink>
