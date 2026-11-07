@@ -6,10 +6,11 @@ function sizeLabel(bytes: number) {
     : `${Math.max(1, Math.round(bytes / 1000))} KB`
 }
 
-export function MaterialList({
-  materials,
-  onRemove,
-}: {
+function chooseIcon() {
+
+}
+
+export function MaterialList({ materials, onRemove, }: {
   materials: Pick<MaterialFile, 'id' | 'name' | 'size' | 'addedAt'>[]
   onRemove: (id: string) => void
 }) {

@@ -1,5 +1,6 @@
 import type {
   ChatMessageDto,
+  ChartPayload,
   Course,
   DashboardSummary,
   GraphologyExport,
@@ -146,10 +147,11 @@ export const demoDatabase: DemoDatabase = {
             type: 'chart',
             chart: {
               title: 'Una función compuesta',
-              description: 'y = (3x + 2)⁴',
+              description: 'f(x) = (3x + 2)⁴',
+              type: 'line',
               data: [
-                { label: '−2', fx: 16 },
-                { label: '−1', fx: 1 },
+                { label: '-2', fx: 16 },
+                { label: '-1', fx: 1 },
                 { label: '0', fx: 16 },
                 { label: '1', fx: 625 },
                 { label: '2', fx: 4096 },
@@ -165,6 +167,70 @@ export const demoDatabase: DemoDatabase = {
               yAxisLabel: 'f(x)',
             },
           },
+          {
+            type: 'chart',
+            chart: {
+              title: 'Derivada de la función',
+              description: "f'(x) = 12(3x + 2)³",
+              type: 'bar',
+              data: [
+                { label: '-1', derivative: -12 },
+                { label: '-0.5', derivative: -1.5 },
+                { label: '0', derivative: 96 },
+                { label: '0.5', derivative: 750 },
+                { label: '1', derivative: 4116 },
+              ],
+              series: [
+                {
+                  key: 'derivative',
+                  label: "f'(x)",
+                  color: '#1e9e85',
+                },
+              ],
+              xAxisLabel: 'x',
+              yAxisLabel: "f'(x)",
+            },
+          },
+          {
+            type: 'chart',
+            chart: {
+              title: 'Función y derivada',
+              description: 'Comparación entre f(x) y f\'(x)',
+              type: 'area',
+              data: [
+                { label: '-2', fx: 16, derivative: -192 },
+                { label: '-1', fx: 1, derivative: -12 },
+                { label: '0', fx: 16, derivative: 96 },
+                { label: '1', fx: 625, derivative: 1500 },
+                { label: '2', fx: 4096, derivative: 3072 },
+              ],
+              series: [
+                {
+                  key: 'fx',
+                  label: 'f(x)',
+                  color: '#8839ef',
+                },
+                {
+                  key: 'derivative',
+                  label: "f'(x)",
+                  color: '#e67e22',
+                },
+              ],
+              xAxisLabel: 'x',
+              yAxisLabel: 'Valor',
+            },
+          },
+          ...[
+            { title: 'Nube de puntos', type: 'scatter', data: [{ label: 'A', x: 1, y: 2 }, { label: 'B', x: 2, y: 4 }, { label: 'C', x: 3, y: 3 }], series: [{ key: 'y', label: 'f(x)', color: '#8839ef' }], xAxisLabel: 'x', yAxisLabel: 'f(x)' },
+            { title: 'Métodos de estudio', type: 'composed', data: [{ label: 'A', ejercicios: 3, puntaje: 60 }, { label: 'B', ejercicios: 5, puntaje: 75 }, { label: 'C', ejercicios: 4, puntaje: 68 }], series: [{ key: 'ejercicios', label: 'Ejercicios', color: '#1e9e85', kind: 'bar' }, { key: 'puntaje', label: 'Puntaje', color: '#8839ef' }] },
+            { title: 'Tiempo de estudio', type: 'pie', data: [{ label: 'Ejercicios', minutos: 45 }, { label: 'Lectura', minutos: 30 }, { label: 'Repaso', minutos: 25 }], nameKey: 'label', valueKey: 'minutos', colors: ['#8839ef', '#1e9e85', '#e67e22'] },
+            { title: 'Habilidades de cálculo', type: 'radar', data: [{ label: 'Límites', dominio: 80, práctica: 65 }, { label: 'Derivadas', dominio: 70, práctica: 90 }, { label: 'Integrales', dominio: 55, práctica: 60 }], series: [{ key: 'dominio', label: 'Dominio', color: '#8839ef' }, { key: 'práctica', label: 'Práctica', color: '#1e9e85' }] },
+            { title: 'Progreso del curso', type: 'radialBar', data: [{ label: 'Avance', progreso: 72 }], series: [{ key: 'progreso', label: 'Progreso (%)', color: '#8839ef' }] },
+            { title: 'Etapas de resolución', type: 'funnel', data: [{ label: 'Propuestos', cantidad: 100 }, { label: 'Intentados', cantidad: 75 }, { label: 'Resueltos', cantidad: 52 }], nameKey: 'label', valueKey: 'cantidad', colors: ['#8839ef', '#1e9e85', '#e67e22'] },
+            { title: 'Temas estudiados', type: 'treemap', data: [{ name: 'Límites', size: 30 }, { name: 'Derivadas', size: 45 }, { name: 'Integrales', size: 25 }, { name: 'Funciones', size: 35 }, { name: 'Ecuaciones', size: 20 }] },
+            { title: 'Ruta de aprendizaje', type: 'sankey', data: { nodes: [{ name: 'Funciones' }, { name: 'Límites' }, { name: 'Derivadas' }, { name: 'Integrales' }], links: [{ source: 0, target: 1, value: 8 }, { source: 1, target: 2, value: 6 }, { source: 2, target: 3, value: 4 }] } },
+            { title: 'Composición de contenidos', type: 'sunburst', data: { name: 'Matemáticas', value: 100, children: [{ name: 'Cálculo', value: 65, children: [{ name: 'Límites', value: 25 }, { name: 'Derivadas', value: 40 }] }, { name: 'Álgebra', value: 35, children: [{ name: 'Funciones', value: 20 }, { name: 'Ecuaciones', value: 15 }] }] } },
+          ].map((chart) => ({ type: 'chart' as const, chart: { ...chart, description: 'Ejemplo de visualización para el chat' } as ChartPayload })),
           {
             type: 'markdown',
             content:

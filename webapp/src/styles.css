@@ -902,6 +902,7 @@ label select {
 .messages-scroll {
   flex: 1;
   overflow: auto;
+  overflow-x: hidden;
 
   padding: 16px 18px;
 }
@@ -938,6 +939,7 @@ label select {
 }
 
 .assistant-body {
+  flex: 1 1 0;
   min-width: 0;
   max-width: 790px;
 }
@@ -958,6 +960,8 @@ label select {
 }
 
 .message-content {
+  min-width: 0;
+  max-width: 100%;
   color: var(--text);
   font-size: 12px;
   line-height: 1.65;
@@ -1288,8 +1292,11 @@ label select {
 /* Chart cards */
 
 .chart-card {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   margin: 12px 0;
-  padding: 12px;
+  padding: 14px 16px 10px;
 
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1304,20 +1311,22 @@ label select {
 
 .chart-card figcaption strong {
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .chart-card figcaption small {
   margin-top: 3px;
 
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .chart-area {
   width: 100%;
-  height: 220px;
-  margin-top: 10px;
+  min-width: 0;
+  height: 190px;
+  margin-top: 8px;
+  overflow: hidden;
 }
 
 
@@ -1455,6 +1464,7 @@ label select {
 /* Material list */
 
 .material-list {
+  min-width: 0;
   overflow: hidden;
 
   border: 1px solid var(--border);
@@ -1467,10 +1477,17 @@ label select {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 
   padding: 11px;
 
   border-bottom: 1px solid var(--border);
+}
+
+.material-row > .file-icon,
+.material-row > .material-ready,
+.material-row > .icon-button {
+  flex: 0 0 auto;
 }
 
 .material-row:last-child {
@@ -1480,15 +1497,12 @@ label select {
 .material-meta {
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .material-meta strong,
 .material-meta small {
   display: block;
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .material-meta strong {
@@ -1504,6 +1518,7 @@ label select {
 }
 
 .material-ready {
+  white-space: nowrap;
   color: var(--green);
   font-size: 9px;
 }

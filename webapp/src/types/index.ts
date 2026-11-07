@@ -1,3 +1,7 @@
+import type { ChartPayload } from './charts'
+
+export * from './charts'
+
 export type ThemePreference = 'system' | 'latte' | 'mocha'
 export type ResolvedTheme = Exclude<ThemePreference, 'system'>
 
@@ -55,29 +59,11 @@ export type MaterialDto = Omit<MaterialFile, 'addedAt'> & {
   addedAt: string
 }
 
-export interface ChartPoint {
-  label: string
-  [series: string]: string | number
-}
-
-export interface ChartSeries {
-  key: string
-  label: string
-  color: string
-}
-
-export interface ChartPayload {
-  title: string
-  description?: string
-  data: ChartPoint[]
-  series: ChartSeries[]
-  xAxisLabel?: string
-  yAxisLabel?: string
-}
 
 export type MessagePart =
   | { type: 'markdown'; content: string }
   | { type: 'chart'; chart: ChartPayload }
+
 
 export interface ChatMessage {
   id: string
@@ -116,3 +102,5 @@ export interface GraphologyExport {
     GraphologyEdgeExport | [string, string, string, Record<string, unknown>?]
   >
 }
+
+

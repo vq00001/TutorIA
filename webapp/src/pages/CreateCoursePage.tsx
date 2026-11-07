@@ -201,42 +201,6 @@ export function CreateCoursePage() {
                   onRemove={removeMaterial}
                 />
               </div>
-              <p>
-                Agrega apuntes, guías y documentos para que tu tutor
-                pueda utilizarlos como contexto durante las sesiones.
-              </p>
-
-
-            </section>
-
-            <section className="storage-card">
-              <span>Materiales iniciales</span>
-
-              <strong>
-                {holdedMaterials.length} archivos
-              </strong>
-
-              {holdedMaterials.length === 0 ? (
-                <small>
-                  Todavía no has agregado documentos.
-                </small>
-              ) : (
-                <ul className="initial-material-list">
-                  {holdedMaterials.map((material) => (
-                    <li key={material.id}>
-                      <span>{material.name}</span>
-
-                      <button
-                        type="button"
-                        onClick={() => removeMaterial(material.id)}
-                        aria-label={`Eliminar ${material.name}`}
-                      >
-                        ×
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </section>
           </aside>
         </div>
