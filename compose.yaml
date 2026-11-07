@@ -3,7 +3,7 @@ name: tutoria
 services:
   webapp:
     build:
-      context: ./Webapp
+      context: ./webapp
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:

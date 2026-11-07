@@ -1,11 +1,21 @@
-
-
-import { useState } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageHeading } from '../components/ui/PageHeading'
 import { useAppData } from '../contexts/AppDataContext'
 
 import { MaterialDropzone } from '../components/materials/MaterialDropzone'
+import { compatible_file_formats } from '../types'
+import type { Course, MaterialFile } from '../types'
+import { MaterialList } from '../components/materials/MaterialList'
+
+// Temporary representation of a selected file.
+interface PendingMaterial {
+  id: string
+  name: string
+  size: number
+  addedAt: Date
+  file: File
+}
 
 export function CreateCoursePage() {
   const { addCourse, addMaterials } = useAppData()
@@ -14,31 +24,57 @@ export function CreateCoursePage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [objectives, setObjectives] = useState('')
-  const [materials, setMaterials] = useState<File[]>([])
+
+  // Files selected but not yet uploaded.
+  const [holdedMaterials, setHoldedMaterials] = useState<
+    PendingMaterial[]
+  >([])
+
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function handleFiles(files: FileList | null) {
-    if (!files) return
+  // Add selected files to temporary state.
+  function handleFiles(files: File[]) {
+    const acceptedExtensions = compatible_file_formats
+      .toLowerCase()
+      .split(',')
+      .filter((ext) => ext.trim().startsWith('.'))
+      .map((ext) => ext.trim())
 
-    const accepted = Array.from(files).filter((file) =>
-      file.name.toLowerCase().endsWith('.txt')
+    const accepted = files.filter((file) =>
+      acceptedExtensions.some((ext) =>
+        file.name.toLowerCase().endsWith(ext)
+      )
     )
 
     if (accepted.length !== files.length) {
-      setNotice('Solo se admiten archivos .txt.')
+      setNotice(
+        `Algunos archivos no son compatibles. Formatos admitidos: ${compatible_file_formats}.`
+      )
+    } else {
+      setNotice('')
     }
 
-    setMaterials((previous) => [...previous, ...accepted])
+    const newMaterials: PendingMaterial[] = accepted.map((file) => ({
+      id: crypto.randomUUID(),
+      name: file.name,
+      size: file.size,
+      addedAt: new Date(),
+      file,
+    }))
+
+    setHoldedMaterials((prev) => [...prev, ...newMaterials])
   }
 
-  function removeMaterial(index: number) {
-    setMaterials((previous) =>
-      previous.filter((_, i) => i !== index)
+  // Remove a selected file from temporary state.
+  function removeMaterial(id: string) {
+    setHoldedMaterials((prev) =>
+      prev.filter((material) => material.id !== id)
     )
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  // Create course and upload its selected materials.
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!name.trim() || !description.trim() || !objectives.trim()) {
@@ -56,8 +92,12 @@ export function CreateCoursePage() {
         objectives: objectives.trim(),
       })
 
-      if (materials.length > 0) {
-        await addMaterials(course.id, materials)
+      if (holdedMaterials.length > 0) {
+        const filesToUpload = holdedMaterials.map(
+          (material) => material.file
+        )
+
+        await addMaterials(course.id, filesToUpload)
       }
 
       navigate(`/cursos/${course.id}`)
@@ -87,10 +127,16 @@ export function CreateCoursePage() {
               <div className="section-title-row">
                 <div>
                   <h2>Información del curso</h2>
-                  <p>Define los datos principales de tu espacio de estudio.</p>
+                  <p>
+                    Define los datos principales de tu espacio de estudio.
+                  </p>
                 </div>
-                <span className="required-note">* Campos obligatorios</span>
+
+                <span className="required-note">
+                  * Campos obligatorios
+                </span>
               </div>
+
               <div className="course-form">
                 <label className="course-field">
                   <span>Nombre del curso <b>*</b></span>
@@ -118,7 +164,7 @@ export function CreateCoursePage() {
                   <textarea
                     value={objectives}
                     onChange={(event) => setObjectives(event.target.value)}
-                    placeholder="¿Qué conocimientos esperas adquirir? ¿Qué contenidos abarca el curso?"
+                    placeholder="¿Qué conocimientos esperas adquirir?"
                     rows={5}
                   />
                 </label>
@@ -132,7 +178,10 @@ export function CreateCoursePage() {
             )}
 
             <div className="course-form-actions">
-              <Link className="course-cancel" to="/">Cancelar</Link>
+              <Link className="course-cancel" to="/">
+                Cancelar
+              </Link>
+
               <button type="submit" disabled={loading}>
                 {loading ? 'Creando curso...' : 'Crear curso'}
               </button>
@@ -142,32 +191,45 @@ export function CreateCoursePage() {
           <aside className="materials-aside">
             <section className="materials-tip create-course-tip">
               <span className="eyebrow">MATERIAL DE ESTUDIO</span>
-              <h2>Comienza con una buena base</h2>
+              <br />
+              <br />
+              <div>
+                <MaterialDropzone onFiles={handleFiles} />
+                <br />
+                <MaterialList
+                  materials={holdedMaterials}
+                  onRemove={removeMaterial}
+                />
+              </div>
               <p>
                 Agrega apuntes, guías y documentos para que tu tutor
                 pueda utilizarlos como contexto durante las sesiones.
               </p>
-              {/* TODO: Agregar archivos a carro con función  */}
-              <MaterialDropzone onFiles={console.log("Documento Subido")} />
+
+
             </section>
 
             <section className="storage-card">
               <span>Materiales iniciales</span>
-              <strong>{materials.length} archivos</strong>
 
-              {materials.length === 0 ? (
+              <strong>
+                {holdedMaterials.length} archivos
+              </strong>
+
+              {holdedMaterials.length === 0 ? (
                 <small>
                   Todavía no has agregado documentos.
                 </small>
               ) : (
                 <ul className="initial-material-list">
-                  {materials.map((file, index) => (
-                    <li key={`${file.name}-${index}`}>
-                      <span>{file.name}</span>
+                  {holdedMaterials.map((material) => (
+                    <li key={material.id}>
+                      <span>{material.name}</span>
+
                       <button
                         type="button"
-                        onClick={() => removeMaterial(index)}
-                        aria-label={`Eliminar ${file.name}`}
+                        onClick={() => removeMaterial(material.id)}
+                        aria-label={`Eliminar ${material.name}`}
                       >
                         ×
                       </button>
