@@ -1,0 +1,334 @@
+Class 13: Review of Gaussian Processes and Bayesian Networks
+2 October 2026
+Integration legend. Black text preserves and reconciles the supplied class notes. Blue text
+provides supplementary derivations, corrections, or study support needed to make the chapter
+self-contained. Dark-green text would identify supplementary worked examples; no new
+example beyond the supplied fuel-gauge problem was needed in this class. Gray reconciliation
+boxes make genuine source conflicts explicit.
+Contents
+1 Gaussian Process Regression 2
+1.1 The prior over functions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+1.2 Posterior and predictive distributions . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+1.3 Learning the hyperparameters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2 Bayesian Networks and Bayes’ Theorem 4
+1
+This chapter reviews the two modelling frameworks developed in the first part of the course. The
+first is Gaussian process regression, which models an unknown functional relationship by placing
+a prior distribution over functions instead of committing to a parametric form. The second is
+inference in Bayesian networks, which answers queries about a joint distribution by Bayes’ theorem
+and marginalization over the variables that are not of interest. The two are complementary: the
+Gaussian process supplies a flexible prior and likelihood for a regression problem, and the network
+manipulations turn a joint model into posterior statements about individual variables. The review
+revisits the definition of a Gaussian process, the Bayesian route from prior and likelihood to posterior
+and predictive distributions, and the learning of kernel hyperparameters; it then recalls the product
+rule, states Bayes’ theorem with background conditioning, and works through the fuel-gauge example,
+in which an observed gauge reading changes the probability that the fuel tank is empty and the
+state of the battery then explains the reading away.
+1 Gaussian Process Regression
+Regression learns a mapping from an input x to a real-valued target y from a set of examples.
+A parametric model such as linear regression commits in advance to a functional form; when
+the relationship between inputs and targets is not apparent from the data, a Gaussian process
+instead places a distribution over the unknown function itself. The prior encodes only qualitative
+knowledge—smoothness, length scale, amplitude—and the data then select the functions that are
+consistent with it. This section reviews the prior over functions, the posterior over the training
+values, the predictive distribution at a new input, and the learning of the kernel parameters from
+data.
+1.1 The prior over functions
+A Gaussian process is a Gaussian process is a collection of random variables f(x) indexed by the
+input x such that the values at any finite set of inputs are jointly Gaussian, with the specification
+consistent across finite sets. The process is determined by its mean function m(x) = E[f(x)] and
+its covariance function k(x, x
+′
+) = E[(f(x) − m(x))(f(x
+′
+) − m(x
+′
+))], and one writes f ∼ GP(m, k).
+Following the convention of the usual zero-mean convention, the mean function is taken to be zero,
+m(x) ≡ 0, so that the process is fixed by the kernel alone:
+f ∼ GP(0, k). (1)
+The kernel is the object that models the relationship: inputs that are similar under the kernel receive
+strongly correlated function values. The squared-exponential kernel k(x, x
+′
+) = σ
+2
+f
+exp(−∥x−x
+′∥
+2/2ℓ
+2
+)
+is the standard choice for smooth functions, with the signal variance σ
+2
+f
+and the length scale ℓ
+controlling the vertical and horizontal scales of the prior.
+For training inputs X = (x1, . . . , xn) collect the function values in f = (f(x1), . . . , f(xn))T. By
+the definition, f is Gaussian; under the zero-mean prior its distribution is
+p(f | X) = N
+
+f | 0, K
+, Kij = k(xi
+, xj ), (2)
+that is, the Gram matrix K of the training inputs is the covariance [1, Eq. (6.60), Sec. 6.4.2, p. 306].
+More generally, for any two lists of inputs A and B write K(A, B) for the matrix with entries
+k(ai
+, bj ). The training values and the values f∗ = (f(x∗1), . . . , f(x∗m))T at test inputs are then
+jointly Gaussian under the prior,
+
+f
+f∗
+!
+∼ N 0
+0
+!
+,
+
+K(X, X) K(X, X∗)
+K(X∗, X) K(X∗, X∗)
+!! . (3)
+2
+The block matrix specifies the Gaussian process at the combined input set: the diagonal blocks are
+the Gram matrices of the training and of the test inputs, and the off-diagonal blocks collect the
+covariances between the two sets [1, Eq. (6.64), Sec. 6.4.2, p. 307].
+1.2 Posterior and predictive distributions
+In a regression problem the latent function values are not observed; the targets are noisy measurements
+yi = f(xi) + εi
+, ε ∼ N
+0, σ2
+n
+In
+, (4)
+so the likelihood of the latent vector f is N (y | f, σ2
+n
+In). Bayes’ theorem turns the prior and the
+likelihood into the posterior distribution of the function values,
+p(f | X, y) ∝ p(y | f) p(f | X), (5)
+the function-space reading of the general update: posterior proportional to likelihood times prior.
+Supplementary derivation: posterior and prediction
+Proposition 1.1 (Posterior over the training function values). Let f ∼ GP(0, k) with Gram
+matrix K positive definite, and let y = f + ε with ε ∼ N (0, σ2
+n
+In) independent of f. Write
+Cn = K + σ
+2
+n
+In. Then
+p(f | X, y) = N
+f
+
+
+ KC−1
+n y, K − KC−1
+n K
+. (6)
+Proof. The pair (f, y) is a linear transformation of the jointly Gaussian vector (f, ε), hence
+jointly Gaussian with zero mean and covariance blocks Cov(f) = K, Cov(f, y) = E[f(f +ε)
+T] =
+K by independence of the noise, and Cov(y) = K + σ
+2
+n
+In = Cn, so that
+
+f
+y
+!
+∼ N 0
+0
+!
+,
+
+K K
+K Cn
+!! . (7)
+The covariance is positive definite because Cn is, and K is positive definite by assumption.
+Applying the conditional-Gaussian formula with za = f, zb = y, Σaa = K, Σab = K, and
+Σbb = Cn gives equation (6).
+The posterior mean KC−1
+n y is a smoothed version of the observations, and the posterior
+covariance is the prior covariance reduced by the information the data carry; by the Woodbury
+identity it also equals (K−1 + σ
+−2
+n
+In)
+−1
+, which shows the reduction explicitly.
+Prediction at a test input x∗ asks for the distribution of f∗ = f(x∗) given the data. The pair
+(y, f∗) is jointly Gaussian with covariance
+
+Cn k∗
+k
+T
+∗
+c
+!
+, k∗ =
+
+k(x1, x∗), . . . , k(xn, x∗)
+T
+, c = k(x∗, x∗), (8)
+as in the joint noisy GP distribution, so conditioning once more with the conditional-Gaussian
+formula gives the predictive distribution
+p(f∗ | x∗, X, y) = N
+f∗
+
+
+
+k
+T
+∗ C−1
+n y, c − k
+T
+∗ C−1
+n k∗
+, (9)
+which is the noisy GP predictive result. The noiseless counterpart uses the noiseless counterpart,
+in which K replaces Cn and the observed function values replace the targets. The predictive
+3
+mean is a linear combination of the observations with weights C−1
+n k∗, and the predictive
+variance is small near the training inputs and reverts to the prior variance c away from them
+(the usual kernel-expansion interpretation).
+The notes also emphasize a practical diagnostic: if the posterior uncertainty is large relative
+to the scale of the observed targets, the fit remains weak at those inputs, even when the posterior
+mean looks smooth.
+1.3 Learning the hyperparameters
+Supplementary answer: learning kernel hyperparameters
+The kernel is usually taken from a parametric family, and the question is whether its parameters
+can be tuned to the data rather than fixed in advance. The parameters θ—the signal variance
+σ
+2
+f
+and length scale ℓ of the squared-exponential kernel, together with the noise variance
+σ
+2
+n—are hyperparameters of the model. They can be learned by maximizing the marginal
+likelihood, or evidence, obtained by integrating the latent values out of the likelihood:
+p(y | X, θ) = Z
+p(y | f) p(f | X, θ) df = N
+
+y | 0, Cn(θ)
+, (10)
+which for the Gaussian model is available in closed form. Taking logarithms gives
+ln p(y | X, θ) = −
+1
+2
+ln|Cn| − 1
+2
+y
+TC−1
+n y −
+n
+2
+ln(2π), (11)
+a sum of a complexity penalty that rewards small covariance volume and a data fit term that
+rewards agreement with the observations [1, Eqs. (6.69)–(6.70), Sec. 6.4.3, pp. 311–312]. The
+function is in general nonconvex, so one resorts to gradient-based optimization, and the fitted
+hyperparameters are then used in the posterior equation (6) and the predictive distribution
+equation (9).
+2 Bayesian Networks and Bayes’ Theorem
+A Bayesian network compresses a joint distribution over variables x1, . . . , xK by reading their
+dependencies off a directed acyclic graph: the joint factorizes into one conditional distribution
+per node given its parents, p(x1, . . . , xK) = Q
+k
+p(xk | pa(xk)). Inference then manipulates this
+factorization with two elementary rules.
+Proposition 2.1 (Conditioned Bayes’ theorem). For events A, B, and C with p(B, C) > 0,
+p(A, B) = p(A) p(B | A) = p(B) p(A | B), (12)
+and
+p(A | B, C) = p(B | A, C) p(A | C)
+p(B | C)
+. (13)
+Proof. The two orders are the product rule written in opposite directions. For the conditioned
+form, the definition of conditional probability (the definition of conditional probability) gives
+p(A | B, C) = p(A, B, C)/p(B, C); applying the product rule in the order C first, then A, then
+B, yields p(A, B, C) = p(B | A, C) p(A | C) p(C) and p(B, C) = p(B | C) p(C), and cancelling the
+common factor p(C) gives equation (13).
+4
+Remark 2.2 (Equivalent rearrangements). Dividing the numerator and the denominator of equation (13) by p(C) instead of inserting it first gives
+p(A | B, C) = p(A, B | C)
+p(B | C)
+, (14)
+and the same product-rule rearrangement with the roles of the two conditioning events exchanged
+gives the symmetric form
+p(A | B, C) = p(A, C | B)
+p(C | B)
+. (15)
+All the forms are the same posterior; the one to use in a computation is the one whose conditional
+probabilities are read directly from the model.
+B
+F
+G
+Figure 1: The fuel system of a car: the battery state B and the fuel-tank state F are independent
+causes of the reading G of the electric fuel gauge. The gauge is the common effect, or collider, on
+the trail joining the two causes.
+Example 2.3 (The car battery and the fuel gauge).
+Source reconciliation for the numerical example
+Two source files use conflicting readings of the prior or of one conditional probability. The
+calculation below uses p(B = 1) = p(F = 1) = 0.9 and p(G = 1 | B = 0, F = 1) = 0.2, the
+specification shared by the coherent majority of the notes and the one that yields the recorded
+results 0.257 and 0.111. The alternative readings are documented in the accompanying
+integration report.
+A car has a battery that is either charged (B = 1) or flat (B = 0), a fuel tank that is either
+full (F = 1) or empty (F = 0), and an electric fuel gauge that reads either full (G = 1) or empty
+(G = 0). The battery and the tank are independent causes of the gauge reading, as in figure 1, with
+prior probabilities
+p(B = 1) = 0.9, p(F = 1) = 0.9, (16)
+and the gauge is rather unreliable, reading full with conditional probabilities
+p(G = 1 | B = 1, F = 1) = 0.8, p(G = 1 | B = 1, F = 0) = 0.2,
+p(G = 1 | B = 0, F = 1) = 0.2, p(G = 1 | B = 0, F = 0) = 0.1.
+(17)
+Each row of the conditional table sums to one, so that the factorization of the Bayesian-network
+factorization principle,
+p(B, F, G) = p(B) p(F) p(G | B, F), (18)
+is a complete specification of the model, and the graph encodes that B and F are marginally
+independent: p(F = 0 | B = 0) = p(F = 0) = 0.1.
+5
+Suppose the driver turns on the ignition and the gauge reads empty, G = 0. The probability of the
+reading is obtained from the law of total probability (the law of total probability) by marginalizing
+over the two unobserved causes:
+p(G = 0) = X
+B∈{0,1}
+X
+F ∈{0,1}
+p(G = 0 | B, F) p(B) p(F)
+= 0.9 · 0.1 · 0.1 + 0.8 · 0.1 · 0.9 + 0.8 · 0.9 · 0.1 + 0.2 · 0.9 · 0.9 = 0.315.
+(19)
+The likelihood of the reading under an empty tank marginalizes over the battery,
+p(G = 0 | F = 0) = X
+B∈{0,1}
+p(G = 0 | B, F = 0) p(B) = 0.9 · 0.1 + 0.8 · 0.9 = 0.81, (20)
+and Bayes’ theorem updates the prior p(F = 0) = 0.1 to
+p(F = 0 | G = 0) = p(G = 0 | F = 0) p(F = 0)
+p(G = 0) =
+0.81 · 0.1
+0.315
+≃ 0.257. (21)
+The empty reading thus raises the probability that the tank is empty from 0.1 to about 0.257, as
+expected.
+Now suppose the driver also checks the battery and finds it flat, B = 0. Because B and F
+are independent causes, p(F = 0 | B = 0) = p(F = 0), and the prior p(B = 0) cancels between
+numerator and denominator in Bayes’ theorem, leaving
+p(F = 0 | G = 0, B = 0) = p(G = 0 | B = 0, F = 0) p(F = 0)
+P
+F ∈{0,1}
+p(G = 0 | B = 0, F) p(F)
+=
+0.9 · 0.1
+0.8 · 0.9 + 0.9 · 0.1
+=
+0.09
+0.81
+≃ 0.111.
+(22)
+The probability that the tank is empty has dropped from 0.257 to about 0.111. The flat battery
+provides an alternative explanation for the empty reading, so it explains away the evidence that
+the gauge supplied in favour of an empty tank: the two causes, which are marginally independent,
+become dependent once their common effect is observed, which is the defining collider effect. This
+is the standard numerical form of explaining away; observing a descendant of the gauge instead of
+the gauge itself would have the same effect (the descendant-of-a-collider case). Note finally that
+p(F = 0 | G = 0, B = 0) ≃ 0.111 still exceeds the prior p(F = 0) = 0.1, because the empty reading
+remains some evidence in favour of an empty tank even after the battery is accounted for. This pair
+of updates is the whole of the inference step: the factorization equation (18) supplies the numbers,
+and marginalization and Bayes’ theorem convert them into posterior statements about any variable
+of interest.
