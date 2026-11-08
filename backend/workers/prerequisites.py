@@ -70,7 +70,7 @@ def propose_prerequisites(candidates, model, remaining):
         if source == target:
             raise ValueError("SELF_PREREQUISITE")
         if (source, target) in seen_pairs:
-            raise ValueError("DUPLICATE_PREREQUISITE")
+            continue
         if _would_create_cycle(adjacency, source, target):
             raise ValueError("PREREQUISITE_CYCLE")
         seen_pairs.add((source, target))
