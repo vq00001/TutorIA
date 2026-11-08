@@ -25,6 +25,25 @@ experiments/
 Los experimentos no modifican producción automáticamente. Generan métricas y
 recomendaciones que se pueden copiar a `.env`.
 
+## Dependencias entre nodos ya extraídos
+
+`fixtures/integracion_multivariable_nodes.json` contiene los 40 nodos de una
+extracción exploratoria. Solo guarda etiquetas y descripciones: los UUID de la
+salida original identifican fragmentos fuente y no se necesitan para proponer
+dependencias. El archivo conserva incluso posibles redundancias o errores del
+modelo para comparar las propuestas sobre una entrada fija.
+
+Con Ollama ya levantado, desde la raíz del proyecto:
+
+```bash
+docker compose -f compose.yaml -f compose.nvidia.yaml run --build --rm --no-deps \
+  api python -m backend.experiments.preview_prerequisites
+```
+
+También se puede pasar la ruta de otro JSON con una lista de objetos
+`{"label": "...", "description": "..."}`. Este experimento solo llama al
+generador de dependencias: no vuelve a extraer nodos ni guarda relaciones.
+
 ## Estimación de tokens
 
 ```bash
