@@ -6,11 +6,17 @@ from backend.config import Config
 from backend.services.documents import validate_file
 from backend.workers.concepts import extract_candidates
 from backend.workers.ingest import source_chunks
+from backend.workers.prerequisites import propose_prerequisites
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("file", type=Path)
+    parser.add_argument(
+        "--with-prerequisites",
+        action="store_true",
+        help="propone dependencias entre los conceptos extraídos, sin guardarlas",
+    )
     args = parser.parse_args()
 
     config = Config.from_env()
@@ -51,6 +57,16 @@ def main():
                 f"   Fuente: líneas {locator['lineStart']}"
                 f"–{locator['lineEnd']} ({source_id})"
             )
+
+    if args.with_prerequisites:
+        proposals = propose_prerequisites(candidates, os.environ["MODEL_LLM"], lambda: 180)
+        print(f"\nDependencias propuestas: {len(proposals)}")
+        for number, proposal in enumerate(proposals, 1):
+            source = candidates[proposal["source_key"]]["label"]
+            target = candidates[proposal["target_key"]]["label"]
+            print(f"\n{number}. {source} → {target}")
+            print(f"   Motivo propuesto: {proposal['reason']}")
+        print("\nEstas relaciones son inferencias del modelo; no se han guardado ni aprobado.")
 
 
 if __name__ == "__main__":
