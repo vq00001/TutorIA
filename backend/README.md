@@ -24,14 +24,15 @@ Ollama.
    cp ../.env.example ../.env
    ```
 
-3. Levanta Qdrant y Ollama:
+3. Levanta la plataforma completa:
 
    ```bash
    docker compose up --build
    ```
 
-   La primera ejecución puede tardar porque Ollama descarga los modelos
-   `qwen3:1.7b` y `all-minilm`.
+   Esto inicia Qdrant, Ollama, LiteLLM y Redis. La primera
+   ejecución puede tardar porque Ollama descarga los modelos `qwen3:1.7b` y
+   `all-minilm`.
 
 4. En otra terminal, instala las dependencias del proyecto:
 
@@ -99,7 +100,7 @@ La configuración se define en el `.env` de la raíz del repositorio. Consulta
 [`.env.example`](../.env.example) para ver todas las opciones disponibles,
 incluyendo:
 
-- URLs y puertos de Ollama y Qdrant.
+- URLs y puertos de Ollama, el gateway LiteLLM y Qdrant.
 - Modelos de lenguaje y embeddings.
 - Tamaño de los chunks y solapamiento.
 - Límite de resultados y umbral de similitud.

@@ -1,0 +1,59 @@
+model_list:
+  # ---------- Alias "chat-principal": 2 proveedores online (se balancean entre sí) ----------
+  - model_name: chat-principal
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+      rpm: 60            # límite propio de este deployment (el router lo respeta)
+      tpm: 100000
+
+  - model_name: chat-principal
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GEMINI_API_KEY
+      rpm: 60
+
+  - model_name: chat-premium
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: local-llama
+    litellm_params:
+      model: ollama_chat/qwen3:1.7b
+      api_base: http://ollama:11434
+
+  - model_name: embeddings
+    litellm_params:
+      model: ollama/all-minilm
+      api_base: http://ollama:11434
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2                     # reintentos antes de hacer fallback
+  timeout: 30                        # segundos por request
+  allowed_fails: 3                   # fallos por minuto antes de sacar el deployment (circuit breaker)
+  cooldown_time: 30                  # segundos fuera de rotación
+  retry_after: 1
+  fallbacks:
+    - chat-principal: ["local-llama"]        # si caen ambos online -> Ollama
+    - chat-premium: ["chat-principal"]
+  context_window_fallbacks:
+    - local-llama: ["chat-principal"]        # si el prompt no cabe en el modelo local
+
+litellm_settings:
+  drop_params: true                  # ignora parámetros que un proveedor no soporta
+  request_timeout: 60
+  cache: true
+  cache_params:
+    type: redis-semantic
+    redis_url: redis://redis:6379
+    host: redis
+    port: 6379
+    ttl: 600
+    similarity_threshold: 0.85                        # 0 a 1; más alto = más estricto
+    redis_semantic_cache_embedding_model: embeddings  # el model_name declarado en model_list
+
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
