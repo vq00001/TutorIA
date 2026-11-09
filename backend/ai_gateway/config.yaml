@@ -44,15 +44,6 @@ router_settings:
 litellm_settings:
   drop_params: true                  # ignora parámetros que un proveedor no soporta
   request_timeout: 60
-  cache: true
-  cache_params:
-    type: redis-semantic
-    redis_url: redis://redis:6379
-    host: redis
-    port: 6379
-    ttl: 600
-    similarity_threshold: 0.85                        # 0 a 1; más alto = más estricto
-    redis_semantic_cache_embedding_model: embeddings  # el model_name declarado en model_list
 
 
 general_settings:

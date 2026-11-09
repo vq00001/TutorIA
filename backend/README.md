@@ -30,9 +30,18 @@ Ollama.
    docker compose up --build
    ```
 
-   Esto inicia Qdrant, Ollama, LiteLLM y Redis. La primera
+   Esto inicia Qdrant, Ollama y LiteLLM. La primera
    ejecución puede tardar porque Ollama descarga los modelos `qwen3:1.7b` y
    `all-minilm`.
+
+LiteLLM funciona aquí en modo stateless: lee su configuración desde
+`backend/ai_gateway/config.yaml` y las credenciales desde `.env`, por lo que
+no necesita un volumen propio para las conversaciones ni para el arranque
+actual. Ollama y Qdrant sí tienen volúmenes porque almacenan modelos y
+vectores. Si más adelante se habilitan claves virtuales, equipos, usuarios,
+gastos o configuración administrada desde la API de LiteLLM, habrá que añadir
+PostgreSQL para persistir ese estado; Redis solo sería necesario para caché,
+rate limiting o estado compartido entre varias réplicas.
 
 4. En otra terminal, instala las dependencias del proyecto:
 
