@@ -99,3 +99,67 @@ def test_register_persists_pending_account_through_the_api_role(postgres, monkey
     assert stored["status"] == "pending"
     assert stored["email_verified_at"] is None
     assert http_api.password_hasher.verify(stored["password_hash"], payload["password"])
+
+
+def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, monkeypatch):
+    from contextlib import nullcontext
+    from datetime import timedelta
+    from hashlib import sha256
+
+    from backend import http_api
+    from backend.db.sessions import sessions
+    from fastapi.testclient import TestClient
+
+    client = TestClient(http_api.app)
+    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    payload = {
+        "email": uuid4().hex + "@example.com",
+        "password": "registration-password",
+        "displayName": "Usuario nuevo",
+    }
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+    registration = client.post("/api/v1/auth/register", json=payload)
+    assert registration.status_code == 201
+    credentials = {"email": payload["email"], "password": payload["password"]}
+    response = client.post("/api/v1/auth/login", json=credentials)
+    assert response.status_code == 200
+    session = response.json()["data"]
+    assert session["user"]["id"] == registration.json()["data"]["id"]
+    assert session["user"]["status"] == "pending"
+    with pytest.raises(ProgrammingError), postgres.begin_nested():
+        postgres.execute(select(sessions.c.token_hash))
+
+    postgres.exec_driver_sql("RESET ROLE")
+    token_hash = sha256(session["accessToken"].encode("ascii")).digest()
+    record = postgres.execute(select(sessions).where(sessions.c.token_hash == token_hash)).mappings().one()
+    assert str(record["user_id"]) == session["user"]["id"]
+    assert record["expires_at"] - record["created_at"] == timedelta(hours=1)
+
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_worker")
+    with pytest.raises(ProgrammingError), postgres.begin_nested():
+        postgres.execute(select(func.app.login_credentials(payload["email"])))
+
+
+@pytest.mark.parametrize("account_status", ["suspended", "deletion_pending"])
+def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
+    from contextlib import nullcontext
+
+    from backend import http_api
+    from fastapi.testclient import TestClient
+    from sqlalchemy import update
+
+    password = "registration-password"
+    identifier = _seed_user(postgres)
+    email = uuid4().hex + "@example.com"
+    postgres.execute(update(users).where(users.c.id == identifier).values(
+        status=account_status, email=email, password_hash=http_api.password_hasher.hash(password),
+    ))
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+
+    response = TestClient(http_api.app).post("/api/v1/auth/login", json={
+        "email": email, "password": password,
+    })
+
+    assert response.status_code == 401
+    assert response.json()["error"] == "INVALID_CREDENTIALS"

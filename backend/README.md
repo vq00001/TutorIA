@@ -62,3 +62,15 @@ Devuelve la cuenta pendiente con un nickname asignado. Un correo repetido devuel
 de la cuenta. Para habilitar el registro en una base ya creada, reconstruye y
 ejecuta el inicializador con `docker compose up -d --build db db-init` y espera con
 `docker compose wait db-init`.
+
+## Inicio de sesión
+
+`POST /api/v1/auth/login` recibe `email` y `password`. Las cuentas pendientes y
+activas pueden autenticarse. Las cuentas pendientes conservan su estado para el
+flujo de verificación de correo. La respuesta incluye un token Bearer válido
+durante una hora y PostgreSQL guarda solamente su hash. Las cuentas suspendidas
+o pendientes de borrado reciben el mismo `401` que las credenciales incorrectas.
+
+Reconstruye y ejecuta `db-init` para crear la tabla de sesiones y los permisos
+sobre una base ya iniciada. El cierre de sesión y el uso del token para
+autorizar otras rutas se incorporarán por separado.

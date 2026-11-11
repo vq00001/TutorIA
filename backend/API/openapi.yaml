@@ -105,12 +105,17 @@ paths:
       responses:
         '200':
           description: Sesión iniciada
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /auth/logout:
     post:
@@ -775,20 +780,30 @@ components:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 8, maxLength: 128 }
     AuthResponse:
       type: object
       required: [data]
       properties:
         data:
           type: object
-          required: [accessToken, tokenType, user]
+          required: [accessToken, tokenType, expiresIn, user]
           properties:
             accessToken: { type: string }
             tokenType: { type: string, enum: [Bearer] }
             expiresIn: { type: integer }
-            user: { $ref: '#/components/schemas/User' }
+            user: { $ref: '#/components/schemas/LoginUser' }
+    LoginUser:
+      type: object
+      required: [id, nickname, email, displayName, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        status: { type: string, enum: [pending, active] }
+        createdAt: { type: string, format: date-time }
     User:
       type: object
       required: [id, email, displayName, role, createdAt]

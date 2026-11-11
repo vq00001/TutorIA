@@ -6,7 +6,7 @@ from sqlalchemy import URL, create_engine, func, select
 from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
-
+from .sessions import install_sessions
 from .users import install_users
 
 
@@ -18,6 +18,7 @@ def initialize(connection: Connection) -> None:
     connection.exec_driver_sql("REVOKE ALL ON SCHEMA app FROM PUBLIC")
     connection.exec_driver_sql("GRANT USAGE ON SCHEMA app TO tutoria_api, tutoria_worker")
     install_users(connection)
+    install_sessions(connection)
 
 
 def main() -> None:
