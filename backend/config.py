@@ -1,4 +1,4 @@
-"""Configuración común de Ollama, Qdrant y los parámetros del pipeline."""
+"""Configuración común de Ollama y los parámetros del pipeline."""
 
 from __future__ import annotations
 
@@ -34,15 +34,12 @@ def _env_bool(name: str, default: bool = False) -> bool:
 class Config:
     """Configuración compartida por todas las etapas del pipeline RAG.
 
-    Los tamaños de tokens controlan el chunking; `collection` identifica las
-    colecciones de Qdrant; los modelos y URLs apuntan a los servicios externos.
+    Los tamaños de tokens controlan el chunking y la URL apunta a Ollama.
     """
 
     ollama_url: str
-    qdrant_url: str
     model_embed: str
     model_llm: str
-    collection: str = "document_chunks"
     child_target_tokens: int = 160
     parent_max_tokens: int = 1200
     min_section_tokens: int = 60
@@ -57,17 +54,12 @@ class Config:
         """Construye la configuración usando `.env` y valores predeterminados."""
 
         ollama_port = os.getenv("OLLAMA_PORT", "11434")
-        qdrant_port = os.getenv("QDRANT_PORT", "6333")
         return cls(
             ollama_url=os.getenv(
                 "OLLAMA_URL", f"http://localhost:{ollama_port}"
             ).rstrip("/"),
-            qdrant_url=os.getenv(
-                "QDRANT_URL", f"http://localhost:{qdrant_port}"
-            ).rstrip("/"),
             model_embed=os.getenv("MODEL_EMBED", "all-minilm"),
             model_llm=os.getenv("MODEL_LLM", "qwen3:1.7b"),
-            collection=os.getenv("QDRANT_COLLECTION", "document_chunks"),
             child_target_tokens=int(os.getenv("CHILD_TARGET_TOKENS", "160")),
             parent_max_tokens=int(os.getenv("PARENT_MAX_TOKENS", "1200")),
             min_section_tokens=int(os.getenv("MIN_SECTION_TOKENS", "60")),

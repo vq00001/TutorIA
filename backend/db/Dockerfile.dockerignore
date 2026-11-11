@@ -1,0 +1,6 @@
+*
+!pyproject.toml
+!__init__.py
+!db/
+!db/**
+db/**/__pycache__

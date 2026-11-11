@@ -1,119 +1,36 @@
-# Backend de RAG local con Ollama y Qdrant
+# Backend de TutorIA
 
-Pipeline de **Retrieval-Augmented Generation (RAG)** para procesar documentos,
-guardarlos como vectores en Qdrant y consultarlos usando modelos locales de
-Ollama.
+La persistencia se organiza en [db/](db/). El prototipo de procesamiento permite previsualizar documentos mientras se conecta la ingestión y la búsqueda a PostgreSQL.
 
-## Requisitos
-
-- [Docker](https://docs.docker.com/get-docker/) y Docker Compose
-- [uv](https://docs.astral.sh/uv/)
-- `make`
-
-## Puesta en marcha
-
-1. Instala `uv` si todavía no lo tienes:
-
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-2. Crea el archivo de configuración local:
-
-   ```bash
-   cp ../.env.example ../.env
-   ```
-
-3. Levanta Qdrant y Ollama:
-
-   ```bash
-   docker compose up --build
-   ```
-
-   La primera ejecución puede tardar porque Ollama descarga los modelos
-   `qwen3:1.7b` y `all-minilm`.
-
-4. En otra terminal, instala las dependencias del proyecto:
-
-   ```bash
-   make install
-   ```
-
-## Uso
-
-### Previsualizar documentos
-
-Muestra los chunks que se generarían sin conectarse a los servicios:
-
-```bash
-make preview DOCS=docs
+```text
+backend/
+├── db/
+│   ├── connection.py        # Transacciones y contexto del usuario
+│   ├── initialize.py        # Instala el esquema directamente
+├── API/                     # Contrato OpenAPI
+└── experiments/             # Calibración y datos de evaluación
 ```
 
-### Ingestar documentos
+## Base de datos local
 
-Procesa los documentos, genera embeddings y los guarda en Qdrant:
-
-```bash
-make ingest DOCS=docs
-```
-
-Para generar contexto adicional con el modelo LLM, activa la flag opcional:
+Desde la raíz del proyecto:
 
 ```bash
-make ingest DOCS=docs CONTEXT=1
+docker compose up -d --build db db-init
+docker compose wait db-init
 ```
 
-### Buscar información
+Compose inicia PostgreSQL, crea los roles locales y habilita pgvector. El instalador también prepara el esquema vacío `app` para las funcionalidades posteriores.
 
-Recupera los documentos más relevantes:
+Usa un volumen nuevo para instalar el esquema desde cero. Volver a levantar Compose reutiliza un esquema ya creado por este instalador. La conexión local predeterminada está en `.env.example`. Configura `DATABASE_URL` con el rol de aplicación y usa `backend.db.connection.transaction(user_id)` para consultar con el contexto del usuario.
+
+## Previsualizar documentos
+
+Desde la raíz, instala el entorno del backend y ejecuta:
 
 ```bash
-make search QUERY="tu pregunta"
+make -C backend install
+make -C backend preview DOCS=/ruta/al/documento.md
 ```
 
-Genera también una respuesta usando el contexto recuperado:
-
-```bash
-make search QUERY="tu pregunta" ANSWER=1
-```
-
-## Comandos disponibles
-
-Ejecuta `make help` para ver todos los comandos:
-
-| Comando | Descripción |
-| --- | --- |
-| `make install` | Instala dependencias de desarrollo y producción |
-| `make prod` | Instala solo dependencias de producción |
-| `make sync` | Sincroniza el entorno usando `uv.lock` |
-| `make lint` | Ejecuta Ruff |
-| `make format` | Formatea el código |
-| `make test` | Ejecuta los tests |
-| `make evaluate` | Evalúa los thresholds de recuperación |
-| `make evaluate-limit` | Compara valores de `LIMIT_QUERY` |
-| `make calibrate` | Calibra `TOKEN_ESTIMATE_RATIO` |
-
-## Configuración
-
-La configuración se define en el `.env` de la raíz del repositorio. Consulta
-[`.env.example`](../.env.example) para ver todas las opciones disponibles,
-incluyendo:
-
-- URLs y puertos de Ollama y Qdrant.
-- Modelos de lenguaje y embeddings.
-- Tamaño de los chunks y solapamiento.
-- Límite de resultados y umbral de similitud.
-
-## Detener los servicios
-
-Para detener los contenedores sin eliminar los datos:
-
-```bash
-docker compose down
-```
-
-Para eliminar también los volúmenes persistentes de Ollama y Qdrant:
-
-```bash
-docker compose down -v
-```
+La ingestión y la búsqueda se conectarán a PostgreSQL en cambios posteriores.
