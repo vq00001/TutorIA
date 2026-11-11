@@ -1,29 +1,12 @@
 """Integration tests for a local initialized database. Seed rows are rolled back."""
 
-import os
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, func, insert, select, text
+from sqlalchemy import func, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from db.users import get_current_user, users
-
-
-@pytest.fixture
-def postgres():
-    url = os.environ.get("TUTORIA_TEST_ADMIN_URL")
-    if not url:
-        pytest.skip("Set TUTORIA_TEST_ADMIN_URL to a local initialized PostgreSQL database")
-    engine = create_engine(url, hide_parameters=True)
-    try:
-        with engine.connect() as connection, connection.begin() as transaction:
-            try:
-                yield connection
-            finally:
-                transaction.rollback()
-    finally:
-        engine.dispose()
 
 
 def test_postgres_has_vector_and_restricted_application_roles(postgres):

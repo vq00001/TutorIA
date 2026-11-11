@@ -6,6 +6,7 @@ from sqlalchemy import URL, create_engine, func, select
 from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
+from .account_tokens import install_account_tokens
 from .sessions import install_sessions
 from .users import install_users
 
@@ -19,6 +20,7 @@ def initialize(connection: Connection) -> None:
     connection.exec_driver_sql("GRANT USAGE ON SCHEMA app TO tutoria_api, tutoria_worker")
     install_users(connection)
     install_sessions(connection)
+    install_account_tokens(connection)
 
 
 def main() -> None:

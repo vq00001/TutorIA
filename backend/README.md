@@ -83,3 +83,18 @@ Envía el token devuelto por el inicio de sesión en `Authorization: Bearer <tok
 - Un token desconocido, caducado o revocado, o una cuenta suspendida o pendiente de borrado, recibe `401`.
 
 Reconstruye y vuelve a ejecutar `db-init` para instalar estas operaciones sobre una base ya creada.
+
+## Verificación de correo y recuperación de contraseña
+
+`db/account_tokens.py` ofrece las operaciones de persistencia. El inicializador
+crea la tabla y sus permisos al volver a ejecutar `db-init`.
+
+- `issue_account_token(conn, email, purpose)` reemplaza el token anterior del
+  mismo propósito. Devuelve el token al servicio que se encargue de enviarlo.
+  Confirma la transacción antes del envío. PostgreSQL guarda solo el hash.
+- `verify_email(conn, token)` activa una cuenta pendiente. El token dura 24 horas.
+- `reset_password(conn, token, password_hash)` acepta un hash Argon2id, consume el
+  token de 30 minutos y elimina todas las sesiones de la cuenta.
+
+El envío de correo y las rutas HTTP quedan fuera de este bloque. Al integrarlos,
+la solicitud de un token debe responder igual exista o no una cuenta para el correo.
