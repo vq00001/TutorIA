@@ -64,3 +64,38 @@ def test_nickname_is_unique_regardless_of_case(postgres):
     _seed_user(postgres, nickname)
     with pytest.raises(IntegrityError), postgres.begin_nested():
         _seed_user(postgres, nickname.upper())
+
+
+def test_register_persists_pending_account_through_the_api_role(postgres, monkeypatch):
+    from contextlib import nullcontext
+
+    from backend import http_api
+    from fastapi.testclient import TestClient
+
+    client = TestClient(http_api.app)
+    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    payload = {
+        "email": uuid4().hex + "@example.com",
+        "password": "registration-password",
+        "displayName": "Usuario nuevo",
+    }
+
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+    first = client.post("/api/v1/auth/register", json=payload)
+    assert first.status_code == 201
+    duplicate = client.post("/api/v1/auth/register", json={**payload, "email": payload["email"].upper()})
+    assert duplicate.status_code == 409
+    assert get_current_user(postgres) is None
+
+    with pytest.raises(ProgrammingError), postgres.begin_nested():
+        postgres.execute(insert(users).values(
+            id=uuid4(), nickname="u_" + uuid4().hex, display_name="Synthetic",
+            email=uuid4().hex + "@example.com", password_hash="test-only", status="active",
+        ))
+
+    postgres.exec_driver_sql("RESET ROLE")
+    stored = postgres.execute(select(users).where(users.c.email == payload["email"])).mappings().one()
+    assert str(stored["id"]) == first.json()["data"]["id"]
+    assert stored["status"] == "pending"
+    assert stored["email_verified_at"] is None
+    assert http_api.password_hasher.verify(stored["password_hash"], payload["password"])

@@ -46,3 +46,19 @@ Para probar PostgreSQL, levanta primero la base local y espera a que termine `db
 TUTORIA_TEST_ADMIN_URL='postgresql+psycopg://tutoria_migrator:tutoria_local_migrator@127.0.0.1:55432/tutoria' \
   make -C backend test
 ```
+
+## Registro de usuarios
+
+Configura `DATABASE_URL` con el rol de la API. Si todavía no tienes `.env`, puedes copiar
+`.env.example`. Con PostgreSQL iniciado y `db-init` completado, ejecuta desde la raíz:
+
+```bash
+uv run --project backend uvicorn backend.http_api:app
+```
+
+El endpoint `POST /api/v1/auth/register` recibe `email`, `password` y `displayName`.
+Devuelve la cuenta pendiente con un nickname asignado. Un correo repetido devuelve
+`409`. La contraseña se guarda con Argon2id y la respuesta solo contiene los datos
+de la cuenta. Para habilitar el registro en una base ya creada, reconstruye y
+ejecuta el inicializador con `docker compose up -d --build db db-init` y espera con
+`docker compose wait db-init`.

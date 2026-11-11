@@ -81,11 +81,11 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
-          description: Usuario registrado y sesión iniciada
+          description: Cuenta registrada con estado pendiente
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/RegisterResponse'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -755,9 +755,22 @@ components:
       type: object
       required: [email, password, displayName]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password, minLength: 8 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 8, maxLength: 128 }
         displayName: { type: string, minLength: 1, maxLength: 100 }
+    RegisterResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, nickname, email, displayName, status]
+          properties:
+            id: { type: string, format: uuid }
+            nickname: { type: string }
+            email: { type: string, format: email }
+            displayName: { type: string }
+            status: { type: string, const: pending }
     LoginRequest:
       type: object
       required: [email, password]

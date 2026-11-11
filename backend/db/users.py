@@ -1,9 +1,21 @@
-"""Esquema y lectura del perfil del usuario actual."""
+"""Esquema, registro y lectura del perfil del usuario actual."""
+
+from uuid import UUID
 
 from sqlalchemy import (
-    CheckConstraint, Column, DateTime, Index, MetaData, String, Table, Text, Uuid,
-    func, select,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Index,
+    MetaData,
+    String,
+    Table,
+    Text,
+    Uuid,
+    func,
+    select,
 )
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection, RowMapping
 
 users = Table(
@@ -42,7 +54,7 @@ _current_user_id = func.nullif(func.current_setting("app.user_id", True), "").ca
 
 
 def install_users(conn: Connection) -> None:
-    """Instala la tabla y concede a la API lectura del perfil propio."""
+    """Instala la tabla y concede a la API registro y lectura del perfil propio."""
     users.create(conn, checkfirst=True)
     conn.exec_driver_sql("ALTER TABLE app.users ENABLE ROW LEVEL SECURITY")
     conn.exec_driver_sql("ALTER TABLE app.users FORCE ROW LEVEL SECURITY")
@@ -55,6 +67,32 @@ def install_users(conn: Connection) -> None:
         """GRANT SELECT (id, nickname, display_name, email, email_verified_at, status, created_at)
         ON app.users TO tutoria_api"""
     )
+
+    conn.exec_driver_sql("DROP POLICY IF EXISTS register_pending_user ON app.users")
+    conn.exec_driver_sql(
+        """CREATE POLICY register_pending_user ON app.users FOR INSERT TO tutoria_api
+        WITH CHECK (status = 'pending' AND email_verified_at IS NULL)"""
+    )
+    conn.exec_driver_sql(
+        "GRANT INSERT (id, nickname, display_name, email, password_hash) ON app.users TO tutoria_api"
+    )
+
+
+def insert_pending_user(
+    conn: Connection, *, identifier: UUID, nickname: str, email: str,
+    display_name: str, password_hash: str,
+) -> bool:
+    """Inserta una cuenta pendiente. Un conflicto de identidad no modifica la cuenta existente."""
+    statement = (
+        insert(users)
+        .values(
+            id=identifier, nickname=nickname, email=email, display_name=display_name,
+            password_hash=password_hash,
+        )
+        .on_conflict_do_nothing()
+        .execution_options(preserve_rowcount=True)
+    )
+    return conn.execute(statement).rowcount == 1
 
 
 def get_current_user(conn: Connection) -> RowMapping | None:
