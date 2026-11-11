@@ -55,3 +55,36 @@ def test_preview_calls_only_prerequisite_generation(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "Nodos cargados: 40" in output
     assert "Definición de integral doble → Interpretación de la integral doble" in output
+
+
+def test_preview_consolidates_before_proposing_prerequisites(monkeypatch, capsys):
+    calls = []
+
+    def fake_consolidation(candidates, target, model, remaining):
+        calls.append(("consolidate", len(candidates), target, model, remaining()))
+        first_two = list(candidates)[:2]
+        merged = {"definicion e interpretacion": {
+            "label": "Definición e interpretación", "description": "Concepto fusionado",
+            "source_ids": set(),
+        }}
+        merged.update({key: value for key, value in candidates.items() if key not in first_two})
+        return merged, [{"from_keys": first_two, "to_key": "definicion e interpretacion",
+                         "reason": "Solapados"}]
+
+    def fake_prerequisites(candidates, model, remaining):
+        calls.append(("prerequisites", len(candidates), model, remaining()))
+        assert "definicion e interpretacion" in candidates
+        return []
+
+    monkeypatch.setattr(preview_prerequisites, "consolidate_candidates", fake_consolidation)
+    monkeypatch.setattr(preview_prerequisites, "propose_prerequisites", fake_prerequisites)
+    monkeypatch.setenv("MODEL_LLM", "test-model")
+    monkeypatch.setattr(sys, "argv", ["preview_prerequisites", "--target-concepts", "20"])
+
+    preview_prerequisites.main()
+
+    assert calls == [
+        ("consolidate", 40, 20, "test-model", 180),
+        ("prerequisites", 39, "test-model", 180),
+    ]
+    assert "Consolidación: 40 → 39 nodos" in capsys.readouterr().out

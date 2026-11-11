@@ -5,6 +5,7 @@ from pathlib import Path
 from backend.config import Config
 from backend.services.documents import validate_file
 from backend.workers.concepts import extract_candidates
+from backend.workers.consolidation import consolidate_candidates
 from backend.workers.ingest import source_chunks
 from backend.workers.prerequisites import propose_prerequisites
 
@@ -12,6 +13,10 @@ from backend.workers.prerequisites import propose_prerequisites
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("file", type=Path)
+    parser.add_argument(
+        "--target-concepts", type=int,
+        help="objetivo aproximado de nodos tras fusionar conceptos solapados",
+    )
     parser.add_argument(
         "--with-prerequisites",
         action="store_true",
@@ -45,6 +50,18 @@ def main():
         os.environ["MODEL_LLM"],
         lambda: 180,
     )
+
+    if args.target_concepts is not None:
+        original_count = len(candidates)
+        original_candidates = candidates
+        candidates, merges = consolidate_candidates(
+            candidates, args.target_concepts, os.environ["MODEL_LLM"], lambda: 180
+        )
+        print(f"Consolidación: {original_count} → {len(candidates)} nodos; "
+              f"{len(merges)} grupos fusionados")
+        for merge in merges:
+            originals = ", ".join(original_candidates[key]["label"] for key in merge["from_keys"])
+            print(f"  {originals} → {candidates[merge['to_key']]['label']}")
 
     print(f"\nConceptos encontrados: {len(candidates)}")
     for number, concept in enumerate(candidates.values(), 1):

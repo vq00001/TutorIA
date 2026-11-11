@@ -40,6 +40,13 @@ docker compose -f compose.yaml -f compose.nvidia.yaml run --build --rm --no-deps
   api python -m backend.experiments.preview_prerequisites
 ```
 
+Para pedir una cantidad aproximada de nodos antes de proponer las relaciones,
+añade `--target-concepts 20` al comando. El modelo solo propone grupos de
+fusión: el código conserva todos los nodos no fusionados y une sus fuentes.
+No se fuerzan fusiones si el modelo no encuentra equivalencias justificables.
+El mismo parámetro está disponible en `preview_concepts.py`, donde se aplica
+después de extraer nodos y antes de proponer prerrequisitos.
+
 También se puede pasar la ruta de otro JSON con una lista de objetos
 `{"label": "...", "description": "..."}`. Este experimento solo llama al
 generador de dependencias: no vuelve a extraer nodos ni guarda relaciones.

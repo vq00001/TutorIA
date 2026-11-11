@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from backend.workers.concepts import normalized_label
+from backend.workers.consolidation import consolidate_candidates
 from backend.workers.prerequisites import propose_prerequisites
 
 
@@ -35,10 +36,24 @@ def load_candidates(path: Path) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Propone dependencias desde nodos ya creados")
     parser.add_argument("file", nargs="?", type=Path, default=DEFAULT_NODES)
+    parser.add_argument(
+        "--target-concepts", type=int,
+        help="objetivo aproximado de nodos tras fusionar conceptos solapados",
+    )
     args = parser.parse_args()
 
     candidates = load_candidates(args.file)
     print(f"Nodos cargados: {len(candidates)} ({args.file})", flush=True)
+    if args.target_concepts is not None:
+        original_candidates = candidates
+        candidates, merges = consolidate_candidates(
+            candidates, args.target_concepts, os.environ["MODEL_LLM"], lambda: 180
+        )
+        print(f"Consolidación: {len(original_candidates)} → {len(candidates)} nodos; "
+              f"{len(merges)} grupos fusionados")
+        for merge in merges:
+            originals = ", ".join(original_candidates[key]["label"] for key in merge["from_keys"])
+            print(f"  {originals} → {candidates[merge['to_key']]['label']}")
     proposals = propose_prerequisites(candidates, os.environ["MODEL_LLM"], lambda: 180)
 
     print(f"\nDependencias propuestas: {len(proposals)}")
