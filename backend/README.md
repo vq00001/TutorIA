@@ -98,3 +98,17 @@ crea la tabla y sus permisos al volver a ejecutar `db-init`.
 
 El envío de correo y las rutas HTTP quedan fuera de este bloque. Al integrarlos,
 la solicitud de un token debe responder igual exista o no una cuenta para el correo.
+
+## Clases y membresías
+
+`db/courses.py` instala las clases y su relación N:M con los usuarios. Una cuenta
+activa puede crear una clase y queda como coordinadora en la misma transacción.
+Los miembros activos consultan sus clases y los datos públicos del resto del
+curso. Solo la coordinación puede editar la clase o modificar membresías. Los
+cambios de configuración y membresía requieren la versión de la fila que se leyó.
+Una clase activa o archivada conserva al menos una membresía coordinadora activa.
+
+Usa estos repositorios dentro de `transaction(user_id)`. Reconstruye y ejecuta
+`db-init` para instalar el módulo en una base ya iniciada. Los roles persistidos
+siguen el ZIP original, `student` y `coordinator`. La integración HTTP, las
+invitaciones y el borrado físico quedan para sus propios cambios.
