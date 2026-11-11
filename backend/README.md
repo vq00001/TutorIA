@@ -112,3 +112,19 @@ Usa estos repositorios dentro de `transaction(user_id)`. Reconstruye y ejecuta
 `db-init` para instalar el módulo en una base ya iniciada. Los roles persistidos
 siguen el ZIP original, `student` y `coordinator`. La integración HTTP, las
 invitaciones y el borrado físico quedan para sus propios cambios.
+
+## Invitaciones directas
+
+`db/invitations.py` permite a la coordinación invitar por correo a una cuenta
+activa. La operación responde igual si el correo no existe, no es elegible o ya
+pertenece a la clase. Las invitaciones duran siete días. Repetir una invitación
+vigente conserva su ID y su vencimiento.
+
+La cuenta destinataria puede listar sus invitaciones pendientes y aceptarlas o
+rechazarlas. Aceptar crea o reactiva su membresía como `student` en la misma
+transacción, respetando el rol si ya tiene una membresía activa. Renovar una
+invitación vencida o rechazada genera otro ID.
+
+Usa estos repositorios dentro de `transaction(user_id)` y vuelve a ejecutar
+`db-init` para instalar el módulo. Las rutas HTTP y las notificaciones se
+integrarán por separado.

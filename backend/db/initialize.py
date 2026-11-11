@@ -8,6 +8,7 @@ from sqlalchemy.schema import CreateSchema
 
 from .account_tokens import install_account_tokens
 from .courses import install_courses
+from .invitations import install_invitations
 from .sessions import install_sessions
 from .users import install_users
 
@@ -23,6 +24,7 @@ def initialize(connection: Connection) -> None:
     install_sessions(connection)
     install_account_tokens(connection)
     install_courses(connection)
+    install_invitations(connection)
 
 
 def main() -> None:
