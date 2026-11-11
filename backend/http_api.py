@@ -1,26 +1,38 @@
 """Interfaz HTTP de TutorIA."""
 
+import re
+from collections.abc import Iterator
 from datetime import datetime
 from secrets import token_urlsafe
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
+from sqlalchemy.engine import Connection
 
-from .db.connection import transaction
-from .db.sessions import SESSION_LIFETIME_SECONDS, get_login_credentials, issue_session
-from .db.users import insert_pending_user
+from .db.connection import set_user_context, transaction
+from .db.sessions import (
+    SESSION_LIFETIME_SECONDS,
+    get_login_credentials,
+    get_session_user,
+    issue_session,
+    revoke_session,
+)
+from .db.users import get_current_user, insert_pending_user
 
 load_dotenv()
 app = FastAPI(title="TutorIA API")
 password_hasher = PasswordHasher()
 _dummy_password_hash = password_hasher.hash(token_urlsafe(32))
+_bearer = HTTPBearer(auto_error=False, scheme_name="bearerAuth")
+_token_format = re.compile(r"[A-Za-z0-9_-]{43}")
 
 
 class LoginRequest(BaseModel):
@@ -84,6 +96,18 @@ class LoginResponse(BaseModel):
     data: SessionData
 
 
+class CurrentUser(LoginUser):
+    emailVerifiedAt: datetime | None
+
+
+class CurrentUserResponse(BaseModel):
+    data: CurrentUser
+
+
+class InvalidSession(Exception):
+    pass
+
+
 class ErrorResponse(BaseModel):
     error: str
     message: str
@@ -101,6 +125,38 @@ async def invalid_request(_request: Request, _error: RequestValidationError) -> 
         status_code=422,
         content={"error": "INVALID_REGISTRATION", "message": "Revisa los datos del registro."},
     )
+
+
+@app.exception_handler(InvalidSession)
+async def invalid_session(_request: Request, _error: InvalidSession) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        headers={"WWW-Authenticate": "Bearer"},
+        content={"error": "INVALID_SESSION", "message": "Sesión inválida o caducada."},
+    )
+
+
+def require_bearer(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+) -> str:
+    if credentials is None or _token_format.fullmatch(credentials.credentials) is None:
+        raise InvalidSession
+    return credentials.credentials
+
+
+BearerToken = Annotated[str, Depends(require_bearer)]
+
+
+def authenticated_connection(token: BearerToken) -> Iterator[Connection]:
+    with transaction() as connection:
+        identifier = get_session_user(connection, token)
+        if identifier is None:
+            raise InvalidSession
+        set_user_context(connection, identifier)
+        yield connection
+
+
+AuthenticatedConnection = Annotated[Connection, Depends(authenticated_connection)]
 
 
 @app.post(
@@ -173,3 +229,38 @@ def login(payload: LoginRequest, response: Response) -> LoginResponse | JSONResp
             ),
         )
     )
+
+
+@app.get(
+    "/api/v1/users/me",
+    response_model=CurrentUserResponse,
+    responses={401: {"model": ErrorResponse}},
+)
+def my_profile(connection: AuthenticatedConnection, response: Response) -> CurrentUserResponse:
+    user = get_current_user(connection)
+    if user is None or user["status"] not in ("pending", "active"):
+        raise InvalidSession
+    response.headers["Cache-Control"] = "no-store"
+    return CurrentUserResponse(
+        data=CurrentUser(
+            id=user["id"],
+            nickname=user["nickname"],
+            email=user["email"],
+            displayName=user["display_name"],
+            status=user["status"],
+            createdAt=user["created_at"],
+            emailVerifiedAt=user["email_verified_at"],
+        )
+    )
+
+
+@app.post(
+    "/api/v1/auth/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={401: {"model": ErrorResponse}},
+)
+def logout(token: BearerToken) -> Response:
+    with transaction() as connection:
+        if not revoke_session(connection, token):
+            raise InvalidSession
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -163,3 +163,70 @@ def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
 
     assert response.status_code == 401
     assert response.json()["error"] == "INVALID_CREDENTIALS"
+
+
+def test_session_isolates_profiles_and_revokes_only_the_presented_token(postgres, monkeypatch):
+    from contextlib import nullcontext
+
+    from backend import http_api
+    from backend.db.sessions import issue_session
+    from fastapi.testclient import TestClient
+
+    first, second = _seed_user(postgres), _seed_user(postgres)
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+    first_token, second_token = issue_session(postgres, first), issue_session(postgres, second)
+    another_token = issue_session(postgres, first)
+    client = TestClient(http_api.app)
+    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+
+    def headers(token):
+        return {"Authorization": f"Bearer {token}"}
+
+    profile_url, logout_url = "/api/v1/users/me", "/api/v1/auth/logout"
+    first_profile = client.get(profile_url, headers=headers(first_token))
+    assert first_profile.status_code == 200
+    assert first_profile.json()["data"]["id"] == str(first)
+    assert client.get(profile_url, headers=headers(second_token)).json()["data"]["id"] == str(second)
+
+    assert client.post(logout_url, headers=headers(first_token)).status_code == 204
+    assert client.get(profile_url, headers=headers(first_token)).status_code == 401
+    assert client.post(logout_url, headers=headers(first_token)).status_code == 401
+    assert client.get(profile_url, headers=headers(another_token)).status_code == 200
+
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_worker")
+    for statement in (
+        select(func.app.session_user(bytes(32))),
+        select(func.app.revoke_session(bytes(32))),
+    ):
+        with pytest.raises(ProgrammingError), postgres.begin_nested():
+            postgres.execute(statement)
+
+
+@pytest.mark.parametrize("condition", ["expired", "suspended", "deletion_pending"])
+def test_profile_rejects_sessions_that_are_no_longer_valid(postgres, monkeypatch, condition):
+    from contextlib import nullcontext
+    from datetime import timedelta
+
+    from backend import http_api
+    from backend.db.sessions import issue_session, sessions
+    from fastapi.testclient import TestClient
+    from sqlalchemy import update
+
+    identifier = _seed_user(postgres)
+    token = issue_session(postgres, identifier)
+    if condition == "expired":
+        postgres.execute(update(sessions).where(sessions.c.user_id == identifier).values(
+            created_at=func.now() - timedelta(hours=2),
+            expires_at=func.now() - timedelta(hours=1),
+        ))
+    else:
+        postgres.execute(update(users).where(users.c.id == identifier).values(status=condition))
+
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    response = TestClient(http_api.app).get(
+        "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"] == "INVALID_SESSION"

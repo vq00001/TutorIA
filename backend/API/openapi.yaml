@@ -134,10 +134,15 @@ paths:
       responses:
         '200':
           description: Perfil del usuario
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       tags: [Users]
       summary: Modifica el perfil del usuario actual
@@ -804,6 +809,17 @@ components:
         displayName: { type: string }
         status: { type: string, enum: [pending, active] }
         createdAt: { type: string, format: date-time }
+    CurrentUserResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/LoginUser'
+            - type: object
+              required: [emailVerifiedAt]
+              properties:
+                emailVerifiedAt: { type: [string, 'null'], format: date-time }
     User:
       type: object
       required: [id, email, displayName, role, createdAt]

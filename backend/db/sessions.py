@@ -69,6 +69,40 @@ def install_sessions(conn: Connection) -> None:
     conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.login_credentials(text) FROM PUBLIC")
     conn.exec_driver_sql("GRANT EXECUTE ON FUNCTION app.login_credentials(text) TO tutoria_api")
 
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.session_user(candidate_hash bytea)
+        RETURNS uuid
+        LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+            SELECT s.user_id
+            FROM app.auth_sessions AS s JOIN app.users AS u ON u.id = s.user_id
+            WHERE s.token_hash = candidate_hash
+              AND s.expires_at > statement_timestamp()
+              AND u.status IN ('pending', 'active')
+        $$"""
+    )
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.revoke_session(candidate_hash bytea)
+        RETURNS boolean
+        LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+            WITH removed AS (
+                DELETE FROM app.auth_sessions AS s USING app.users AS u
+                WHERE s.token_hash = candidate_hash AND u.id = s.user_id
+                  AND s.expires_at > statement_timestamp()
+                  AND u.status IN ('pending', 'active')
+                RETURNING 1
+            )
+            SELECT EXISTS (SELECT FROM removed)
+        $$"""
+    )
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.session_user(bytea), app.revoke_session(bytea) FROM PUBLIC"
+    )
+    conn.exec_driver_sql(
+        "GRANT EXECUTE ON FUNCTION app.session_user(bytea), app.revoke_session(bytea) TO tutoria_api"
+    )
+
 
 def get_login_credentials(conn: Connection, email: str) -> RowMapping | None:
     credentials = func.app.login_credentials(email).table_valued(
@@ -83,11 +117,23 @@ def get_login_credentials(conn: Connection, email: str) -> RowMapping | None:
     return conn.execute(select(credentials)).mappings().one_or_none()
 
 
+def _token_hash(token: str) -> bytes:
+    return sha256(token.encode("ascii")).digest()
+
+
+def get_session_user(conn: Connection, token: str) -> UUID | None:
+    return conn.scalar(select(func.app.session_user(_token_hash(token))))
+
+
+def revoke_session(conn: Connection, token: str) -> bool:
+    return conn.scalar(select(func.app.revoke_session(_token_hash(token)))) is True
+
+
 def issue_session(conn: Connection, user_id: UUID) -> str:
     """Devuelve el token nuevo y persiste solo su hash y su caducidad."""
     token = token_urlsafe(32)
     statement = insert(sessions).values(
-        token_hash=sha256(token.encode("ascii")).digest(),
+        token_hash=_token_hash(token),
         user_id=user_id,
         expires_at=func.now() + timedelta(seconds=SESSION_LIFETIME_SECONDS),
     )

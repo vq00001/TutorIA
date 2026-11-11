@@ -35,13 +35,17 @@ def engine():
     return result
 
 
+def set_user_context(conn, user_id: UUID | None) -> None:
+    conn.execute(
+        text("SELECT set_config('app.user_id', :uid, true)"),
+        {"uid": str(user_id) if user_id else ""},
+    )
+
+
 @contextmanager
 def transaction(user_id: UUID | None = None):
     with engine().begin() as conn:
-        conn.execute(
-            text("SELECT set_config('app.user_id', :uid, true)"),
-            {"uid": str(user_id) if user_id else ""},
-        )
+        set_user_context(conn, user_id)
         yield conn
 
 

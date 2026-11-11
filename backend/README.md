@@ -72,5 +72,14 @@ durante una hora y PostgreSQL guarda solamente su hash. Las cuentas suspendidas
 o pendientes de borrado reciben el mismo `401` que las credenciales incorrectas.
 
 Reconstruye y ejecuta `db-init` para crear la tabla de sesiones y los permisos
-sobre una base ya iniciada. El cierre de sesión y el uso del token para
-autorizar otras rutas se incorporarán por separado.
+sobre una base ya iniciada.
+
+## Perfil propio y cierre de sesión
+
+Envía el token devuelto por el inicio de sesión en `Authorization: Bearer <token>`.
+
+- `GET /api/v1/users/me` devuelve el perfil asociado a la sesión y la fecha de verificación del correo, si existe.
+- `POST /api/v1/auth/logout` revoca la sesión usada y responde `204`. Los demás tokens de esa cuenta siguen vigentes.
+- Un token desconocido, caducado o revocado, o una cuenta suspendida o pendiente de borrado, recibe `401`.
+
+Reconstruye y vuelve a ejecutar `db-init` para instalar estas operaciones sobre una base ya creada.
