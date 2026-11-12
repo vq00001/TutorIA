@@ -2,12 +2,14 @@
 
 import os
 
-from sqlalchemy import URL, create_engine, func, select
+from psycopg import sql
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
 from .account_tokens import install_account_tokens
 from .citations import install_citations
+from .connection import compose_database_url
 from .conversations import install_conversations
 from .courses import install_courses
 from .documents import install_documents
@@ -29,9 +31,11 @@ from .users import install_users
 from .vector_search import install_vector_search
 
 
-def initialize(connection: Connection) -> None:
+def initialize(connection: Connection, *, role_passwords: dict[str, str] | None = None) -> None:
     """Prepara la extensión y los módulos en la transacción de arranque."""
     connection.execute(select(func.pg_advisory_xact_lock(0x5455544F)))
+    if role_passwords is not None:
+        ensure_roles(connection, role_passwords)
     connection.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
     connection.execute(CreateSchema("app", if_not_exists=True))
     connection.exec_driver_sql("REVOKE ALL ON SCHEMA app FROM PUBLIC")
@@ -59,18 +63,28 @@ def initialize(connection: Connection) -> None:
     install_citations(connection)
 
 
+def ensure_roles(connection: Connection, passwords: dict[str, str]) -> None:
+    for role, password in passwords.items():
+        exists = connection.execute(
+            text("SELECT 1 FROM pg_roles WHERE rolname = :role"), {"role": role}
+        ).scalar_one_or_none()
+        if exists is None:
+            statement = sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD {}").format(
+                sql.Identifier(role), sql.Literal(password)
+            )
+            with connection.connection.driver_connection.cursor() as cursor:
+                cursor.execute(statement)
+
+
 def main() -> None:
-    url = URL.create(
-        "postgresql+psycopg",
-        host=os.environ["POSTGRES_HOST"],
-        database=os.environ["POSTGRES_DB"],
-        username=os.environ["POSTGRES_USER"],
-        password=os.environ["POSTGRES_PASSWORD"],
-    )
-    engine = create_engine(url, hide_parameters=True)
+    role_passwords = {
+        "tutoria_api": os.environ["API_DB_PASSWORD"],
+        "tutoria_worker": os.environ["WORKER_DB_PASSWORD"],
+    }
+    engine = create_engine(compose_database_url(), hide_parameters=True)
     try:
         with engine.begin() as connection:
-            initialize(connection)
+            initialize(connection, role_passwords=role_passwords)
     finally:
         engine.dispose()
 

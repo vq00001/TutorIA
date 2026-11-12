@@ -21,7 +21,7 @@ docker compose up -d --build db db-init
 docker compose wait db-init
 ```
 
-Compose inicia PostgreSQL, crea los roles locales y habilita pgvector. El instalador prepara el esquema `app` e instala el módulo de usuarios. La API puede leer el perfil del usuario asociado a la transacción. El hash de contraseña queda fuera de los permisos de lectura de la API.
+Compose inicia PostgreSQL. El servicio `db-init` crea los roles locales que falten, habilita pgvector e instala el esquema `app`. Los roles existentes conservan su contraseña. La API puede leer el perfil del usuario asociado a la transacción. El hash de contraseña queda fuera de los permisos de lectura de la API.
 
 Usa un volumen nuevo para instalar el esquema desde cero. Volver a levantar Compose reutiliza un esquema ya creado por este instalador. La conexión local predeterminada está en `.env.example`. Configura `DATABASE_URL` con el rol de aplicación y usa `backend.db.connection.transaction(user_id)` para consultar con el contexto del usuario.
 
@@ -38,14 +38,17 @@ La ingestión y la búsqueda se conectarán a PostgreSQL en cambios posteriores.
 
 ## Pruebas
 
-Desde la raíz, ejecuta `make -C backend test` después de instalar las dependencias. Las pruebas unitarias simulan la conexión.
-
-Para probar PostgreSQL, levanta primero la base local y espera a que termine `db-init`. Usa una base de desarrollo con el esquema instalado. Las pruebas inspeccionan la extensión y los roles y prueban la política de usuarios con datos sintéticos que se revierten al final.
+Desde la raíz, con Docker y Compose disponibles:
 
 ```bash
-TUTORIA_TEST_ADMIN_URL='postgresql+psycopg://tutoria_migrator:tutoria_local_migrator@127.0.0.1:55432/tutoria' \
-  make -C backend test
+docker compose --profile test build test-db-init backend-test
+docker compose run --rm backend-test
 ```
+
+Compose inicia `test-db` con almacenamiento temporal y sin publicar un puerto. Espera a que `test-db-init` prepare el esquema y ejecuta pytest dentro del contenedor. La base de desarrollo usa su propio volumen. Las pruebas de PostgreSQL usan datos sintéticos y revierten sus transacciones. Si falla el arranque, consulta `docker compose --profile test logs test-db test-db-init`. Para detener la base de pruebas y liberar su almacenamiento, usa `docker compose --profile test stop test-db`.
+
+Para ejecutar las pruebas unitarias directamente en el equipo, instala las dependencias y usa `make -C backend test`. Si quieres incluir PostgreSQL en esa ejecución local, configura `TUTORIA_TEST_ADMIN_URL` con la URL del administrador de una base de desarrollo inicializada.
+
 
 ## Registro de usuarios
 

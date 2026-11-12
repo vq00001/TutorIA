@@ -3,7 +3,17 @@ from contextlib import contextmanager
 from functools import lru_cache
 from uuid import UUID
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import URL, create_engine, text
+
+
+def compose_database_url() -> URL:
+    return URL.create(
+        "postgresql+psycopg",
+        host=os.environ["POSTGRES_HOST"],
+        database=os.environ["POSTGRES_DB"],
+        username=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
+    )
 
 
 @lru_cache

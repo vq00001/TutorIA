@@ -1,6 +1,9 @@
 *
 !pyproject.toml
-!__init__.py
+!/*.py
 !db/
 !db/**
-db/**/__pycache__
+!tests/
+!tests/**
+**/__pycache__/
+**/*.pyc

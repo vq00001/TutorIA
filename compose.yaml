@@ -54,32 +54,64 @@ services:
     restart: unless-stopped
 
   db:
-    image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
+    image: &postgres-image pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
     environment:
       <<: *postgres-env
-      API_DB_PASSWORD: ${API_DB_PASSWORD:-tutoria_local_api}
-      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-tutoria_local_worker}
     ports:
       - "127.0.0.1:${DB_PORT:-55432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./backend/db/init.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
-    healthcheck:
+    healthcheck: &postgres-healthcheck
       test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 5s
       timeout: 3s
       retries: 24
 
   db-init:
-    build:
+    build: &backend-build
       context: ./backend
       dockerfile: db/Dockerfile
-    environment:
+      target: db-init
+    environment: &db-init-env
       <<: *postgres-env
       POSTGRES_HOST: db
+      API_DB_PASSWORD: ${API_DB_PASSWORD:-tutoria_local_api}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-tutoria_local_worker}
     depends_on:
       db:
         condition: service_healthy
+
+  test-db:
+    profiles: [test]
+    image: *postgres-image
+    environment: *postgres-env
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck: *postgres-healthcheck
+
+  test-db-init:
+    profiles: [test]
+    build: *backend-build
+    environment:
+      <<: *db-init-env
+      POSTGRES_HOST: test-db
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+  backend-test:
+    profiles: [test]
+    build:
+      <<: *backend-build
+      target: test
+    environment:
+      <<: *postgres-env
+      POSTGRES_HOST: test-db
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-db-init:
+        condition: service_completed_successfully
 
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
