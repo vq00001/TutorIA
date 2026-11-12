@@ -41,6 +41,7 @@ documents = Table(
     Column("authors", ARRAY(Text), nullable=False, server_default=text("'{}'")),
     Column("subject", String(150), nullable=False, server_default=""),
     Column("upload_sha256", LargeBinary(32), nullable=False),
+    Column("active_run_id", Uuid),
     Column("status", Text, nullable=False, server_default="active"),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
@@ -227,7 +228,8 @@ def install_documents(conn: Connection) -> None:
                 RAISE EXCEPTION 'FORBIDDEN' USING ERRCODE = '42501';
             END IF;
 
-            -- La FK elimina el contenido al borrar la fila de archivo.
+            UPDATE app.documents SET active_run_id = NULL WHERE course_id = cid AND id = did;
+            -- Las FK eliminan contenido y derivados al borrar la fila de archivo.
             DELETE FROM app.document_versions WHERE course_id = cid AND document_id = did;
             DELETE FROM app.documents WHERE course_id = cid AND id = did;
             UPDATE app.courses SET corpus_revision = corpus_revision + 1 WHERE id = cid;

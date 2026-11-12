@@ -57,6 +57,7 @@ def test_installation_prepares_vector_and_schema_before_users(monkeypatch):
     conn = Mock()
     install = Mock()
     monkeypatch.setattr(bootstrap, "install_users", install)
+    monkeypatch.setattr(bootstrap, "install_processing", Mock())
     bootstrap.initialize(conn)
     assert "pg_advisory_xact_lock" in str(conn.execute.call_args_list[0].args[0])
     assert "CREATE SCHEMA IF NOT EXISTS app" in str(conn.execute.call_args_list[1].args[0])

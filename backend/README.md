@@ -149,6 +149,25 @@ la carga. Los documentos retirados o archivos purgados quedan fuera.
 `delete_document` permite a quien subió el archivo o a la coordinación borrar
 el documento de una clase activa. La operación elimina el archivo y sus metadatos,
 libera el hash y actualiza la revisión del corpus en la misma transacción.
-Las clases archivadas se mantienen en modo lectura. La retirada de derivados
-y el procesamiento se incorporarán junto con esos módulos. Este bloque no
-agrega rutas HTTP.
+Las clases archivadas se mantienen en modo lectura. El borrado también elimina
+los derivados de procesamiento. Las operaciones de documentos se exponen como
+repositorios de base de datos.
+
+## Procesamiento y embeddings
+
+`db/processing.py` reutiliza las ejecuciones, fragmentos y espacios de
+embeddings del ZIP. El administrador registra el espacio con
+`register_embedding_space`. El worker usa `transaction(user_id)` con una cuenta
+activa de la clase y llama a `start_processing`, `get_processing_source` y
+`publish_processing`, o a `fail_processing` si falla el procesamiento.
+
+El resultado incluye el texto extraído exacto. Los hijos usan intervalos
+`[inicio, fin)` de caracteres Unicode dentro de ese texto. PostgreSQL comprueba
+que el intervalo reproduce el hijo y que cada vector normalizado tiene la
+dimensión del espacio. Publicar guarda padres, hijos y vectores juntos. Un
+fallo de reprocesamiento conserva el resultado ya publicado.
+
+El borrado del documento elimina también sus ejecuciones, fragmentos y vectores.
+Vuelve a ejecutar `db-init` para instalar el módulo en una base existente.
+La extracción, las llamadas al modelo y la búsqueda vectorial quedan fuera de
+este bloque.

@@ -10,6 +10,7 @@ from .account_tokens import install_account_tokens
 from .courses import install_courses
 from .documents import install_documents
 from .invitations import install_invitations
+from .processing import install_processing
 from .sessions import install_sessions
 from .users import install_users
 
@@ -27,6 +28,7 @@ def initialize(connection: Connection) -> None:
     install_courses(connection)
     install_invitations(connection)
     install_documents(connection)
+    install_processing(connection)
 
 
 def main() -> None:
