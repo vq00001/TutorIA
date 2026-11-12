@@ -221,3 +221,17 @@ su lugar en el historial.
 
 Vuelve a ejecutar `db-init` para instalar el módulo. Las rutas HTTP y el cliente
 del modelo se integrarán por separado.
+
+## Citas de respuestas
+
+`db/citations.py` ofrece `append_cited_assistant_message` para guardar una
+respuesta y sus citas en una sola transacción. Indica el ID de la solicitud al
+modelo que produjo la respuesta. Cada cita identifica una fuente por su
+`rank` dentro de esa solicitud. Las respuestas sin citas pueden seguir usando
+`append_assistant_message`.
+
+`list_message_citations` devuelve las citas en el orden registrado, con los
+IDs del padre y del hijo y sus offsets `[inicio, fin)`, tomados directamente
+de la fuente. Si la fuente se elimina, queda un marcador `source_removed`
+sin el enlace ni los offsets. El historial sigue siendo privado para su
+propietario. Vuelve a ejecutar `db-init` para instalar el módulo.
