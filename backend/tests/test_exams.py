@@ -19,7 +19,12 @@ from db.exams import (
     question_options,
     question_sources,
 )
-from db.generations import generation_runs, record_generation_request, start_generation
+from db.generations import (
+    generation_runs,
+    record_generation_request,
+    start_generation,
+    stop_generation,
+)
 from db.processing import (
     ChildChunk,
     ParentChunk,
@@ -193,11 +198,11 @@ def test_invalid_keys_roll_back_the_entire_exam(postgres, exam_context):
 def test_exam_generation_must_belong_to_the_owner_and_course(postgres, exam_context):
     owner, peer, course, other_course = exam_context
     generation = _generation(postgres, course)
-    wrong_kind = _generation(postgres, course, kind="chat")
-    missing_request = _generation(postgres, course, record=False)
-    for invalid in (wrong_kind, missing_request):
+    for kind, record in (("chat", True), ("exam", False)):
+        invalid = _generation(postgres, course, kind=kind, record=record)
         with pytest.raises(DataError, match="INVALID_EXAM_GENERATION"), postgres.begin_nested():
             _publish(postgres, course, invalid, [MULTIPLE])
+        assert stop_generation(postgres, invalid, status="cancelled")
     with pytest.raises(ProgrammingError, match="NOT_AUTHORIZED"), postgres.begin_nested():
         _publish(postgres, other_course, generation, [MULTIPLE])
     _role(postgres, peer)

@@ -19,6 +19,7 @@ from db.generations import (
     get_generation_request,
     record_generation_request,
     start_generation,
+    stop_generation,
 )
 from db.users import users
 
@@ -152,9 +153,6 @@ def test_response_rejects_wrong_scope_or_missing_model_request(postgres, history
     question = append_user_message(postgres, course, conversation, QUESTION)
     other_question = append_user_message(postgres, course, other_conversation, QUESTION)
     valid, _ = _generation(postgres, course)
-    wrong_course, _ = _generation(postgres, other_course)
-    missing_request, _ = _generation(postgres, course, record=False)
-    wrong_kind, _ = _generation(postgres, course, kind="exam")
     _as_user(postgres, peer)
     wrong_owner, _ = _generation(postgres, course)
     _as_user(postgres, owner)
@@ -169,19 +167,25 @@ def test_response_rejects_wrong_scope_or_missing_model_request(postgres, history
             in_reply_to=other_question,
         )
 
-    for invalid in (wrong_course, wrong_owner, missing_request, wrong_kind):
+    for target_course, kind, record in (
+        (other_course, "chat", True),
+        (course, "chat", False),
+        (course, "exam", True),
+    ):
+        invalid, _ = _generation(postgres, target_course, kind=kind, record=record)
         with (
             pytest.raises(IntegrityError, match="INVALID_REPLY_GENERATION"),
             postgres.begin_nested(),
         ):
             append_assistant_message(
-                postgres,
-                course,
-                conversation,
-                ANSWER,
-                generation_id=invalid,
-                in_reply_to=question,
+                postgres, course, conversation, ANSWER, generation_id=invalid, in_reply_to=question
             )
+        assert stop_generation(postgres, invalid, status="cancelled")
+
+    with pytest.raises(IntegrityError, match="INVALID_REPLY_GENERATION"), postgres.begin_nested():
+        append_assistant_message(
+            postgres, course, conversation, ANSWER, generation_id=wrong_owner, in_reply_to=question
+        )
 
     assert len(list_messages(postgres, course, conversation)) == 1
     with pytest.raises(IntegrityError, match="messages_parts"), postgres.begin_nested():

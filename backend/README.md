@@ -362,3 +362,21 @@ pulso y cada intervalo acreditado aporta un máximo de 30 segundos. Tras más de
 Solo el propietario puede consultar estas metas, rutas y sesiones. Las clases
 archivadas permiten consultar el historial. Vuelve a ejecutar `db-init` para
 instalar los módulos.
+
+## Cuotas de carga y generación
+
+`db/quotas.py` aplica en PostgreSQL los límites del ZIP. Cada clase puede
+almacenar hasta 2.000.000.000 bytes. Cada usuario puede cargar hasta
+1.000.000.000 bytes en una ventana móvil de 24 horas, sumando sus clases.
+Los duplicados descartados y las cargas rechazadas no consumen cuota.
+Borrar un archivo libera el espacio de la clase y mantiene el comprobante
+de carga para el límite de 24 horas.
+
+Cada usuario puede tener hasta dos generaciones activas, incluyendo las
+encoladas y en ejecución en cualquier clase. `stop_generation` permite cerrar
+una generación propia como fallida o cancelada para liberar su cupo.
+PostgreSQL rechaza los excesos con `UPLOAD_QUOTA_EXCEEDED` o
+`GENERATION_QUOTA_EXCEEDED`.
+
+Vuelve a ejecutar `db-init` para instalar las cuotas. Las cargas de las
+últimas 24 horas que aún figuran en la base se incorporan al historial de uso.

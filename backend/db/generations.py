@@ -1,7 +1,7 @@
 """Registro privado de solicitudes al modelo y su procedencia."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -132,6 +132,16 @@ def start_generation(
         )
     )
     return conn.execute(statement).scalar_one()
+
+
+def stop_generation(
+    conn: Connection,
+    generation_id: UUID,
+    *,
+    status: Literal["failed", "cancelled"],
+) -> bool:
+    """Cierra una generación activa propia y libera su cupo."""
+    return conn.scalar(sa.select(sa.func.app.stop_generation(generation_id, status))) is True
 
 
 def record_generation_request(
@@ -321,9 +331,35 @@ def _install_generation_writes(conn: Connection) -> None:
         END
         $$"""
     )
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.stop_generation(gid uuid, final_status text)
+        RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        DECLARE
+            actor uuid := app.course_actor();
+            cid uuid;
+        BEGIN
+            IF final_status IS NULL OR final_status NOT IN ('failed', 'cancelled') THEN
+                RAISE EXCEPTION 'INVALID_GENERATION_STATUS' USING ERRCODE = '22023';
+            END IF;
+            SELECT course_id INTO cid FROM app.generation_runs WHERE id = gid AND user_id = actor;
+            IF NOT FOUND THEN
+                RETURN false;
+            END IF;
+            PERFORM FROM app.courses WHERE id = cid AND status IN ('active', 'archived') FOR SHARE;
+            IF NOT FOUND OR NOT app.has_course_role(cid, ARRAY['student', 'coordinator']) THEN
+                RETURN false;
+            END IF;
+            UPDATE app.generation_runs SET status = final_status
+            WHERE id = gid AND user_id = actor AND status IN ('queued', 'running');
+            RETURN FOUND;
+        END
+        $$"""
+    )
     signatures = (
         "app.start_generation(uuid, text, text, text, text, text), "
-        "app.record_generation_request(uuid, bytea, jsonb)"
+        "app.record_generation_request(uuid, bytea, jsonb), app.stop_generation(uuid, text)"
     )
     conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signatures} FROM PUBLIC")
     conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signatures} TO tutoria_api")

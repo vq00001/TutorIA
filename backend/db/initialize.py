@@ -20,6 +20,7 @@ from .learning_catalog import install_learning_catalog
 from .learning_plans import install_learning_plans
 from .learning_progress import install_learning_progress
 from .processing import install_processing
+from .quotas import install_quotas
 from .sessions import install_sessions
 from .study_sessions import install_study_sessions
 from .users import install_users
@@ -43,6 +44,7 @@ def initialize(connection: Connection) -> None:
     install_learning_catalog(connection)
     install_vector_search(connection)
     install_generations(connection)
+    install_quotas(connection)
     install_generated_materials(connection)
     install_exams(connection)
     install_exam_attempts(connection)

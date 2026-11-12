@@ -58,6 +58,7 @@ def test_installation_prepares_vector_and_schema_before_users(monkeypatch):
     install = Mock()
     monkeypatch.setattr(bootstrap, "install_users", install)
     monkeypatch.setattr(bootstrap, "install_processing", Mock())
+    monkeypatch.setattr(bootstrap, "install_quotas", Mock())
     monkeypatch.setattr(bootstrap, "install_exam_attempts", Mock())
     bootstrap.initialize(conn)
     assert "pg_advisory_xact_lock" in str(conn.execute.call_args_list[0].args[0])
