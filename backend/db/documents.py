@@ -1,4 +1,4 @@
-"""Carga y metadatos de documentos independientes, adaptados del ZIP de TutorIA."""
+"""Persistencia de documentos independientes, adaptada del ZIP de TutorIA."""
 
 import warnings
 from datetime import datetime
@@ -111,7 +111,7 @@ class DuplicateDocumentWarning(UserWarning):
 
 
 def install_documents(conn: Connection) -> None:
-    """Instala las tablas, las políticas de lectura y la operación de carga."""
+    """Instala el almacenamiento y las operaciones autorizadas de documentos."""
     documents.create(conn, checkfirst=True)
     document_versions.create(conn, checkfirst=True)
     file_contents.create(conn, checkfirst=True)
@@ -181,9 +181,66 @@ def install_documents(conn: Connection) -> None:
         END
         $$"""
     )
-    signature = "app.register_document(uuid, text, text, bytea, text, text, text, text[])"
-    conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signature} FROM PUBLIC")
-    conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signature} TO tutoria_api")
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.download_document(cid uuid, did uuid)
+        RETURNS TABLE (original_name varchar, mime_type varchar, size_bytes bigint, bytes bytea)
+        LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+            SELECT v.original_name, v.mime_type, v.size_bytes, f.bytes
+            FROM app.documents AS d
+            JOIN app.document_versions AS v
+              ON v.course_id = d.course_id AND v.document_id = d.id
+            JOIN app.file_contents AS f
+              ON f.course_id = v.course_id AND f.document_id = v.document_id AND f.version_id = v.id
+            WHERE d.course_id = cid AND d.id = did AND d.status = 'active'
+              AND v.version_no = 1 AND v.status <> 'purged'
+              AND app.has_course_role(cid, ARRAY['student', 'coordinator'])
+        $$"""
+    )
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.delete_document(cid uuid, did uuid)
+        RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        DECLARE
+            actor uuid := app.course_actor();
+            uploader uuid;
+        BEGIN
+            PERFORM 1 FROM app.courses WHERE id = cid AND status = 'active' FOR UPDATE;
+            IF NOT FOUND OR NOT app.has_course_role(cid, ARRAY['student', 'coordinator']) THEN
+                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+            END IF;
+
+            PERFORM 1 FROM app.users WHERE id = actor AND status = 'active' FOR SHARE;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+            END IF;
+
+            SELECT d.uploaded_by INTO uploader
+            FROM app.documents AS d
+            WHERE d.course_id = cid AND d.id = did
+            FOR UPDATE;
+            IF NOT FOUND THEN
+                RETURN false;
+            END IF;
+            IF uploader IS DISTINCT FROM actor AND NOT app.has_course_role(cid, ARRAY['coordinator']) THEN
+                RAISE EXCEPTION 'FORBIDDEN' USING ERRCODE = '42501';
+            END IF;
+
+            -- La FK elimina el contenido al borrar la fila de archivo.
+            DELETE FROM app.document_versions WHERE course_id = cid AND document_id = did;
+            DELETE FROM app.documents WHERE course_id = cid AND id = did;
+            UPDATE app.courses SET corpus_revision = corpus_revision + 1 WHERE id = cid;
+            RETURN true;
+        END
+        $$"""
+    )
+    signatures = (
+        "app.register_document(uuid, text, text, bytea, text, text, text, text[]), "
+        "app.download_document(uuid, uuid), app.delete_document(uuid, uuid)"
+    )
+    conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signatures} FROM PUBLIC")
+    conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signatures} TO tutoria_api")
 
 
 def register_upload(
@@ -252,3 +309,23 @@ def list_documents(
     if after is not None:
         statement = statement.where(tuple_(documents.c.created_at, documents.c.id) > tuple_(*after))
     return list(conn.execute(statement).mappings())
+
+
+def download_document(
+    conn: Connection,
+    course_id: UUID,
+    document_id: UUID,
+) -> RowMapping | None:
+    """Devuelve el archivo original y sus metadatos si la clase es visible."""
+    original = func.app.download_document(course_id, document_id).table_valued(
+        "original_name",
+        "mime_type",
+        "size_bytes",
+        "bytes",
+    )
+    return conn.execute(select(original)).mappings().one_or_none()
+
+
+def delete_document(conn: Connection, course_id: UUID, document_id: UUID) -> bool:
+    """Borra el documento y su archivo. Devuelve False si el documento ya no existe."""
+    return conn.scalar(select(func.app.delete_document(course_id, document_id))) is True

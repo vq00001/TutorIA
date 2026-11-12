@@ -142,4 +142,13 @@ inicial de `document_versions` sirve al procesamiento interno.
 con cursor por fecha e identificador. Las cargas se permiten en clases activas.
 El listado también funciona en clases archivadas. Usa ambos repositorios dentro
 de `transaction(user_id)` y vuelve a ejecutar `db-init` para instalar el módulo.
-Las rutas HTTP, la descarga, el procesamiento y el borrado se integrarán por separado.
+`download_document` devuelve los bytes originales y los metadatos de descarga
+a los miembros activos de una clase visible. El archivo está disponible desde
+la carga. Los documentos retirados o archivos purgados quedan fuera.
+
+`delete_document` permite a quien subió el archivo o a la coordinación borrar
+el documento de una clase activa. La operación elimina el archivo y sus metadatos,
+libera el hash y actualiza la revisión del corpus en la misma transacción.
+Las clases archivadas se mantienen en modo lectura. La retirada de derivados
+y el procesamiento se incorporarán junto con esos módulos. Este bloque no
+agrega rutas HTTP.

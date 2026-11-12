@@ -6,11 +6,13 @@ from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from db.connection import set_user_context
-from db.courses import create_course, memberships, update_course
+from db.courses import courses, create_course, memberships, update_course
 from db.documents import (
     DuplicateDocumentWarning,
+    delete_document,
     document_versions,
     documents,
+    download_document,
     file_contents,
     list_documents,
     register_upload,
@@ -176,3 +178,121 @@ def test_invalid_upload_does_not_leave_a_document_without_its_file(postgres, cou
         )
         == 0
     )
+
+
+def test_download_returns_original_to_members_and_hides_it_from_outsiders(postgres, course_context):
+    course, owner, _, outsider = course_context
+    payload = b"archivo original\x00\xff"
+    identifier = _upload(postgres, course, payload, "Guía.pdf")
+
+    set_user_context(postgres, owner)
+    result = download_document(postgres, course, identifier)
+    assert dict(result) == {
+        "original_name": "Guía.pdf",
+        "mime_type": "application/pdf",
+        "size_bytes": len(payload),
+        "bytes": payload,
+    }
+    other_course = create_course(postgres, name="Otro curso")
+    assert download_document(postgres, other_course, identifier) is None
+
+    set_user_context(postgres, outsider)
+    assert download_document(postgres, course, identifier) is None
+
+
+@pytest.mark.parametrize("state", ["purged", "deletion_pending"])
+def test_download_hides_purged_or_withdrawn_files(postgres, course_context, state):
+    course, _, _, _ = course_context
+    identifier = _upload(postgres, course, b"contenido")
+    postgres.exec_driver_sql("RESET ROLE")
+    if state == "purged":
+        postgres.execute(
+            update(document_versions)
+            .where(
+                document_versions.c.document_id == identifier,
+            )
+            .values(status=state)
+        )
+    else:
+        postgres.execute(update(documents).where(documents.c.id == identifier).values(status=state))
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+
+    assert download_document(postgres, course, identifier) is None
+
+
+@pytest.mark.parametrize("actor", ["uploader", "coordinator"])
+def test_delete_removes_content_and_releases_hash(postgres, course_context, actor):
+    course, owner, _, _ = course_context
+    payload = b"contenido"
+    identifier = _upload(postgres, course, payload)
+    if actor == "coordinator":
+        set_user_context(postgres, owner)
+    initial_revision = postgres.scalar(
+        select(courses.c.corpus_revision).where(courses.c.id == course)
+    )
+
+    assert delete_document(postgres, course, identifier)
+    assert not delete_document(postgres, course, identifier)
+    assert list_documents(postgres, course, limit=10) == []
+    assert download_document(postgres, course, identifier) is None
+    assert (
+        postgres.scalar(
+            select(courses.c.corpus_revision).where(
+                courses.c.id == course,
+            )
+        )
+        == initial_revision + 1
+    )
+
+    postgres.exec_driver_sql("RESET ROLE")
+    for table in (documents, document_versions, file_contents):
+        assert (
+            postgres.scalar(
+                select(func.count())
+                .select_from(table)
+                .where(
+                    table.c.course_id == course,
+                )
+            )
+            == 0
+        )
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
+    assert _upload(postgres, course, payload) not in (None, identifier)
+
+
+def test_other_students_cannot_delete_and_archived_courses_allow_only_download(
+    postgres,
+    course_context,
+):
+    course, owner, student, outsider = course_context
+    set_user_context(postgres, owner)
+    identifier = _upload(postgres, course, "contenido de la coordinación".encode())
+    set_user_context(postgres, student)
+    with pytest.raises(ProgrammingError, match="FORBIDDEN"), postgres.begin_nested():
+        delete_document(postgres, course, identifier)
+    set_user_context(postgres, outsider)
+    with pytest.raises(ProgrammingError, match="NOT_AUTHORIZED"), postgres.begin_nested():
+        delete_document(postgres, course, identifier)
+
+    set_user_context(postgres, owner)
+    assert update_course(postgres, course, 1, status="archived")
+    assert (
+        download_document(postgres, course, identifier)["bytes"]
+        == "contenido de la coordinación".encode()
+    )
+    with pytest.raises(ProgrammingError, match="NOT_AUTHORIZED"), postgres.begin_nested():
+        delete_document(postgres, course, identifier)
+
+
+def test_rollback_preserves_original_and_hash(postgres, course_context):
+    course, _, _, _ = course_context
+    payload = b"contenido"
+    identifier = _upload(postgres, course, payload)
+
+    savepoint = postgres.begin_nested()
+    assert delete_document(postgres, course, identifier)
+    savepoint.rollback()
+
+    assert download_document(postgres, course, identifier)["bytes"] == payload
+    with pytest.warns(DuplicateDocumentWarning):
+        assert _upload(postgres, course, payload) is None
