@@ -290,3 +290,18 @@ conserva el resultado.
 
 Vuelve a ejecutar `db-init` para instalar la revisión y habilitarla también
 en intentos ya entregados. Las rutas HTTP se integrarán por separado.
+
+## Catálogo de aprendizaje
+
+`db/learning_catalog.py` guarda conceptos y alias por clase. Un coordinador
+puede registrar conceptos, prerrequisitos y fuentes en una clase activa. Los
+miembros activos pueden consultar el catálogo, incluso si la clase se archiva.
+PostgreSQL normaliza las claves y los alias y rechaza prerrequisitos entre
+clases y relaciones que formen ciclos.
+
+Cada fuente de un concepto o prerrequisito apunta al fragmento padre de un
+documento de la misma clase. Solo se muestran fuentes del procesamiento activo.
+Al reprocesar el documento, las referencias anteriores dejan de aparecer. Al
+borrarlo, PostgreSQL elimina las referencias sin borrar el catálogo.
+
+Vuelve a ejecutar `db-init` para instalar el módulo.

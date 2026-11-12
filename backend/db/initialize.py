@@ -16,6 +16,7 @@ from .exams import install_exams
 from .generated_materials import install_generated_materials
 from .generations import install_generations
 from .invitations import install_invitations
+from .learning_catalog import install_learning_catalog
 from .processing import install_processing
 from .sessions import install_sessions
 from .users import install_users
@@ -36,6 +37,7 @@ def initialize(connection: Connection) -> None:
     install_invitations(connection)
     install_documents(connection)
     install_processing(connection)
+    install_learning_catalog(connection)
     install_vector_search(connection)
     install_generations(connection)
     install_generated_materials(connection)
