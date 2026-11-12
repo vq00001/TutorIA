@@ -263,5 +263,23 @@ Las preguntas de desarrollo guardan una respuesta esperada y una rúbrica.
 propietario. Las claves correctas y explicaciones quedan fuera de los permisos
 de la API y del worker. Si se invalida la generación, PostgreSQL retira el
 contenido de las preguntas y las claves. Vuelve a ejecutar `db-init` para
-instalar el módulo. Los intentos, la corrección y las rutas HTTP se integrarán
-por separado.
+instalar el módulo. Las rutas HTTP se integrarán por separado.
+
+## Intentos de examen
+
+`db/exam_attempts.py` abre o recupera un intento vigente con
+`start_exam_attempt`. `submit_exam_attempt` guarda la entrega, incluidas las
+preguntas omitidas, y corrige las opciones en la misma transacción. Cada
+pregunta de opción recibe sus puntos completos si el conjunto seleccionado
+coincide exactamente con las opciones correctas. Una entrega repetida conserva
+el resultado registrado. Un intento vencido rechaza la entrega y permite abrir
+uno nuevo.
+
+Las respuestas de desarrollo escritas quedan pendientes de revisión y el
+porcentaje final queda vacío hasta corregirlas. Las omitidas tienen cero
+puntos. El propietario puede consultar sus intentos, respuestas y puntuación
+sin acceder a las claves. Si se invalida el examen, se limpia el contenido de
+las respuestas y se conserva el intento con estado `invalidated`.
+
+Vuelve a ejecutar `db-init` para instalar el módulo. La corrección de desarrollo
+y las rutas HTTP se integrarán por separado.
