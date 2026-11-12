@@ -249,3 +249,19 @@ del propietario de la generación en la clase indicada. Si se invalida la
 generación, PostgreSQL sustituye el título por «Contenido retirado» y limpia el
 contenido, conservando el vínculo y la versión del esquema. El módulo se
 instala al volver a ejecutar `db-init`.
+
+## Exámenes generados
+
+`db/exams.py` conserva exámenes diagnósticos y de práctica, preguntas
+ordenadas, opciones y claves de corrección en tablas separadas. Una generación
+de tipo `exam` con una solicitud registrada puede publicar un examen.
+`publish_exam` guarda todas las filas y completa la generación en una
+transacción. Los índices correctos se indican desde cero, como en el ZIP.
+Las preguntas de desarrollo guardan una respuesta esperada y una rúbrica.
+
+`list_exams` y `list_exam_questions` leen el examen y sus opciones para el
+propietario. Las claves correctas y explicaciones quedan fuera de los permisos
+de la API y del worker. Si se invalida la generación, PostgreSQL retira el
+contenido de las preguntas y las claves. Vuelve a ejecutar `db-init` para
+instalar el módulo. Los intentos, la corrección y las rutas HTTP se integrarán
+por separado.

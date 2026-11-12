@@ -11,6 +11,7 @@ from .citations import install_citations
 from .conversations import install_conversations
 from .courses import install_courses
 from .documents import install_documents
+from .exams import install_exams
 from .generated_materials import install_generated_materials
 from .generations import install_generations
 from .invitations import install_invitations
@@ -37,6 +38,7 @@ def initialize(connection: Connection) -> None:
     install_vector_search(connection)
     install_generations(connection)
     install_generated_materials(connection)
+    install_exams(connection)
     install_conversations(connection)
     install_citations(connection)
 
