@@ -25,7 +25,10 @@ from .learning_catalog import install_learning_catalog
 from .learning_plans import install_learning_plans
 from .learning_progress import install_learning_progress
 from .processing import install_processing
+from .purge import install_purge
 from .quotas import install_quotas
+from .restore import install_restore
+from .retention import install_retention
 from .sessions import install_sessions
 from .study_sessions import install_study_sessions
 from .users import install_users
@@ -63,6 +66,9 @@ def initialize(connection: Connection, *, role_passwords: dict[str, str] | None 
     install_conversations(connection)
     install_citations(connection)
     install_audit(connection)
+    install_purge(connection)
+    install_retention(connection)
+    install_restore(connection)
 
 
 def ensure_roles(connection: Connection, passwords: dict[str, str]) -> None:

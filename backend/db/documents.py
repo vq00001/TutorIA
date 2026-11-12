@@ -220,6 +220,13 @@ def install_documents(conn: Connection) -> None:
             SELECT d.uploaded_by INTO uploader
             FROM app.documents AS d
             WHERE d.course_id = cid AND d.id = did
+              AND NOT EXISTS (
+                  SELECT FROM app.deletion_requests AS r
+                  WHERE r.completed_at IS NULL AND (
+                      (r.scope = 'document' AND r.subject_id = d.id)
+                      OR (r.scope = 'account' AND r.subject_id = d.uploaded_by)
+                  )
+              )
             FOR UPDATE;
             IF NOT FOUND THEN
                 RETURN false;

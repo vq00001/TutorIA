@@ -3,7 +3,9 @@ from contextlib import contextmanager
 from functools import lru_cache
 from uuid import UUID
 
-from sqlalchemy import URL, create_engine, text
+from sqlalchemy import URL, create_engine, func, select, text
+
+RESTORE_LOCK = 0x54555452
 
 
 def compose_database_url() -> URL:
@@ -52,9 +54,16 @@ def set_user_context(conn, user_id: UUID | None) -> None:
     )
 
 
+def require_restore_ready(conn) -> None:
+    conn.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
+    if not conn.scalar(select(func.app.restore_is_ready())):
+        raise RuntimeError("RESTORE_NOT_READY")
+
+
 @contextmanager
 def transaction(user_id: UUID | None = None):
     with engine().begin() as conn:
+        require_restore_ready(conn)
         set_user_context(conn, user_id)
         yield conn
 

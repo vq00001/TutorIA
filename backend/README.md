@@ -434,3 +434,51 @@ los registradores de base. La integración con la API, el worker y la retención
 sus respectivos cambios.
 
 Vuelve a ejecutar `db-init` para instalar la auditoría sobre una base existente.
+
+## Retención, purga y restauración
+
+El planificador externo puede invocar este comando periódicamente con las credenciales
+administrativas de Compose, una vez instalado el esquema con `db-init`:
+
+```bash
+docker compose run --rm db-init python -m backend.db.maintenance
+```
+
+Cada ejecución recupera reservas vencidas y procesa hasta 25 purgas confirmadas. La
+retención se reclama una vez por día UTC en PostgreSQL. Si la transacción falla, se
+revierte la marca del día junto con el trabajo. Los trabajos terminales existentes al
+instalar el módulo comienzan su plazo de siete días en ese momento.
+
+La limpieza conserva el resultado activo y los resultados históricos usados por
+generaciones. Borra ejecuciones fallidas tras 24 horas y ejecuciones listas elegibles
+tras 30 días, hasta 100 por ejecución diaria. Después de 30 días retira datos privados de
+membresías salientes sin borrar la membresía histórica. Los archivos corregidos siguen
+siendo documentos independientes. Se retiran sesiones vencidas y tokens vencidos o
+consumidos tras 24 horas, comprobantes de carga al cerrar su ventana de 24 horas,
+claves idempotentes al vencer, trabajos terminales tras siete días y auditoría tras 90 días.
+
+Las operaciones de `db/purge.py` y `db/restore.py` reciben una conexión administrativa
+dentro de una transacción. El operador autoriza la solicitud antes de llamar a
+`request_purge(conn, request_id=..., scope=..., subject_id=...)`. Los ámbitos son
+`document`, `course` y `account`. La solicitud retira el ámbito en la misma transacción
+y los reintentos devuelven el ID original. La purga de cuenta elimina sus archivos
+porque el esquema requiere conservar un autor de carga para cada archivo vigente.
+Una cuenta que sea la última coordinación activa de una clase vigente debe transferir
+la coordinación antes de retirarse.
+
+El operador obtiene los registros con `pending_receipts(conn)`, conserva sus campos
+`id`, `scope`, `subject_id` y `requested_at` en un registro externo y confirma su copia
+durable con `acknowledge_receipt(conn, id)`. La purga física solo reclama registros
+confirmados. El comprobante interno expira 30 días después de la confirmación y la
+ejecución, cuando ambas fechas cumplen el plazo. Conserva el registro externo mientras
+pueda restaurarse un respaldo anterior a cualquiera de sus purgas.
+
+Para restaurar, prepara una base aislada y confirma `begin_restore(conn)` antes de
+importar. Excluye el esquema `restore_control` del respaldo y vuelve a ejecutar el
+instalador después de importar. Valida el registro externo y pásalo completo, en orden
+de solicitud, como instancias de `DeletionReceipt` a `replay_restore(conn, receipts)`.
+Una reproducción conflictiva revierte todo el lote y mantiene cerrada la barrera.
+La aplicación comprueba la barrera por transacción. Mantén aislada la base restaurada
+hasta confirmar la reproducción, también si hay consumidores que usan conexiones SQL
+directas. El respaldo, la custodia externa del registro y la invocación periódica son
+responsabilidades del entorno de despliegue.

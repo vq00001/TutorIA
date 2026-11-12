@@ -31,6 +31,7 @@ jobs = sa.Table(
     sa.Column("locked_by", sa.String(128)),
     sa.Column("lease_until", sa.DateTime(timezone=True)),
     sa.Column("error_code", sa.String(80)),
+    sa.Column("finished_at", sa.DateTime(timezone=True)),
     sa.Column(
         "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
     ),
