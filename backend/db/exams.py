@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by
 from sqlalchemy.engine import Connection, RowMapping
 
 from .generations import generation_runs
+from .learning_catalog import concepts
 
 ExamKind = Literal["diagnostic", "practice"]
 QuestionKind = Literal["alternatives", "multiple", "true_false", "development"]
@@ -52,6 +53,7 @@ questions = sa.Table(
     sa.Column(
         "exam_id", sa.Uuid, sa.ForeignKey("app.exams.id", ondelete="CASCADE"), nullable=False
     ),
+    sa.Column("concept_id", sa.Uuid, sa.ForeignKey(concepts.c.id, ondelete="SET NULL")),
     sa.Column("position", sa.Integer, nullable=False),
     sa.Column("kind", sa.Text, nullable=False),
     sa.Column("prompt", sa.Text, nullable=False),
@@ -130,6 +132,7 @@ class ExamQuestion:
     expected_answer: str | None = None
     rubric: dict[str, Any] | None = None
     max_points: Decimal = Decimal(1)
+    concept_id: UUID | None = None
 
 
 def publish_exam(
@@ -153,6 +156,7 @@ def publish_exam(
             "expected_answer": item.expected_answer,
             "rubric": item.rubric,
             "max_points": str(item.max_points),
+            "concept_id": str(item.concept_id) if item.concept_id is not None else None,
         }
         for item in items
     ]
@@ -212,6 +216,10 @@ def install_exams(conn: Connection) -> None:
         table.create(conn, checkfirst=True)
         conn.exec_driver_sql(f"ALTER TABLE app.{table.name} ENABLE ROW LEVEL SECURITY")
         conn.exec_driver_sql(f"ALTER TABLE app.{table.name} FORCE ROW LEVEL SECURITY")
+    conn.exec_driver_sql(
+        """ALTER TABLE app.questions ADD COLUMN IF NOT EXISTS concept_id uuid
+        REFERENCES app.concepts (id) ON DELETE SET NULL"""
+    )
     _install_exam_access(conn)
     _install_exam_writes(conn)
     _install_exam_invalidation(conn)
@@ -251,6 +259,7 @@ def _install_exam_writes(conn: Connection) -> None:
             item record;
             question_id uuid;
             question_kind text;
+            assessed_concept uuid;
             option_list jsonb;
             key_list jsonb;
             option_count integer;
@@ -288,6 +297,12 @@ def _install_exam_writes(conn: Connection) -> None:
             LOOP
                 question_id := gen_random_uuid();
                 question_kind := item.value ->> 'kind';
+                assessed_concept := (item.value ->> 'concept_id')::uuid;
+                IF assessed_concept IS NOT NULL AND NOT EXISTS (
+                    SELECT FROM app.concepts WHERE course_id = cid AND id = assessed_concept
+                ) THEN
+                    RAISE EXCEPTION 'INVALID_QUESTION_CONCEPT' USING ERRCODE = '23514';
+                END IF;
                 option_list := item.value -> 'options';
                 key_list := item.value -> 'correct_indices';
                 IF jsonb_typeof(option_list) IS DISTINCT FROM 'array'
@@ -318,9 +333,9 @@ def _install_exam_writes(conn: Connection) -> None:
                     RAISE EXCEPTION 'INVALID_QUESTION_OPTIONS' USING ERRCODE = '23514';
                 END IF;
 
-                INSERT INTO app.questions (id, exam_id, position, kind, prompt, max_points)
+                INSERT INTO app.questions (id, exam_id, concept_id, position, kind, prompt, max_points)
                 VALUES (
-                    question_id, exam_id, item.position, question_kind,
+                    question_id, exam_id, assessed_concept, item.position, question_kind,
                     item.value ->> 'prompt', (item.value ->> 'max_points')::numeric
                 );
                 INSERT INTO app.question_keys (question_id, expected_answer, rubric, explanation)

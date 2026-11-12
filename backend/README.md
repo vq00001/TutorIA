@@ -305,3 +305,21 @@ Al reprocesar el documento, las referencias anteriores dejan de aparecer. Al
 borrarlo, PostgreSQL elimina las referencias sin borrar el catálogo.
 
 Vuelve a ejecutar `db-init` para instalar el módulo.
+
+## Progreso de aprendizaje
+
+`ExamQuestion.concept_id` es opcional y, si se indica, debe corresponder al
+catálogo de la clase. Al cerrar el primer intento calificado de un examen,
+PostgreSQL registra una evidencia de peso 1 por cada pregunta vinculada con
+nota determinista. Su valor es la fracción de puntos obtenida. Las revisiones
+manuales cierran el intento cuando corresponde, pero sus notas no se usan como
+evidencia de dominio. Si el examen se invalida, se eliminan sus evidencias.
+
+`list_mastery_evidence` y `list_concept_mastery` consultan el progreso propio en
+cada clase. El cálculo `beta_v1` del ZIP parte de alfa y beta iguales a 1 y
+clasifica cada concepto como `unknown` sin evidencias, `reinforce` por debajo
+de 0.60, `mastered` desde 0.80 con al menos tres evidencias y `developing` en
+los demás casos con evidencia. El resultado se calcula al consultar el registro.
+
+Vuelve a ejecutar `db-init` para instalar el módulo. Los exámenes anteriores
+conservan sus preguntas sin asociación a conceptos.
