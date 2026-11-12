@@ -413,3 +413,24 @@ limitarse a operaciones PostgreSQL que usen la conexión recibida.
 
 Vuelve a ejecutar `db-init` para instalar ambos módulos. El bucle que consume
 la cola y llama periódicamente a `recover_jobs` se integrará por separado.
+
+## Auditoría
+
+`db/audit.py` registra eventos correlacionados por `request_id`. La API registra acciones
+del usuario activo de la transacción. Si incluye una clase, el usuario debe tener una
+membresía activa en ella. El worker registra sus propios eventos sin atribuirlos a un usuario.
+La API puede leer los eventos propios y los de las clases que coordina. Los roles de
+aplicación escriben mediante funciones con permisos separados. El worker no lee la tabla.
+
+Usa códigos de acción y entidad, IDs y, opcionalmente, un `reason_code` definido por el
+esquema. El registrador no recibe cuerpos, tokens ni texto libre como metadatos. Al borrar
+una cuenta se desvincula su actor de los eventos. El ID histórico de clase se conserva.
+
+Registra un éxito con la conexión de la operación, de modo que ambos se confirmen o se
+reviertan juntos. Si la operación se revierte, registra una denegación o un error después del
+rollback, en una transacción nueva con el mismo `request_id`. Para denegaciones sin
+membresía válida, omite la clase y los identificadores de recursos ajenos. Este módulo ofrece
+los registradores de base. La integración con la API, el worker y la retención queda para
+sus respectivos cambios.
+
+Vuelve a ejecutar `db-init` para instalar la auditoría sobre una base existente.

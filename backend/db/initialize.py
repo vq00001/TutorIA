@@ -8,6 +8,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
 from .account_tokens import install_account_tokens
+from .audit import install_audit
 from .citations import install_citations
 from .connection import compose_database_url
 from .conversations import install_conversations
@@ -61,6 +62,7 @@ def initialize(connection: Connection, *, role_passwords: dict[str, str] | None 
     install_study_sessions(connection)
     install_conversations(connection)
     install_citations(connection)
+    install_audit(connection)
 
 
 def ensure_roles(connection: Connection, passwords: dict[str, str]) -> None:
