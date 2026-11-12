@@ -204,3 +204,20 @@ el espacio y los offsets. El propietario puede consultar su registro con
 generación y se eliminan sus solicitudes, que pueden contener texto del documento.
 Vuelve a ejecutar `db-init` para instalar el módulo. El cliente del modelo y
 las rutas HTTP se integrarán por separado.
+
+## Conversaciones y mensajes
+
+`db/conversations.py` conserva historiales privados por usuario y clase.
+Usa `create_conversation`, `list_conversations` y `list_messages` dentro de
+`transaction(user_id)`. Los mensajes se ordenan por secuencia, incluso si llegan
+varias escrituras a la vez. Las clases archivadas permiten leer el historial.
+
+`append_user_message` guarda las partes estructuradas de la pregunta.
+`append_assistant_message` requiere esa pregunta y una generación de chat de
+la misma cuenta y clase con una solicitud registrada. Guardar la respuesta
+completa la generación en la misma transacción. Si se invalida la generación
+al borrar una fuente, PostgreSQL retira el contenido de la respuesta y conserva
+su lugar en el historial.
+
+Vuelve a ejecutar `db-init` para instalar el módulo. Las rutas HTTP y el cliente
+del modelo se integrarán por separado.

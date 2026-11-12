@@ -215,8 +215,8 @@ class ChildChunk:
     embedding: list[float]
 
 
-def _vector_text(vector: list[float]) -> str:
-    # Normalización L2 del ZIP, escalada para evitar desbordamiento.
+def vector_text(vector: list[float]) -> str:
+    """Convierte un vector a formato pgvector y lo normaliza con la lógica L2 del ZIP."""
     if not 1 <= len(vector) <= 2000 or any(
         isinstance(x, bool) or not isinstance(x, (int, float)) for x in vector
     ):
@@ -325,7 +325,7 @@ def publish_processing(
     child_payload = []
     for child in children:
         values = asdict(child)
-        values["embedding"] = _vector_text(child.embedding)
+        values["embedding"] = vector_text(child.embedding)
         child_payload.append(values)
     return (
         conn.scalar(

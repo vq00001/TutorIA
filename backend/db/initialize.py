@@ -7,6 +7,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
 from .account_tokens import install_account_tokens
+from .conversations import install_conversations
 from .courses import install_courses
 from .documents import install_documents
 from .generations import install_generations
@@ -33,6 +34,7 @@ def initialize(connection: Connection) -> None:
     install_processing(connection)
     install_vector_search(connection)
     install_generations(connection)
+    install_conversations(connection)
 
 
 def main() -> None:
