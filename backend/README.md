@@ -128,3 +128,18 @@ invitación vencida o rechazada genera otro ID.
 Usa estos repositorios dentro de `transaction(user_id)` y vuelve a ejecutar
 `db-init` para instalar el módulo. Las rutas HTTP y las notificaciones se
 integrarán por separado.
+
+## Documentos
+
+`db/documents.py` adapta las tablas de documentos, metadatos del archivo y
+contenido del ZIP. `register_upload` guarda el archivo original en PostgreSQL y
+calcula SHA-256 sobre sus bytes. Si la clase ya tiene ese hash, emite
+`DuplicateDocumentWarning` y devuelve `None`. Un archivo con bytes distintos
+se registra como otro documento, incluso si tiene el mismo nombre. La fila
+inicial de `document_versions` sirve al procesamiento interno.
+
+`list_documents` lista los metadatos visibles para los miembros de la clase,
+con cursor por fecha e identificador. Las cargas se permiten en clases activas.
+El listado también funciona en clases archivadas. Usa ambos repositorios dentro
+de `transaction(user_id)` y vuelve a ejecutar `db-init` para instalar el módulo.
+Las rutas HTTP, la descarga, el procesamiento y el borrado se integrarán por separado.
