@@ -265,6 +265,23 @@ de la API y del worker. Si se invalida la generación, PostgreSQL retira el
 contenido de las preguntas y las claves. Vuelve a ejecutar `db-init` para
 instalar el módulo. Las rutas HTTP se integrarán por separado.
 
+### Fuentes por pregunta
+
+Al publicar un examen con fuentes, pasa a `publish_exam` el `request_id` de
+la solicitud usada y entre uno y cuatro `source_ranks` por pregunta, en el
+orden en que deben mostrarse. PostgreSQL verifica que los rangos sean únicos
+por pregunta y correspondan a documentos con procesamiento vigente en la
+solicitud de esa generación. La publicación de exámenes sin fuentes sigue
+disponible para solicitudes sin contexto documental.
+
+`list_exam_questions` devuelve `sources` junto a cada pregunta, con los IDs
+del documento, procesamiento, fragmentos padre e hijo y los offsets Unicode
+`[inicio, fin)` del hijo dentro del texto extraído. Los offsets se leen del
+registro validado de la generación. Si se reprocesa el documento, una pregunta
+ya publicada conserva su referencia original. Si se elimina el documento, se
+invalida el examen y se retiran los enlaces. Los exámenes ya existentes se
+conservan con `sources` vacío por pregunta.
+
 ## Intentos de examen
 
 `db/exam_attempts.py` abre o recupera un intento vigente con

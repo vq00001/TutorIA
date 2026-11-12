@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by
 from sqlalchemy.engine import Connection, RowMapping
 
-from .generations import generation_runs
+from .generations import generation_runs, generation_sources
 from .learning_catalog import concepts
 
 ExamKind = Literal["diagnostic", "practice"]
@@ -122,6 +122,28 @@ correct_options = sa.Table(
 )
 
 
+question_sources = sa.Table(
+    "question_sources",
+    metadata,
+    sa.Column(
+        "question_id", sa.Uuid, sa.ForeignKey(questions.c.id, ondelete="CASCADE"), primary_key=True
+    ),
+    sa.Column("ordinal", sa.Integer, primary_key=True),
+    sa.Column("request_id", sa.Uuid, nullable=False),
+    sa.Column("source_rank", sa.Integer, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["request_id", "source_rank"],
+        ["app.generation_sources.request_id", "app.generation_sources.rank"],
+        ondelete="CASCADE",
+    ),
+    sa.UniqueConstraint("question_id", "request_id", "source_rank"),
+    sa.CheckConstraint("ordinal BETWEEN 1 AND 4", name="question_sources_ordinal"),
+)
+sa.Index(
+    "question_sources_request_idx", question_sources.c.request_id, question_sources.c.source_rank
+)
+
+
 @dataclass(frozen=True)
 class ExamQuestion:
     kind: QuestionKind
@@ -133,6 +155,7 @@ class ExamQuestion:
     rubric: dict[str, Any] | None = None
     max_points: Decimal = Decimal(1)
     concept_id: UUID | None = None
+    source_ranks: tuple[int, ...] = ()
 
 
 def publish_exam(
@@ -144,9 +167,10 @@ def publish_exam(
     kind: ExamKind,
     duration_seconds: int,
     items: Sequence[ExamQuestion],
+    request_id: UUID | None = None,
 ) -> UUID:
     """Guarda el examen completo con sus claves en la misma transacción."""
-    payload = [
+    questions_payload = [
         {
             "kind": item.kind,
             "prompt": item.prompt,
@@ -157,9 +181,14 @@ def publish_exam(
             "rubric": item.rubric,
             "max_points": str(item.max_points),
             "concept_id": str(item.concept_id) if item.concept_id is not None else None,
+            "source_ranks": list(item.source_ranks),
         }
         for item in items
     ]
+    payload = {
+        "request_id": str(request_id) if request_id is not None else None,
+        "questions": questions_payload,
+    }
     statement = sa.select(
         sa.func.app.publish_exam(
             course_id,
@@ -201,8 +230,31 @@ def list_exam_questions(conn: Connection, course_id: UUID, exam_id: UUID) -> lis
         .where(question_options.c.question_id == questions.c.id)
         .scalar_subquery()
     )
+    sources = (
+        sa.select(
+            sa.func.jsonb_agg(
+                aggregate_order_by(
+                    sa.func.to_jsonb(generation_sources.table_valued()),
+                    question_sources.c.ordinal,
+                )
+            )
+        )
+        .select_from(
+            question_sources.join(
+                generation_sources,
+                (question_sources.c.request_id == generation_sources.c.request_id)
+                & (question_sources.c.source_rank == generation_sources.c.rank),
+            )
+        )
+        .where(question_sources.c.question_id == questions.c.id)
+        .scalar_subquery()
+    )
     statement = (
-        sa.select(questions, sa.func.coalesce(options, sa.cast([], JSONB)).label("options"))
+        sa.select(
+            questions,
+            sa.func.coalesce(options, sa.cast([], JSONB)).label("options"),
+            sa.func.coalesce(sources, sa.cast([], JSONB)).label("sources"),
+        )
         .join(exams, exams.c.id == questions.c.exam_id)
         .join(generation_runs, generation_runs.c.id == exams.c.generation_id)
         .where(exams.c.id == exam_id, generation_runs.c.course_id == course_id)
@@ -212,7 +264,14 @@ def list_exam_questions(conn: Connection, course_id: UUID, exam_id: UUID) -> lis
 
 
 def install_exams(conn: Connection) -> None:
-    for table in (exams, questions, question_options, question_keys, correct_options):
+    for table in (
+        exams,
+        questions,
+        question_options,
+        question_keys,
+        correct_options,
+        question_sources,
+    ):
         table.create(conn, checkfirst=True)
         conn.exec_driver_sql(f"ALTER TABLE app.{table.name} ENABLE ROW LEVEL SECURITY")
         conn.exec_driver_sql(f"ALTER TABLE app.{table.name} FORCE ROW LEVEL SECURITY")
@@ -233,6 +292,9 @@ def _install_exam_access(conn: Connection) -> None:
         ),
         "question_options": (
             "EXISTS (SELECT FROM app.questions AS q WHERE q.id = question_options.question_id)"
+        ),
+        "question_sources": (
+            "EXISTS (SELECT FROM app.questions AS q WHERE q.id = question_sources.question_id)"
         ),
     }
     for table, predicate in predicates.items():
@@ -264,6 +326,11 @@ def _install_exam_writes(conn: Connection) -> None:
             key_list jsonb;
             option_count integer;
             key_count integer;
+            source_request uuid;
+            questions_payload jsonb;
+            source_ranks jsonb;
+            has_sources boolean;
+            inserted bigint;
         BEGIN
             PERFORM 1 FROM app.courses WHERE id = cid AND status = 'active' FOR SHARE;
             IF NOT FOUND OR NOT app.has_course_role(cid, ARRAY['student', 'coordinator']) THEN
@@ -284,16 +351,36 @@ def _install_exam_writes(conn: Connection) -> None:
             ) THEN
                 RAISE EXCEPTION 'INVALID_EXAM_GENERATION' USING ERRCODE = '22023';
             END IF;
-            IF jsonb_typeof(payload) IS DISTINCT FROM 'array' THEN
+            -- Conserva el formato anterior de arreglo para generaciones sin fuentes.
+            IF jsonb_typeof(payload) = 'object' THEN
+                source_request := (payload ->> 'request_id')::uuid;
+                questions_payload := payload -> 'questions';
+            ELSE
+                questions_payload := payload;
+            END IF;
+            IF (source_request IS NULL AND EXISTS (
+                SELECT FROM app.generation_requests AS r
+                JOIN app.generation_sources AS s ON s.request_id = r.id
+                WHERE r.generation_id = gid
+            )) OR (source_request IS NOT NULL AND NOT EXISTS (
+                SELECT FROM app.generation_requests WHERE id = source_request AND generation_id = gid
+            )) THEN
+                RAISE EXCEPTION 'INVALID_EXAM_SOURCE_REQUEST' USING ERRCODE = '23514';
+            END IF;
+            SELECT EXISTS (
+                SELECT FROM app.generation_sources WHERE request_id = source_request
+            ) INTO has_sources;
+
+            IF jsonb_typeof(questions_payload) IS DISTINCT FROM 'array' THEN
                 RAISE EXCEPTION 'INVALID_EXAM_QUESTIONS' USING ERRCODE = '23514';
             END IF;
-            IF jsonb_array_length(payload) NOT BETWEEN 1 AND 20 THEN
+            IF jsonb_array_length(questions_payload) NOT BETWEEN 1 AND 20 THEN
                 RAISE EXCEPTION 'INVALID_EXAM_QUESTIONS' USING ERRCODE = '23514';
             END IF;
 
             INSERT INTO app.exams (id, generation_id, title, kind, duration_seconds)
             VALUES (exam_id, gid, exam_title, exam_kind, duration);
-            FOR item IN SELECT * FROM jsonb_array_elements(payload) WITH ORDINALITY AS q(value, position)
+            FOR item IN SELECT * FROM jsonb_array_elements(questions_payload) WITH ORDINALITY AS q(value, position)
             LOOP
                 question_id := gen_random_uuid();
                 question_kind := item.value ->> 'kind';
@@ -338,6 +425,36 @@ def _install_exam_writes(conn: Connection) -> None:
                     question_id, exam_id, assessed_concept, item.position, question_kind,
                     item.value ->> 'prompt', (item.value ->> 'max_points')::numeric
                 );
+                source_ranks := coalesce(item.value -> 'source_ranks', '[]'::jsonb);
+                IF jsonb_typeof(source_ranks) IS DISTINCT FROM 'array' THEN
+                    RAISE EXCEPTION 'INVALID_QUESTION_SOURCES' USING ERRCODE = '23514';
+                END IF;
+                IF (has_sources AND jsonb_array_length(source_ranks) NOT BETWEEN 1 AND 4)
+                    OR (NOT has_sources AND jsonb_array_length(source_ranks) <> 0)
+                    OR EXISTS (
+                        SELECT FROM jsonb_array_elements(source_ranks) AS requested(value)
+                        WHERE jsonb_typeof(requested.value) <> 'number'
+                            OR requested.value::text !~ '^[1-9][0-9]{0,9}$'
+                    )
+                    OR jsonb_array_length(source_ranks) <> (
+                        SELECT count(DISTINCT value) FROM jsonb_array_elements(source_ranks)
+                    ) THEN
+                    RAISE EXCEPTION 'INVALID_QUESTION_SOURCES' USING ERRCODE = '23514';
+                END IF;
+
+                INSERT INTO app.question_sources (question_id, ordinal, request_id, source_rank)
+                SELECT question_id, requested.ordinal, s.request_id, s.rank
+                FROM jsonb_array_elements_text(source_ranks) WITH ORDINALITY AS requested(rank, ordinal)
+                JOIN app.generation_sources AS s
+                  ON s.request_id = source_request AND s.rank = requested.rank::bigint
+                JOIN app.documents AS d
+                  ON d.id = s.document_id AND d.course_id = cid AND d.active_run_id = s.run_id
+                WHERE d.status = 'active';
+                GET DIAGNOSTICS inserted = ROW_COUNT;
+                IF inserted <> jsonb_array_length(source_ranks) THEN
+                    RAISE EXCEPTION 'INVALID_QUESTION_SOURCES' USING ERRCODE = '23514';
+                END IF;
+
                 INSERT INTO app.question_keys (question_id, expected_answer, rubric, explanation)
                 VALUES (
                     question_id, item.value ->> 'expected_answer',
