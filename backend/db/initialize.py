@@ -9,10 +9,12 @@ from sqlalchemy.schema import CreateSchema
 from .account_tokens import install_account_tokens
 from .courses import install_courses
 from .documents import install_documents
+from .generations import install_generations
 from .invitations import install_invitations
 from .processing import install_processing
 from .sessions import install_sessions
 from .users import install_users
+from .vector_search import install_vector_search
 
 
 def initialize(connection: Connection) -> None:
@@ -29,6 +31,8 @@ def initialize(connection: Connection) -> None:
     install_invitations(connection)
     install_documents(connection)
     install_processing(connection)
+    install_vector_search(connection)
+    install_generations(connection)
 
 
 def main() -> None:

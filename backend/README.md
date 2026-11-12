@@ -169,5 +169,38 @@ fallo de reprocesamiento conserva el resultado ya publicado.
 
 El borrado del documento elimina también sus ejecuciones, fragmentos y vectores.
 Vuelve a ejecutar `db-init` para instalar el módulo en una base existente.
-La extracción, las llamadas al modelo y la búsqueda vectorial quedan fuera de
-este bloque.
+La extracción y las llamadas al modelo se integran desde el proceso externo.
+
+## Búsqueda vectorial
+
+`db/vector_search.py` ofrece `search_course_chunks(conn, course_id,
+embedding_space_id, vector, limit=4, threshold=0.5)`. Úsala dentro de
+`transaction(user_id)` con el rol de la API. El vector debe corresponder al
+espacio de embeddings indicado y la consulta se limita a las ejecuciones
+publicadas de los documentos visibles en la clase.
+
+La búsqueda calcula similitud coseno exacta, elige el mejor hijo por padre y
+aplica el límite sobre los padres. Cada resultado incluye el texto del padre
+que sirve de contexto, el hijo ganador y sus offsets Unicode `[inicio, fin)`,
+junto con los IDs del documento, la ejecución y el espacio. Los empates se
+resuelven por identificador. Vuelve a ejecutar `db-init` para instalarla en
+una base existente. La API HTTP y el registro de fuentes de una generación
+quedan para sus respectivos módulos.
+
+## Registro de generaciones
+
+`db/generations.py` separa la ejecución, cada solicitud al modelo y sus fuentes
+ordenadas. Usa `start_generation` y `record_generation_request` dentro de
+`transaction(user_id)` con el rol de la API. Pasa los mismos bytes UTF-8 que
+usará el cliente HTTP para enviar el JSON de chat. El registro conserva
+espacios, escapes y orden de claves. Confirma la transacción antes del envío
+para conservar el intento aunque falle la llamada.
+
+Pasa las fuentes que se incorporaron al mensaje, con los campos devueltos por
+`search_course_chunks`.
+PostgreSQL comprueba la clase, la ejecución publicada, la relación padre/hijo,
+el espacio y los offsets. El propietario puede consultar su registro con
+`get_generation_request`. Si se borra un embedding utilizado, se invalida la
+generación y se eliminan sus solicitudes, que pueden contener texto del documento.
+Vuelve a ejecutar `db-init` para instalar el módulo. El cliente del modelo y
+las rutas HTTP se integrarán por separado.
