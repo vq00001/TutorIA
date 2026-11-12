@@ -380,3 +380,33 @@ PostgreSQL rechaza los excesos con `UPLOAD_QUOTA_EXCEEDED` o
 
 Vuelve a ejecutar `db-init` para instalar las cuotas. Las cargas de las
 últimas 24 horas que aún figuran en la base se incorporan al historial de uso.
+
+## Cola de trabajos e idempotencia
+
+`db/jobs.py` encola trabajos de procesamiento de documentos y generación de
+chat o exámenes. La clave identifica una solicitud por usuario, clase y tipo.
+Repetir los mismos parámetros devuelve el mismo trabajo. Cambiar los parámetros
+con la misma clave genera un conflicto. El propietario puede consultar el
+estado del trabajo.
+
+El rol `tutoria_worker` reclama trabajos listos con `FOR UPDATE SKIP LOCKED`.
+Cada intento recibe un token nuevo y una reserva de hasta 120 segundos, acotada
+por la fecha límite del trabajo. La renovación, la finalización y el fallo
+requieren el token vigente. Para aplicar resultados en PostgreSQL, guarda los
+cambios y confirma el trabajo en la misma transacción. Si la confirmación
+devuelve `False`, revierte esa transacción.
+
+Los fallos recuperables reintentan a los 10 segundos tras el primer intento y
+a los 30 segundos tras el segundo, con un máximo configurable de tres intentos.
+`recover_jobs` procesa hasta 100 trabajos por llamada, reprograma reservas
+vencidas y marca como fallidos los trabajos que agotaron sus intentos o su plazo.
+Un fallo definitivo del trabajo de generación libera el cupo correspondiente.
+
+`db/idempotency.py` permite guardar el resultado JSON de una operación
+transaccional durante 24 horas por usuario, ámbito y clave. La misma solicitud
+recupera el resultado previo. Si cambia el payload, se devuelve un conflicto.
+Si falla la operación, se revierten sus cambios y su reserva. El callback debe
+limitarse a operaciones PostgreSQL que usen la conexión recibida.
+
+Vuelve a ejecutar `db-init` para instalar ambos módulos. El bucle que consume
+la cola y llama periódicamente a `recover_jobs` se integrará por separado.

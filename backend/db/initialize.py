@@ -15,7 +15,9 @@ from .exam_attempts import install_exam_attempts
 from .exams import install_exams
 from .generated_materials import install_generated_materials
 from .generations import install_generations
+from .idempotency import install_idempotency
 from .invitations import install_invitations
+from .jobs import install_jobs
 from .learning_catalog import install_learning_catalog
 from .learning_plans import install_learning_plans
 from .learning_progress import install_learning_progress
@@ -45,6 +47,8 @@ def initialize(connection: Connection) -> None:
     install_vector_search(connection)
     install_generations(connection)
     install_quotas(connection)
+    install_jobs(connection)
+    install_idempotency(connection)
     install_generated_materials(connection)
     install_exams(connection)
     install_exam_attempts(connection)
