@@ -235,3 +235,17 @@ IDs del padre y del hijo y sus offsets `[inicio, fin)`, tomados directamente
 de la fuente. Si la fuente se elimina, queda un marcador `source_removed`
 sin el enlace ni los offsets. El historial sigue siendo privado para su
 propietario. Vuelve a ejecutar `db-init` para instalar el módulo.
+
+## Materiales generados
+
+`db/generated_materials.py` guarda resúmenes, tarjetas y explicaciones como
+resultados de una generación con una solicitud registrada. Cada material tiene
+un título, un tipo, un objeto JSON y una versión positiva del formato.
+`store_generated_materials` guarda el lote en una transacción. Al reintentar,
+conserva los IDs de los materiales para evitar duplicados.
+
+`list_generated_materials` y `get_generated_material` consultan los materiales
+del propietario de la generación en la clase indicada. Si se invalida la
+generación, PostgreSQL sustituye el título por «Contenido retirado» y limpia el
+contenido, conservando el vínculo y la versión del esquema. El módulo se
+instala al volver a ejecutar `db-init`.
