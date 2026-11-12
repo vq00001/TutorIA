@@ -5,7 +5,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.engine import Connection, RowMapping
 
 from .generations import generation_runs
@@ -126,8 +126,12 @@ def get_job(conn: Connection, course_id: UUID, job_id: UUID) -> RowMapping | Non
     return conn.execute(stmt).mappings().one_or_none()
 
 
-def claim_job(conn: Connection, worker: str) -> RowMapping | None:
-    claimed = sa.func.app.claim_job(worker).table_valued(*jobs.c.keys())
+def claim_job(
+    conn: Connection, worker: str, *, kinds: list[str] | None = None
+) -> RowMapping | None:
+    claimed = sa.func.app.claim_job(
+        worker, sa.cast(kinds, ARRAY(sa.Text))
+    ).table_valued(*jobs.c.keys())
     return conn.execute(sa.select(claimed)).mappings().one_or_none()
 
 
@@ -253,7 +257,8 @@ def _install_enqueue(conn: Connection) -> None:
 
 def _install_worker_operations(conn: Connection) -> None:
     conn.exec_driver_sql(
-        """CREATE OR REPLACE FUNCTION app.claim_job(worker text) RETURNS SETOF app.jobs
+        """CREATE OR REPLACE FUNCTION app.claim_job(worker text, supported_kinds text[])
+        RETURNS SETOF app.jobs
         LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
         AS $$
         BEGIN
@@ -265,6 +270,7 @@ def _install_worker_operations(conn: Connection) -> None:
             WITH candidate AS (
                 SELECT id FROM app.jobs WHERE state = 'queued' AND run_after <= clock_timestamp()
                     AND attempts < max_attempts AND deadline_at > clock_timestamp()
+                    AND (supported_kinds IS NULL OR kind = ANY(supported_kinds))
                 ORDER BY run_after, created_at, id FOR UPDATE SKIP LOCKED LIMIT 1
             )
             UPDATE app.jobs AS j SET state = 'running', attempts = j.attempts + 1,
@@ -321,7 +327,15 @@ def _install_worker_operations(conn: Connection) -> None:
         END
         $$"""
     )
-    signatures = "app.claim_job(text), app.renew_job_lease(uuid, uuid), app.finish_job(uuid, uuid, text, boolean)"
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.claim_job(worker text) RETURNS SETOF app.jobs
+        LANGUAGE sql SET search_path = pg_catalog, pg_temp
+        AS $$ SELECT * FROM app.claim_job(worker, NULL::text[]) $$"""
+    )
+    signatures = (
+        "app.claim_job(text), app.claim_job(text, text[]), "
+        "app.renew_job_lease(uuid, uuid), app.finish_job(uuid, uuid, text, boolean)"
+    )
     conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signatures} FROM PUBLIC")
     conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signatures} TO tutoria_worker")
 

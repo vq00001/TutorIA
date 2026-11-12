@@ -482,3 +482,18 @@ La aplicación comprueba la barrera por transacción. Mantén aislada la base re
 hasta confirmar la reproducción, también si hay consumidores que usan conexiones SQL
 directas. El respaldo, la custodia externa del registro y la invocación periódica son
 responsabilidades del entorno de despliegue.
+
+## Integrar solicitudes con la cola
+
+`db/submissions.py` ofrece `submit_upload` y `submit_generation` para una transacción
+autenticada. Cada llamada crea el recurso y su trabajo en la misma transacción. El
+consumidor futuro de HTTP debe pasar una clave estable por solicitud y traducir
+`SubmissionConflict` a 409. La clave se acota al usuario, clase y operación durante
+24 horas. Un reenvío equivalente devuelve los mismos IDs y conserva el plazo original.
+Una carga duplicada por bytes devuelve IDs nulos y no encola un trabajo. El objetivo
+de los trabajos de chat y examen es el ID de la generación.
+
+PostgreSQL permite reclamar por tipo con `claim_job(..., kinds=[...])`. Los permisos
+de reclamo, renovación y finalización siguen asignados al rol de procesamiento. Al
+integrar la publicación, guarda el resultado y comprueba `complete_job` en la misma
+transacción. Si devuelve `False`, revierte la transacción para descartar el resultado.
