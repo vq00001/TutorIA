@@ -323,3 +323,25 @@ los demás casos con evidencia. El resultado se calcula al consultar el registro
 
 Vuelve a ejecutar `db-init` para instalar el módulo. Los exámenes anteriores
 conservan sus preguntas sin asociación a conceptos.
+
+## Metas, rutas y sesiones de estudio
+
+`db/learning_plans.py` guarda metas personales por clase, con fecha objetivo
+opcional y uno o más conceptos del catálogo. El propietario puede completar o
+archivar sus metas. `build_roadmap` guarda una ruta con los conceptos objetivo
+y todos sus prerrequisitos transitivos, en orden topológico. Cuando varios
+conceptos están disponibles a la vez, se ordenan por su clave canónica.
+Volver a generar con el mismo grafo devuelve la misma ruta. Si el grafo cambia,
+se guarda una nueva versión y las anteriores siguen disponibles. Cada paso
+muestra el dominio actual al consultarlo.
+
+`db/study_sessions.py` registra una sesión abierta por usuario y clase.
+`heartbeat_study_session` devuelve los segundos activos acumulados. Como en
+el ZIP, los intervalos inferiores a 25 segundos se acumulan hasta el siguiente
+pulso y cada intervalo acreditado aporta un máximo de 30 segundos. Tras más de
+120 segundos sin un pulso acreditado, la sesión se cierra en la última marca.
+`finish_study_session` permite cerrarla explícitamente.
+
+Solo el propietario puede consultar estas metas, rutas y sesiones. Las clases
+archivadas permiten consultar el historial. Vuelve a ejecutar `db-init` para
+instalar los módulos.

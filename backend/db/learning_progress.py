@@ -83,6 +83,10 @@ def list_mastery_evidence(
 
 def list_concept_mastery(conn: Connection, course_id: UUID) -> list[RowMapping]:
     """Calcula el dominio de cada concepto visible para el usuario de la transacción."""
+    return list(conn.execute(concept_mastery_statement(course_id)).mappings())
+
+
+def concept_mastery_statement(course_id: UUID):
     evidence = (
         sa.select(
             mastery_events.c.concept_id,
@@ -103,7 +107,7 @@ def list_concept_mastery(conn: Connection, course_id: UUID) -> list[RowMapping]:
         (alpha < Decimal("0.6") * (alpha + beta), "reinforce"),
         else_="developing",
     )
-    stmt = (
+    return (
         sa.select(
             concepts.c.id.label("concept_id"),
             concepts.c.label,
@@ -117,7 +121,6 @@ def list_concept_mastery(conn: Connection, course_id: UUID) -> list[RowMapping]:
         .where(concepts.c.course_id == course_id)
         .order_by(concepts.c.canonical_key)
     )
-    return list(conn.execute(stmt).mappings())
 
 
 def install_learning_progress(conn: Connection) -> None:

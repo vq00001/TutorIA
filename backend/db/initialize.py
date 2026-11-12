@@ -17,9 +17,11 @@ from .generated_materials import install_generated_materials
 from .generations import install_generations
 from .invitations import install_invitations
 from .learning_catalog import install_learning_catalog
+from .learning_plans import install_learning_plans
 from .learning_progress import install_learning_progress
 from .processing import install_processing
 from .sessions import install_sessions
+from .study_sessions import install_study_sessions
 from .users import install_users
 from .vector_search import install_vector_search
 
@@ -45,6 +47,8 @@ def initialize(connection: Connection) -> None:
     install_exams(connection)
     install_exam_attempts(connection)
     install_learning_progress(connection)
+    install_learning_plans(connection)
+    install_study_sessions(connection)
     install_conversations(connection)
     install_citations(connection)
 
