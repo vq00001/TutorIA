@@ -2,11 +2,13 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from decimal import Decimal
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by
 from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.schema import AddConstraint, DropConstraint
 
 from .exams import exams, questions
 from .generations import generation_runs
@@ -97,6 +99,16 @@ answer_selections = sa.Table(
     ),
 )
 
+_grade_status_points = sa.CheckConstraint(
+    "(status = 'accepted' AND points IS NOT NULL AND points BETWEEN 0 AND 999.99999 "
+    "AND method IS NOT NULL AND ("
+    "(method = 'deterministic' AND feedback IS NULL) OR "
+    "(method = 'manual' AND feedback IS NOT NULL AND char_length(feedback) <= 10000 "
+    "AND feedback ~ '[^[:space:]]'))) OR "
+    "(status = 'needs_review' AND points IS NULL AND method IS NULL AND feedback IS NULL)",
+    name="grades_status_points",
+)
+
 grades = sa.Table(
     "grades",
     metadata,
@@ -106,16 +118,12 @@ grades = sa.Table(
     sa.Column("points", sa.Numeric(8, 5)),
     sa.Column("status", sa.Text, nullable=False),
     sa.Column("method", sa.Text),
+    sa.Column("feedback", sa.Text),
     sa.Column("grader_version", sa.Text, nullable=False, server_default="v1"),
     sa.Column(
         "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
     ),
-    sa.CheckConstraint(
-        "(status = 'accepted' AND method IS NOT NULL AND method = 'deterministic' "
-        "AND points IS NOT NULL AND points BETWEEN 0 AND 999.99999) OR "
-        "(status = 'needs_review' AND points IS NULL AND method IS NULL)",
-        name="grades_status_points",
-    ),
+    _grade_status_points,
 )
 
 
@@ -154,6 +162,25 @@ def submit_exam_attempt(
         )
     )
     return conn.scalar(statement)
+
+
+def review_development_answer(
+    conn: Connection,
+    course_id: UUID,
+    attempt_id: UUID,
+    answer_id: UUID,
+    *,
+    points: Decimal,
+    feedback: str,
+) -> UUID:
+    """Registra la revisión manual y devuelve el ID de la respuesta revisada."""
+    return conn.execute(
+        sa.select(
+            sa.func.app.review_development_answer(
+                course_id, attempt_id, answer_id, sa.cast(points, sa.Numeric), feedback
+            )
+        )
+    ).scalar_one()
 
 
 def _course_attempts(course_id: UUID):
@@ -209,6 +236,7 @@ def list_attempt_answers(
         sa.select(
             answers,
             grades.c.points,
+            grades.c.feedback,
             grades.c.status.label("grade_status"),
             grades.c.method.label("grade_method"),
             sa.func.coalesce(selected, sa.cast([], JSONB)).label("selected_option_ids"),
@@ -229,8 +257,17 @@ def install_exam_attempts(conn: Connection) -> None:
         table.create(conn, checkfirst=True)
         conn.exec_driver_sql(f"ALTER TABLE app.{table.name} ENABLE ROW LEVEL SECURITY")
         conn.exec_driver_sql(f"ALTER TABLE app.{table.name} FORCE ROW LEVEL SECURITY")
+    # Permite volver a ejecutar db-init sobre el esquema anterior de intentos.
+    if not any(
+        column["name"] == "feedback"
+        for column in sa.inspect(conn).get_columns("grades", schema="app")
+    ):
+        conn.exec_driver_sql("ALTER TABLE app.grades ADD COLUMN feedback text")
+        conn.execute(DropConstraint(_grade_status_points, isolate_from_table=False))
+        conn.execute(AddConstraint(_grade_status_points, isolate_from_table=False))
     _install_attempt_access(conn)
     _install_attempt_writes(conn)
+    _install_development_review(conn)
     _install_attempt_invalidation(conn)
 
 
@@ -326,8 +363,6 @@ def _install_attempt_submission(conn: Connection) -> None:
             option_ids jsonb;
             answer_text text;
             submitted timestamptz;
-            needs_review boolean;
-            final_score numeric;
         BEGIN
             SELECT a.exam_id INTO eid FROM app.exam_attempts AS a
             JOIN app.exams AS e ON e.id = a.exam_id
@@ -424,21 +459,88 @@ def _install_attempt_submission(conn: Connection) -> None:
                 CASE WHEN pending THEN NULL ELSE 'deterministic' END
             FROM results;
 
-            SELECT bool_or(g.status = 'needs_review'), 100 * sum(g.points) / sum(q.max_points)
-            INTO needs_review, final_score
-            FROM app.grades AS g JOIN app.answers AS a ON a.id = g.answer_id
-            JOIN app.questions AS q ON q.id = a.question_id
-            WHERE a.attempt_id = aid;
-
-            UPDATE app.exam_attempts
-            SET status = CASE WHEN needs_review THEN 'needs_review' ELSE 'graded' END,
-                submitted_at = submitted, graded_at = clock_timestamp(),
-                score_percent = CASE WHEN needs_review THEN NULL ELSE final_score END
-            WHERE id = aid;
+            UPDATE app.exam_attempts SET submitted_at = submitted WHERE id = aid;
+            PERFORM app.refresh_exam_attempt_grade(aid);
             RETURN aid;
         END
         $$"""
     )
+
+
+def _install_development_review(conn: Connection) -> None:
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.refresh_exam_attempt_grade(aid uuid) RETURNS void
+        LANGUAGE sql SET search_path = pg_catalog, pg_temp
+        AS $$
+            UPDATE app.exam_attempts
+            SET status = CASE WHEN result.pending THEN 'needs_review' ELSE 'graded' END,
+                score_percent = CASE WHEN result.pending THEN NULL ELSE result.percent END,
+                graded_at = CASE WHEN result.pending THEN NULL ELSE clock_timestamp() END
+            FROM (
+                SELECT bool_or(g.status = 'needs_review') AS pending,
+                    100 * sum(g.points) / sum(q.max_points) AS percent
+                FROM app.answers AS a
+                JOIN app.grades AS g ON g.answer_id = a.id
+                JOIN app.questions AS q ON q.id = a.question_id
+                WHERE a.attempt_id = aid
+            ) AS result
+            WHERE id = aid
+        $$"""
+    )
+    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.refresh_exam_attempt_grade(uuid) FROM PUBLIC")
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.review_development_answer(
+            cid uuid, aid uuid, target_answer uuid, awarded numeric, review_feedback text
+        ) RETURNS uuid
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        DECLARE
+            eid uuid;
+            attempt_status text;
+            grade record;
+        BEGIN
+            SELECT a.exam_id INTO eid FROM app.exam_attempts AS a
+            JOIN app.exams AS e ON e.id = a.exam_id
+            JOIN app.generation_runs AS g ON g.id = e.generation_id
+            WHERE a.id = aid AND g.course_id = cid AND g.user_id = app.course_actor();
+            IF NOT FOUND OR NOT app.lock_attempt_exam(cid, eid) THEN
+                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+            END IF;
+
+            SELECT status INTO attempt_status FROM app.exam_attempts WHERE id = aid FOR UPDATE;
+            IF attempt_status NOT IN ('needs_review', 'graded') THEN
+                RAISE EXCEPTION 'ATTEMPT_NOT_SUBMITTED' USING ERRCODE = '23514';
+            END IF;
+            SELECT g.status, g.method, g.points, g.feedback, q.max_points INTO grade
+            FROM app.answers AS a
+            JOIN app.questions AS q ON q.id = a.question_id
+            JOIN app.grades AS g ON g.answer_id = a.id
+            WHERE a.id = target_answer AND a.attempt_id = aid AND q.kind = 'development';
+            IF NOT FOUND OR awarded IS NULL OR NOT (awarded BETWEEN 0 AND grade.max_points)
+                OR awarded <> trunc(awarded, 5) OR review_feedback IS NULL
+                OR char_length(review_feedback) > 10000 OR review_feedback !~ '[^[:space:]]' THEN
+                RAISE EXCEPTION 'INVALID_DEVELOPMENT_REVIEW' USING ERRCODE = '23514';
+            END IF;
+
+            IF grade.method = 'manual' AND grade.points = awarded AND grade.feedback = review_feedback THEN
+                RETURN target_answer;
+            END IF;
+            IF attempt_status <> 'needs_review' OR grade.status <> 'needs_review' THEN
+                RAISE EXCEPTION 'ANSWER_NOT_PENDING_REVIEW' USING ERRCODE = '23514';
+            END IF;
+
+            UPDATE app.grades
+            SET points = awarded, status = 'accepted', method = 'manual',
+                feedback = review_feedback, grader_version = 'manual_self'
+            WHERE answer_id = target_answer;
+            PERFORM app.refresh_exam_attempt_grade(aid);
+            RETURN target_answer;
+        END
+        $$"""
+    )
+    signature = "app.review_development_answer(uuid, uuid, uuid, numeric, text)"
+    conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signature} FROM PUBLIC")
+    conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signature} TO tutoria_api")
 
 
 def _install_attempt_invalidation(conn: Connection) -> None:

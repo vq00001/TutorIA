@@ -14,8 +14,10 @@ from db.exam_attempts import (
     answers,
     exam_attempts,
     get_exam_attempt,
+    grades,
     list_attempt_answers,
     list_exam_attempts,
+    review_development_answer,
     start_exam_attempt,
     submit_exam_attempt,
 )
@@ -181,3 +183,119 @@ def test_exam_invalidation_removes_answers_and_score(postgres, attempt_context):
     result = get_exam_attempt(postgres, course, attempt)
     assert (result["status"], result["score_percent"]) == ("invalidated", None)
     assert not postgres.execute(select(answers.c.id).where(answers.c.attempt_id == attempt)).all()
+
+
+def test_development_reviews_close_attempt_only_after_last_pending_answer(
+    postgres, attempt_context
+):
+    _, _, course, _ = attempt_context
+    heavy = replace(DEVELOPMENT, max_points=Decimal("2.5"))
+    _, exam, (choice, first, second) = _exam(postgres, course, [ALTERNATIVES, heavy, DEVELOPMENT])
+    attempt = start_exam_attempt(postgres, course, exam)
+    submit_exam_attempt(
+        postgres,
+        course,
+        attempt,
+        [
+            ExamAnswer(choice["id"], [_options(choice)[1]]),
+            ExamAnswer(first["id"], text_answer="Primera respuesta"),
+            ExamAnswer(second["id"], text_answer="Segunda respuesta"),
+        ],
+    )
+    _, first_answer, second_answer = list_attempt_answers(postgres, course, attempt)
+    feedback = "Buen desarrollo.\nFaltó justificar el último paso."
+    assert (
+        review_development_answer(
+            postgres, course, attempt, first_answer["id"], points=Decimal("1.75"), feedback=feedback
+        )
+        == first_answer["id"]
+    )
+    partial = get_exam_attempt(postgres, course, attempt)
+    assert (partial["status"], partial["score_percent"], partial["graded_at"]) == (
+        "needs_review",
+        None,
+        None,
+    )
+    choice_grade, manual, pending = list_attempt_answers(postgres, course, attempt)
+    assert choice_grade["grade_method"] == "deterministic" and choice_grade["feedback"] is None
+    assert (
+        manual["grade_status"],
+        manual["grade_method"],
+        manual["points"],
+        manual["feedback"],
+    ) == (
+        "accepted",
+        "manual",
+        Decimal("1.75"),
+        feedback,
+    )
+    assert pending["grade_status"] == "needs_review"
+
+    final = {"points": Decimal(0), "feedback": "La respuesta no justifica el resultado."}
+    assert (
+        review_development_answer(postgres, course, attempt, second_answer["id"], **final)
+        == second_answer["id"]
+    )
+    closed = get_exam_attempt(postgres, course, attempt)
+    assert (closed["status"], closed["score_percent"]) == ("graded", Decimal(65))
+    assert closed["graded_at"] >= closed["submitted_at"]
+    assert (
+        review_development_answer(postgres, course, attempt, second_answer["id"], **final)
+        == second_answer["id"]
+    )
+    assert get_exam_attempt(postgres, course, attempt) == closed
+    with pytest.raises(IntegrityError, match="ANSWER_NOT_PENDING_REVIEW"), postgres.begin_nested():
+        review_development_answer(
+            postgres,
+            course,
+            attempt,
+            second_answer["id"],
+            points=Decimal(1),
+            feedback="Otro resultado",
+        )
+    assert get_exam_attempt(postgres, course, attempt) == closed
+
+
+def test_development_review_rejects_invalid_grades_and_other_owners(postgres, attempt_context):
+    owner, peer, course, other_course = attempt_context
+    _, exam, (_choice, written, _) = _exam(
+        postgres, course, [ALTERNATIVES, DEVELOPMENT, DEVELOPMENT]
+    )
+    attempt = start_exam_attempt(postgres, course, exam)
+
+    with pytest.raises(IntegrityError, match="ATTEMPT_NOT_SUBMITTED"), postgres.begin_nested():
+        review_development_answer(
+            postgres, course, attempt, uuid4(), points=Decimal(1), feedback="Válido"
+        )
+    submit_exam_attempt(
+        postgres, course, attempt, [ExamAnswer(written["id"], text_answer="Respuesta")]
+    )
+    automatic, pending, omitted = list_attempt_answers(postgres, course, attempt)
+
+    for answer_id, points, feedback, error in (
+        (pending["id"], Decimal(-1), "Válido", "INVALID_DEVELOPMENT_REVIEW"),
+        (pending["id"], Decimal("1.001"), "Válido", "INVALID_DEVELOPMENT_REVIEW"),
+        (pending["id"], Decimal("0.000001"), "Válido", "INVALID_DEVELOPMENT_REVIEW"),
+        (pending["id"], Decimal("NaN"), "Válido", "INVALID_DEVELOPMENT_REVIEW"),
+        (pending["id"], Decimal(1), "\n\t ", "INVALID_DEVELOPMENT_REVIEW"),
+        (pending["id"], Decimal(1), "x" * 10001, "INVALID_DEVELOPMENT_REVIEW"),
+        (uuid4(), Decimal(1), "Válido", "INVALID_DEVELOPMENT_REVIEW"),
+        (automatic["id"], Decimal(1), "Válido", "INVALID_DEVELOPMENT_REVIEW"),
+        (omitted["id"], Decimal(1), "Válido", "ANSWER_NOT_PENDING_REVIEW"),
+    ):
+        with pytest.raises(IntegrityError, match=error), postgres.begin_nested():
+            review_development_answer(
+                postgres, course, attempt, answer_id, points=points, feedback=feedback
+            )
+
+    with pytest.raises(ProgrammingError), postgres.begin_nested():
+        postgres.execute(update(grades).where(grades.c.answer_id == pending["id"]).values(points=1))
+    for actor, course_id in ((owner, other_course), (peer, course)):
+        _role(postgres, actor)
+        with pytest.raises(ProgrammingError, match="NOT_AUTHORIZED"), postgres.begin_nested():
+            review_development_answer(
+                postgres, course_id, attempt, pending["id"], points=Decimal(1), feedback="Válido"
+            )
+    _role(postgres, owner)
+    assert get_exam_attempt(postgres, course, attempt)["status"] == "needs_review"
+    assert list_attempt_answers(postgres, course, attempt) == [automatic, pending, omitted]

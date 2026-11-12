@@ -281,5 +281,12 @@ puntos. El propietario puede consultar sus intentos, respuestas y puntuación
 sin acceder a las claves. Si se invalida el examen, se limpia el contenido de
 las respuestas y se conserva el intento con estado `invalidated`.
 
-Vuelve a ejecutar `db-init` para instalar el módulo. La corrección de desarrollo
-y las rutas HTTP se integrarán por separado.
+`review_development_answer` permite al propietario del intento registrar una
+nota y feedback para una respuesta de desarrollo pendiente. La nota va de cero
+al máximo de la pregunta y el feedback admite hasta 10.000 caracteres. Al
+revisar la última pendiente, PostgreSQL guarda el porcentaje ponderado y
+cierra el intento en la misma transacción. Reenviar una revisión idéntica
+conserva el resultado.
+
+Vuelve a ejecutar `db-init` para instalar la revisión y habilitarla también
+en intentos ya entregados. Las rutas HTTP se integrarán por separado.
