@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from decimal import Decimal
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -53,3 +54,26 @@ def test_attempt_routes_start_submit_and_return_private_result(postgres, monkeyp
     assert client.post(path + "/submissions", json=payload, headers=private).status_code == 404
     wrong_exam = path.replace(str(exam), str(uuid4()))
     assert client.get(wrong_exam, headers=headers).status_code == 404
+
+    feedback = {"points": "0.65", "feedback": "Explica el paso principal."}
+    review = f"{path}/answers/{result['answers'][1]['answerId']}/review"
+    choice_review = f"{path}/answers/{result['answers'][0]['answerId']}/review"
+    assert client.put(review, json=feedback, headers=private).status_code == 404
+    assert client.put(choice_review, json=feedback, headers=headers).status_code == 422
+    assert client.put(review, json=feedback | {"points": 999}, headers=headers).status_code == 422
+    assert client.put(review, json=feedback | {"feedback": " "}, headers=headers).status_code == 422
+
+    reviewed = client.put(review, json=feedback, headers=headers)
+    assert reviewed.status_code == 200
+    updated = reviewed.json()["data"]
+    assert updated["status"] == "graded"
+    assert Decimal(updated["scorePercent"]) == Decimal(90)
+    answer = updated["answers"][1]
+    assert Decimal(answer["points"]) == Decimal("0.65")
+    assert answer["feedback"] == feedback["feedback"]
+    assert (answer["gradeStatus"], answer["gradeMethod"]) == ("accepted", "manual")
+    assert client.get(path, headers=headers).json() == reviewed.json()
+    assert client.put(review, json=feedback, headers=headers).json() == reviewed.json()
+    changed = client.put(review, json=feedback | {"points": "1"}, headers=headers)
+    assert changed.status_code == 409
+    assert changed.json()["error"] == "ANSWER_NOT_PENDING_REVIEW"

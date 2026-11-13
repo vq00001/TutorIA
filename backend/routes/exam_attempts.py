@@ -14,6 +14,7 @@ from ..db.exam_attempts import (
     ExamAnswer,
     get_exam_attempt,
     list_attempt_answers,
+    review_development_answer,
     start_exam_attempt,
     submit_exam_attempt,
 )
@@ -42,7 +43,20 @@ class SubmitAttemptRequest(BaseModel):
     answers: list[AnswerInput] = Field(max_length=20)
 
 
+class DevelopmentReviewRequest(BaseModel):
+    points: Decimal = Field(ge=0, le=Decimal("999.99999"), decimal_places=5)
+    feedback: str = Field(min_length=1, max_length=10000)
+
+    @field_validator("feedback")
+    @classmethod
+    def validate_feedback(cls, value: str) -> str:
+        if not value.strip() or "\x00" in value:
+            raise ValueError("Feedback inválido")
+        return value
+
+
 class AnswerResult(BaseModel):
+    answerId: UUID
     questionId: UUID
     selectedOptionIds: list[UUID]
     textAnswer: str | None
@@ -86,7 +100,7 @@ def _result(connection, course_id: UUID, row) -> AttemptResponse:
     if status in ("graded", "needs_review"):
         answers = [
             AnswerResult(
-                questionId=item.question_id, selectedOptionIds=item.selected_option_ids,
+                answerId=item.id, questionId=item.question_id, selectedOptionIds=item.selected_option_ids,
                 textAnswer=item.text_answer, points=item.points, feedback=item.feedback,
                 gradeStatus=item.grade_status, gradeMethod=item.grade_method,
             )
@@ -161,4 +175,37 @@ def attempts_submit(
         raise
     if submitted is None:
         return error_response(409, "ATTEMPT_EXPIRED", "El plazo del intento venció.")
+    return _result(connection, courseId, get_exam_attempt(connection, courseId, attemptId))
+
+@router.put(
+    "/{attemptId}/answers/{answerId}/review",
+    response_model=AttemptResponse, responses=_WRITE_ERRORS,
+)
+def attempts_review_development(
+    courseId: UUID, examId: UUID, attemptId: UUID, answerId: UUID,
+    payload: DevelopmentReviewRequest, connection: AuthenticatedConnection,
+) -> AttemptResponse | JSONResponse:
+    row = _read_attempt(connection, courseId, examId, attemptId)
+    if row is None:
+        return _not_found()
+    if row.status == "invalidated":
+        return error_response(409, "EXAM_UNAVAILABLE", "El examen ya no está disponible.")
+    try:
+        with connection.begin_nested():
+            review_development_answer(
+                connection, courseId, attemptId, answerId,
+                points=payload.points, feedback=payload.feedback,
+            )
+    except DBAPIError as exc:
+        sqlstate = getattr(exc.orig, "sqlstate", None)
+        primary = getattr(getattr(exc.orig, "diag", None), "message_primary", None)
+        if sqlstate == "23514":
+            if primary == "INVALID_DEVELOPMENT_REVIEW":
+                return error_response(422, primary, "Revisa la respuesta y la nota asignada.")
+            if primary in ("ATTEMPT_NOT_SUBMITTED", "ANSWER_NOT_PENDING_REVIEW"):
+                return error_response(409, primary, "La respuesta no está pendiente de revisión.")
+        response = _write_error(exc)
+        if response is not None:
+            return response
+        raise
     return _result(connection, courseId, get_exam_attempt(connection, courseId, attemptId))

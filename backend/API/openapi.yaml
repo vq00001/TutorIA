@@ -767,6 +767,46 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /courses/{courseId}/exams/{examId}/attempts/{attemptId}/answers/{answerId}/review:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+      - name: attemptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: answerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Exams]
+      summary: Guarda la autorrevisión de una respuesta de desarrollo
+      description: Repetir la misma nota y feedback devuelve el resultado vigente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevelopmentReviewRequest'
+      responses:
+        '200':
+          description: Intento con el resultado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /courses/{courseId}/progress:
     parameters:
       - $ref: '#/components/parameters/CourseId'
@@ -1389,6 +1429,18 @@ components:
                 maxItems: 6
                 items: { type: string, format: uuid }
               textAnswer: { type: [string, 'null'], maxLength: 20000 }
+    DevelopmentReviewRequest:
+      type: object
+      required: [points, feedback]
+      properties:
+        points:
+          description: Nota entre cero y el máximo de la pregunta, con hasta cinco decimales.
+          anyOf:
+            - type: number
+              minimum: 0
+              maximum: 999.99999
+            - type: string
+        feedback: { type: string, minLength: 1, maxLength: 10000 }
     ExamResult:
       type: object
       required: [id, examId, attemptNo, status, startedAt, deadlineAt, submittedAt, gradedAt, scorePercent, answers]
@@ -1406,8 +1458,9 @@ components:
           type: array
           items:
             type: object
-            required: [questionId, selectedOptionIds, textAnswer, points, feedback, gradeStatus, gradeMethod]
+            required: [answerId, questionId, selectedOptionIds, textAnswer, points, feedback, gradeStatus, gradeMethod]
             properties:
+              answerId: { type: string, format: uuid }
               questionId: { type: string, format: uuid }
               selectedOptionIds:
                 type: array
