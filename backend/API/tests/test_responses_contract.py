@@ -16,7 +16,7 @@ def test_success_response_matches_contract(client, path, method, op):
         # Reemplaza expire_token por una función vacía durante la ejecución del test
         # Esto para simular que el token se invalido correctamente
         patch("app.routers.auth.expire_token", return_value=None)
-        if path == "/auth/logout" or (path == "/activity" and method == "get")
+        if path == "/auth/logout"
         else nullcontext()
     )
 

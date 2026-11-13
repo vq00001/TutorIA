@@ -1,4 +1,5 @@
 import pytest
+from app.auth import create_jwt
 
 
 @pytest.fixture(scope="session")
@@ -10,5 +11,6 @@ def client():
 
 
 @pytest.fixture(scope="session")
-def auth_headers() -> dict[str, str]:
-    return {"Authorization": "Bearer test-token"}
+def auth_headers()  -> dict[str, str]:
+    token = create_jwt(data={"sub": "test@example.com"})
+    return {"Authorization": f"Bearer {token}"}

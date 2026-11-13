@@ -3,10 +3,9 @@
 from typing import Annotated
 
 from app.schemas import ActivityType, ErrorResponse
-from fastapi import Depends, HTTPException, Query, Response
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Query, Response
+from app.auth import get_current_user as require_auth
 
-_bearer = HTTPBearer(auto_error=False, bearerFormat="JWT")
 
 _ERROR_DESCRIPTIONS = {
     401: "Autenticación requerida o inválida",
@@ -25,23 +24,6 @@ def error_responses(*codes: int) -> dict[int | str, dict]:
         c: {"model": ErrorResponse, "description": _ERROR_DESCRIPTIONS[c]}
         for c in codes
     }
-
-
-async def require_auth(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> str:
-    """Exige un ``Authorization: Bearer <token>``.
-
-    STUB: solo comprueba que el header exista. Falta implementar la validación real
-    del JWT y devolver el usuario actual.
-    """
-    if credentials is None or not credentials.credentials.strip():
-        raise HTTPException(
-            status_code=401,
-            detail="Autenticación requerida o inválida",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return credentials.credentials
 
 
 def no_content() -> Response:

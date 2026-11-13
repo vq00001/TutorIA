@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
+from app.auth import create_jwt
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
@@ -16,6 +17,10 @@ SAMPLE_UUID = "11111111-1111-4111-8111-111111111111"
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+
+def make_auth_header() -> dict[str, str]:
+    token = create_jwt(data={"sub": "test@example.com"})
+    return {"Authorization": f"Bearer {token}"}
 
 def to_json_schema(node):
     """Convierte ``nullable: true`` (estilo OpenAPI 3.0) a ``type: [t, "null"]``."""
@@ -187,7 +192,7 @@ class Contract:
         kwargs: dict = {
             "method": method.upper(),
             "url": API_PREFIX + re.sub(r"\{[^}]+\}", SAMPLE_UUID, path),
-            "headers": {"Authorization": "Bearer test-token"} if with_auth else {},
+            "headers": make_auth_header() if with_auth else {},
         }
         body = op.get("requestBody")
         if body:
