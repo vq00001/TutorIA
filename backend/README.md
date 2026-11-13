@@ -57,6 +57,10 @@ Procesa los documentos, genera embeddings y los guarda en Qdrant:
 make ingest DOCS=docs
 ```
 
+Se admiten `.txt`, `.md`, `.markdown` y `.pdf`. Los PDF con texto extraíble
+se convierten a Markdown antes de entrar al pipeline; los PDF escaneados aún no
+se procesan porque todavía no hay OCR.
+
 Para generar contexto adicional con el modelo LLM, activa la flag opcional:
 
 ```bash

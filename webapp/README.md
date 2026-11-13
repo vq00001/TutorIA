@@ -2,6 +2,11 @@
 
 Aplicación web React + TypeScript para un tutor de aprendizaje. Incluye inicio, chat de curso, biblioteca de materiales y un grafo de conceptos. El servicio actual simula respuestas JSON en memoria; no conecta a una base de datos ni implementa la lógica del LLM.
 
+La carga de materiales envía los archivos originales (`.txt`, `.md` y `.pdf`) como
+`multipart/form-data` a `POST /api/courses/{courseId}/documents`. El endpoint del
+backend aún no está implementado, por lo que la carga real no estará disponible
+hasta conectar esa ruta.
+
 ## Ejecutar
 
 ```bash
@@ -34,4 +39,3 @@ docs/            contrato de datos
 ```
 
 Las páginas componen la disposición; `KnowledgeGraph`, `MessageRenderer`, `ChatComposer` y los componentes de materiales mantienen responsabilidades acotadas para poder reubicarlos o reutilizarlos. Catppuccin Latte/Mocha sigue por defecto la preferencia del sistema operativo y permite guardar una elección manual.
-

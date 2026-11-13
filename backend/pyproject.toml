@@ -7,6 +7,9 @@ dependencies = [
     "python-dotenv>=1.0,<2",
     "qdrant-client>=1.12,<2",
     "requests>=2.32,<3",
+    "ftfy",
+    "pymupdf",
+    "pymupdf4llm",
 ]
 
 [dependency-groups]
