@@ -96,6 +96,7 @@ def list_generated_materials(
     *,
     limit: int = 50,
     before: tuple[datetime, UUID] | None = None,
+    lookahead: bool = False,
 ) -> list[RowMapping]:
     if not 1 <= limit <= 100:
         raise ValueError("limit debe estar entre 1 y 100")
@@ -108,7 +109,7 @@ def list_generated_materials(
     statement = statement.order_by(
         generated_artifacts.c.created_at.desc(),
         generated_artifacts.c.id.desc(),
-    ).limit(limit)
+    ).limit(limit + int(lookahead))
     return list(conn.execute(statement).mappings())
 
 

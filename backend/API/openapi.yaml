@@ -1131,19 +1131,165 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /courses/{courseId}/study-sessions:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Lista las sesiones propias
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Learning]
+      summary: Inicia o recupera la sesión abierta
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /courses/{courseId}/study-sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Consulta una sesión propia
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /courses/{courseId}/study-sessions/{sessionId}/heartbeat:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Learning]
+      summary: Registra un pulso de estudio
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /courses/{courseId}/study-sessions/{sessionId}/finish:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Learning]
+      summary: Cierra una sesión de estudio
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /courses/{courseId}/materials:
     parameters:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Learning]
-      summary: Lista los materiales generados del curso
+      summary: Lista los materiales propios
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: beforeCreatedAt
+          in: query
+          schema: { type: string, format: date-time }
+        - name: beforeId
+          in: query
+          schema: { type: string, format: uuid }
       responses:
         '200':
-          description: Materiales
+          description: Operación completada
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/GeneratedMaterialListResponse'
+              schema: { $ref: '#/components/schemas/GeneratedMaterialListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /courses/{courseId}/materials/{materialId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: materialId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Consulta un material propio
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeneratedMaterialResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /courses/{courseId}/notifications:
     parameters:
@@ -1759,21 +1905,60 @@ components:
       required: [data]
       properties:
         data: { $ref: '#/components/schemas/ExamResult' }
-    GenerateMaterial:
+    StudySession:
       type: object
-      required: [id, courseId, title, type, createdAt]
+      required: [id, courseId, startedAt, lastHeartbeatAt, endedAt, activeSeconds]
       properties:
         id: { type: string, format: uuid }
         courseId: { type: string, format: uuid }
-        title: { type: string }
-        type: { type: string }
-        content: { type: string }
-        createdAt: { type: string, format: date-time }
-    GeneratedMaterialListResponse:
+        startedAt: { type: string, format: date-time }
+        lastHeartbeatAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        activeSeconds: { type: integer, minimum: 0 }
+    StudySessionResponse:
       type: object
       required: [data]
       properties:
-        data: { type: array, items: { $ref: '#/components/schemas/GenerateMaterial' } }
+        data: { $ref: '#/components/schemas/StudySession' }
+    StudySessionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/StudySession' } }
+    GeneratedMaterialSummary:
+      type: object
+      required: [id, courseId, generationId, title, type, status, schemaVersion, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        generationId: { type: string, format: uuid }
+        title: { type: string }
+        type: { type: string, enum: [summary, flashcards, explanation] }
+        status: { type: string, enum: [active, invalidated, redacted] }
+        schemaVersion: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+    GeneratedMaterialListResponse:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/GeneratedMaterialSummary' } }
+        nextCursor:
+          type: [object, 'null']
+          required: [beforeCreatedAt, beforeId]
+          properties:
+            beforeCreatedAt: { type: string, format: date-time }
+            beforeId: { type: string, format: uuid }
+    GeneratedMaterialResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/GeneratedMaterialSummary'
+            - type: object
+              required: [content]
+              properties:
+                content: { type: object, additionalProperties: true }
     LearningIdentifier:
       type: object
       required: [id]
