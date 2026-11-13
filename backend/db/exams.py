@@ -202,17 +202,30 @@ def publish_exam(
     return conn.execute(statement).scalar_one()
 
 
+def _exam_metadata(course_id: UUID):
+    question_count = (
+        sa.select(sa.func.count()).select_from(questions)
+        .where(questions.c.exam_id == exams.c.id).scalar_subquery()
+    )
+    return (
+        sa.select(exams, question_count.label("question_count"))
+        .join(generation_runs, generation_runs.c.id == exams.c.generation_id)
+        .where(generation_runs.c.course_id == course_id)
+    )
+
+
 def list_exams(conn: Connection, course_id: UUID, *, limit: int = 50) -> list[RowMapping]:
     if not 1 <= limit <= 100:
         raise ValueError("limit debe estar entre 1 y 100")
-    statement = (
-        sa.select(exams)
-        .join(generation_runs, generation_runs.c.id == exams.c.generation_id)
-        .where(generation_runs.c.course_id == course_id)
-        .order_by(exams.c.published_at.desc(), exams.c.id.desc())
-        .limit(limit)
-    )
+    statement = _exam_metadata(course_id).order_by(
+        exams.c.published_at.desc(), exams.c.id.desc()
+    ).limit(limit)
     return list(conn.execute(statement).mappings())
+
+
+def get_exam(conn: Connection, course_id: UUID, exam_id: UUID) -> RowMapping | None:
+    statement = _exam_metadata(course_id).where(exams.c.id == exam_id)
+    return conn.execute(statement).mappings().one_or_none()
 
 
 def list_exam_questions(conn: Connection, course_id: UUID, exam_id: UUID) -> list[RowMapping]:

@@ -629,7 +629,11 @@ paths:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Exams]
-      summary: Lista exámenes pendientes y realizados
+      summary: Lista los exámenes propios
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
       responses:
         '200':
           description: Exámenes
@@ -639,7 +643,12 @@ paths:
                 $ref: '#/components/schemas/ExamSummaryListResponse'
     post:
       tags: [Exams]
-      summary: Genera un examen sobre un tema
+      summary: Encola la generación de un examen
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -647,12 +656,16 @@ paths:
             schema:
               $ref: '#/components/schemas/GenerateExamRequest'
       responses:
-        '201':
-          description: Examen generado
+        '202':
+          description: Generación aceptada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExamResponse'
+                $ref: '#/components/schemas/ExamAcceptedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Cuota de generación agotada
 
   /courses/{courseId}/exams/{examId}:
     parameters:
@@ -1228,36 +1241,41 @@ components:
         includeDocuments: { type: boolean, default: true }
     ExamSummary:
       type: object
-      required: [id, courseId, title, topics, durationMinutes, questionCount, status]
+      required: [id, generationId, title, kind, status, durationSeconds, publishedAt, questionCount]
       properties:
         id: { type: string, format: uuid }
-        courseId: { type: string, format: uuid }
+        generationId: { type: string, format: uuid }
         title: { type: string }
-        type: { type: string }
-        topics: { type: array, items: { type: string } }
-        scheduledAt: { type: string, format: date-time, nullable: true }
-        durationMinutes: { type: integer, minimum: 1 }
-        questionCount: { type: integer, minimum: 1 }
-        status: { type: string, enum: [upcoming, available, completed] }
-        score: { type: number, minimum: 0, maximum: 100, nullable: true }
+        kind: { type: string, enum: [diagnostic, practice] }
+        status: { type: string, enum: [ready, invalidated] }
+        durationSeconds: { type: integer, minimum: 60, maximum: 7200 }
+        publishedAt: { type: string, format: date-time }
+        questionCount: { type: integer, minimum: 0, maximum: 20 }
     ExamQuestion:
       type: object
-      required: [id, type, topic, prompt]
+      required: [id, position, kind, prompt, maxPoints, options]
       properties:
         id: { type: string, format: uuid }
-        type: { type: string, enum: [alternatives, multiple, development, true-false] }
-        topic: { type: string }
+        position: { type: integer }
+        kind: { type: string, enum: [alternatives, multiple, development, true_false] }
         prompt: { type: string }
-        options: { type: array, items: { type: string } }
+        maxPoints: { type: string }
+        options:
+          type: array
+          items:
+            type: object
+            required: [id, position, text]
+            properties:
+              id: { type: string, format: uuid }
+              position: { type: integer }
+              text: { type: string }
     Exam:
-      type: object
-      required: [id, courseId, title, durationMinutes, questions]
-      properties:
-        id: { type: string, format: uuid }
-        courseId: { type: string, format: uuid }
-        title: { type: string }
-        durationMinutes: { type: integer, minimum: 1 }
-        questions: { type: array, items: { $ref: '#/components/schemas/ExamQuestion' } }
+      allOf:
+        - $ref: '#/components/schemas/ExamSummary'
+        - type: object
+          required: [questions]
+          properties:
+            questions: { type: array, items: { $ref: '#/components/schemas/ExamQuestion' } }
     ExamResponse:
       type: object
       required: [data]
@@ -1268,15 +1286,27 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/ExamSummary' } }
+    ExamAcceptedResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [generationId, jobId]
+          properties:
+            generationId: { type: string, format: uuid }
+            jobId: { type: string, format: uuid }
     GenerateExamRequest:
       type: object
       required: [topic, questionCount]
       properties:
-        topic: { type: string, minLength: 1 }
-        questionCount: { type: integer, minimum: 1, maximum: 50 }
-        durationMinutes: { type: integer, minimum: 1, default: 30 }
+        topic: { type: string, minLength: 1, maxLength: 255 }
+        questionCount: { type: integer, minimum: 1, maximum: 20 }
+        durationMinutes: { type: integer, minimum: 1, maximum: 120, default: 30 }
         questionTypes:
-          type: array
+          type: [array, 'null']
+          minItems: 1
+          maxItems: 4
           items: { type: string, enum: [alternatives, multiple, development, true-false] }
     SubmitExamRequest:
       type: object
