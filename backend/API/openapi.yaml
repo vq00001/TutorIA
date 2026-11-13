@@ -127,6 +127,90 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /auth/email-verification/request:
+    post:
+      tags: [Auth]
+      summary: Solicita la verificación de correo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountEmailRequest'
+      responses:
+        '202':
+          description: Solicitud recibida
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/email-verification/confirm:
+    post:
+      tags: [Auth]
+      summary: Confirma la verificación de correo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountTokenRequest'
+      responses:
+        '204':
+          description: Código aplicado
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '400':
+          description: Código inválido, vencido o consumido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/password-reset/request:
+    post:
+      tags: [Auth]
+      summary: Solicita la recuperación de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountEmailRequest'
+      responses:
+        '202':
+          description: Solicitud recibida
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/password-reset/confirm:
+    post:
+      tags: [Auth]
+      summary: Confirma la recuperación de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '204':
+          description: Código aplicado
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '400':
+          description: Código inválido, vencido o consumido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /users/me:
     get:
       tags: [Users]
@@ -1432,6 +1516,23 @@ components:
           additionalProperties:
             type: string
             enum: [up, down, degraded]
+    AccountEmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+    AccountTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true }
+    PasswordResetRequest:
+      allOf:
+        - $ref: '#/components/schemas/AccountTokenRequest'
+        - type: object
+          required: [password]
+          properties:
+            password: { type: string, format: password, minLength: 8, maxLength: 128, writeOnly: true }
     RegisterRequest:
       type: object
       required: [email, password, displayName]
