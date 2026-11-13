@@ -85,7 +85,8 @@ def infer_gaps(nodes, scores, threshold=0.4):
                                      "weakResult": {"ref": target, "label": refs[target]["label"],
                                                     "description": refs[target]["description"], **score}})
         if not isinstance(result, dict) or not isinstance(result.get("suggestions"), list):
-            raise ValueError("INVALID_GAP_RESPONSE")
+            discarded += 1
+            continue
         for item in result["suggestions"]:
             if not isinstance(item, dict):
                 discarded += 1

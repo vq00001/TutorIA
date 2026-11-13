@@ -52,6 +52,20 @@ def test_sufficient_score_does_not_call_model(monkeypatch):
     assert infer.infer_gaps(nodes(), {"C2": {"correct": 8, "total": 10}})["recommendations"] == []
 
 
+@pytest.mark.parametrize("invalid_response", [None, {}, {"suggestions": {}}, {"suggestions": None}])
+def test_invalid_model_response_is_empty_and_next_concept_is_processed(monkeypatch, invalid_response):
+    def fake_model(_, data):
+        if data["weakResult"]["ref"] == "C1":
+            return invalid_response
+        return {"suggestions": [{"existingRef": "C3", "reason": "Repasar cambios"}]}
+
+    monkeypatch.setattr(infer, "model_json", fake_model)
+    scores = {ref: {"correct": 1, "total": 10} for ref in ("C1", "C2")}
+    result = infer.infer_gaps(nodes(), scores)
+    assert result["discarded"] == 1
+    assert [(r["node_ref"], r["target_ref"]) for r in result["recommendations"]] == [("C3", "C2")]
+
+
 def test_discards_malformed_suggestions_and_keeps_valid_ones(monkeypatch):
     monkeypatch.setattr(infer, "model_json", lambda *_: {"suggestions": [
         {"existingRef": "C2", "newNode": {"label": "tema previo", "description": "descripción"},

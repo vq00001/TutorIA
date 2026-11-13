@@ -32,7 +32,7 @@ def main():
         kind = "Tema nuevo" if recommendation["kind"] == "new" else "Concepto existente"
         print(f"  Para {names[recommendation['target_ref']]}: {kind}: "
               f"{names[recommendation['node_ref']]} — {recommendation['reason']}")
-    print(f"Sugerencias descartadas: {result['discarded']}")
+    print(f"Respuestas o sugerencias descartadas: {result['discarded']}")
     print("Hipótesis no confirmadas; no se guardó ni modificó el grafo del curso.")
 
 
