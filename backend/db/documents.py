@@ -235,6 +235,13 @@ def install_documents(conn: Connection) -> None:
                 RAISE EXCEPTION 'FORBIDDEN' USING ERRCODE = '42501';
             END IF;
 
+            WITH receipt AS (
+                INSERT INTO app.deletion_requests
+                    (id, scope, subject_id, requested_at, completed_at)
+                VALUES (gen_random_uuid(), 'document', did, clock_timestamp(), clock_timestamp())
+                ON CONFLICT (scope, subject_id) DO NOTHING RETURNING id
+            )
+            INSERT INTO app.deletion_ledger (id) SELECT id FROM receipt;
             UPDATE app.documents SET active_run_id = NULL WHERE course_id = cid AND id = did;
             -- Las FK eliminan contenido y derivados al borrar la fila de archivo.
             DELETE FROM app.document_versions WHERE course_id = cid AND document_id = did;

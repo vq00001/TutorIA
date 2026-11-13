@@ -77,6 +77,7 @@ processing_runs = sa.Table(
     ),
     sa.Column("finished_at", sa.DateTime(timezone=True)),
     sa.Column("error_code", sa.String(80)),
+    sa.Column("ingestion_job_id", sa.Uuid),
     sa.ForeignKeyConstraint(
         ["course_id", "document_id", "version_id"],
         [
@@ -363,6 +364,9 @@ def install_processing(conn: Connection) -> None:
             REFERENCES app.processing_runs (course_id, document_id, id)"""
         )
 
+    conn.exec_driver_sql(
+        "ALTER TABLE app.processing_runs ADD COLUMN IF NOT EXISTS ingestion_job_id uuid"
+    )
     _install_processing_validation(conn)
     _install_processing_operations(conn)
 
@@ -505,13 +509,35 @@ def _install_processing_operations(conn: Connection) -> None:
     )
     _install_processing_publication(conn)
     conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.publish_document_processing(
+            rid uuid, source_text text, parent_payload jsonb, child_payload jsonb
+        ) RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        BEGIN
+            PERFORM FROM app.processing_runs WHERE id = rid AND ingestion_job_id IS NULL;
+            IF NOT FOUND THEN
+                RETURN false;
+            END IF;
+            RETURN app.publish_document_processing_internal(
+                rid, source_text, parent_payload, child_payload
+            );
+        END
+        $$"""
+    )
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.publish_document_processing_internal(uuid, text, jsonb, jsonb) "
+        "FROM PUBLIC, tutoria_worker, tutoria_api"
+    )
+    conn.exec_driver_sql(
         """CREATE OR REPLACE FUNCTION app.fail_document_processing(rid uuid, failure_code text)
         RETURNS boolean
         LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
         AS $$
         DECLARE run app.processing_runs;
         BEGIN
-            SELECT * INTO run FROM app.processing_runs WHERE id = rid AND state = 'running';
+            SELECT * INTO run FROM app.processing_runs
+            WHERE id = rid AND state = 'running' AND ingestion_job_id IS NULL;
             IF NOT FOUND OR NOT app.lock_processing_document(run.course_id, run.document_id) THEN
                 RETURN false;
             END IF;
@@ -543,7 +569,7 @@ def _install_processing_operations(conn: Connection) -> None:
 
 def _install_processing_publication(conn: Connection) -> None:
     conn.exec_driver_sql(
-        """CREATE OR REPLACE FUNCTION app.publish_document_processing(
+        """CREATE OR REPLACE FUNCTION app.publish_document_processing_internal(
             rid uuid, source_text text, parent_payload jsonb, child_payload jsonb
         ) RETURNS boolean
         LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp

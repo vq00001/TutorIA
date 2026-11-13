@@ -268,10 +268,26 @@ def _install_worker_operations(conn: Connection) -> None:
             END IF;
             RETURN QUERY
             WITH candidate AS (
-                SELECT id FROM app.jobs WHERE state = 'queued' AND run_after <= clock_timestamp()
-                    AND attempts < max_attempts AND deadline_at > clock_timestamp()
-                    AND (supported_kinds IS NULL OR kind = ANY(supported_kinds))
-                ORDER BY run_after, created_at, id FOR UPDATE SKIP LOCKED LIMIT 1
+                SELECT j.id FROM app.jobs j
+                WHERE j.state = 'queued' AND j.run_after <= clock_timestamp()
+                    AND EXISTS (
+                        SELECT FROM app.courses c
+                        JOIN app.memberships m ON m.course_id = c.id
+                        JOIN app.users u ON u.id = m.user_id
+                        WHERE c.id = j.course_id AND c.status = 'active'
+                          AND u.id = j.requested_by AND u.status = 'active' AND m.status = 'active'
+                    )
+                    AND CASE WHEN j.kind = 'ingest_document' THEN EXISTS (
+                        SELECT FROM app.documents d WHERE d.id = j.target_id
+                          AND d.course_id = j.course_id AND d.status = 'active'
+                    ) ELSE EXISTS (
+                        SELECT FROM app.generation_runs g WHERE g.id = j.target_id
+                          AND g.course_id = j.course_id AND g.user_id = j.requested_by
+                          AND g.status IN ('queued', 'running')
+                    ) END
+                    AND j.attempts < j.max_attempts AND j.deadline_at > clock_timestamp()
+                    AND (supported_kinds IS NULL OR j.kind = ANY(supported_kinds))
+                ORDER BY j.run_after, j.created_at, j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1
             )
             UPDATE app.jobs AS j SET state = 'running', attempts = j.attempts + 1,
                 lease_token = gen_random_uuid(), locked_by = worker,

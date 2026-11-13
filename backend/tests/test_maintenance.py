@@ -20,7 +20,7 @@ from db.purge import (
     purge_pending,
     request_purge,
 )
-from db.restore import DeletionReceipt, begin_restore, replay_restore
+from db.restore import DeletionReceipt, begin_restore, receipt_manifest_digest, replay_restore
 from db.retention import run_retention
 from db.sessions import issue_session, sessions
 from db.users import users
@@ -184,11 +184,37 @@ def test_restore_holds_gate_on_conflict_then_replays_withdrawal(postgres):
     receipt = DeletionReceipt(uuid4(), "document", document, now)
     conflict = DeletionReceipt(receipt.id, "document", uuid4(), now)
     with pytest.raises(ValueError, match="DELETION_ID_CONFLICT"):
-        replay_restore(postgres, [receipt, conflict])
+        replay_restore(postgres, [receipt, conflict], expected_digest=receipt_manifest_digest([receipt]))
     assert postgres.scalar(select(documents.c.id).where(documents.c.id == document)) == document
     assert postgres.scalar(select(func.app.restore_is_ready())) is False
 
-    replay_restore(postgres, [receipt, receipt])
+    digest = receipt_manifest_digest([receipt])
+    with pytest.raises(ValueError, match="RESTORE_MANIFEST_MISMATCH"):
+        replay_restore(postgres, [], expected_digest=digest)
+    assert postgres.scalar(select(func.app.restore_is_ready())) is False
+
+    replay_restore(postgres, [receipt, receipt], expected_digest=digest)
     assert postgres.scalar(select(documents.c.id).where(documents.c.id == document)) is None
     _role(postgres, owner, worker=True)
+    require_restore_ready(postgres)
+
+def test_restore_replays_receipt_from_a_direct_delete(postgres):
+    owner = _user(postgres)
+    _role(postgres, owner)
+    course = create_course(postgres, name="Respaldo previo al borrado")
+    document, _, _ = _ingest(postgres, course)
+    before_deletion = postgres.begin_nested()
+    assert delete_document(postgres, course, document)
+    postgres.exec_driver_sql("RESET ROLE")
+    (exported,) = [row for row in pending_receipts(postgres) if row.subject_id == document]
+    receipt = DeletionReceipt(exported.id, exported.scope, exported.subject_id, exported.requested_at)
+    digest = receipt_manifest_digest([receipt])
+    before_deletion.rollback()
+
+    postgres.exec_driver_sql("RESET ROLE")
+    assert postgres.scalar(select(documents.c.id).where(documents.c.id == document)) == document
+    begin_restore(postgres)
+    replay_restore(postgres, [receipt], expected_digest=digest)
+    assert postgres.scalar(select(documents.c.id).where(documents.c.id == document)) is None
+    _role(postgres, owner)
     require_restore_ready(postgres)

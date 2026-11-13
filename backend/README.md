@@ -476,7 +476,9 @@ pueda restaurarse un respaldo anterior a cualquiera de sus purgas.
 Para restaurar, prepara una base aislada y confirma `begin_restore(conn)` antes de
 importar. Excluye el esquema `restore_control` del respaldo y vuelve a ejecutar el
 instalador después de importar. Valida el registro externo y pásalo completo, en orden
-de solicitud, como instancias de `DeletionReceipt` a `replay_restore(conn, receipts)`.
+de solicitud, como instancias de `DeletionReceipt` a `replay_restore(conn, receipts, expected_digest=...)`.
+Obtén el digest de un manifiesto completo y autenticado fuera de la base. Calcularlo
+sobre un archivo parcial al momento de restaurar no comprueba su completitud.
 Una reproducción conflictiva revierte todo el lote y mantiene cerrada la barrera.
 La aplicación comprueba la barrera por transacción. Mantén aislada la base restaurada
 hasta confirmar la reproducción, también si hay consumidores que usan conexiones SQL
@@ -497,3 +499,17 @@ PostgreSQL permite reclamar por tipo con `claim_job(..., kinds=[...])`. Los perm
 de reclamo, renovación y finalización siguen asignados al rol de procesamiento. Al
 integrar la publicación, guarda el resultado y comprueba `complete_job` en la misma
 transacción. Si devuelve `False`, revierte la transacción para descartar el resultado.
+
+### Publicación con reserva y borrados restaurables
+
+El rol de procesamiento puede registrar la solicitud exacta mediante `app.record_job_request`
+y publicar con `app.publish_chat_job`, `app.publish_exam_job` o `app.publish_ingestion_job`.
+Las funciones reciben el ID del trabajo y su token. PostgreSQL toma el propietario, la clase
+y el objetivo de la fila reclamada. La publicación y el cierre del trabajo son atómicos.
+Para ingestión, `app.start_ingestion_job` vincula la ejecución a la cola. Un nuevo reclamo
+del mismo trabajo puede retomar esa ejecución con la misma configuración.
+
+El borrado directo de documentos genera un comprobante pendiente de copia externa en la
+misma transacción. Exporta estos comprobantes por el mismo mecanismo que las solicitudes
+de purga. La copia externa debe incluirlos antes de dar por verificado el registro del
+período cubierto por un respaldo.

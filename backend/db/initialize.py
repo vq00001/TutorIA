@@ -20,6 +20,7 @@ from .generated_materials import install_generated_materials
 from .generations import install_generations
 from .idempotency import install_idempotency
 from .invitations import install_invitations
+from .job_results import install_job_results
 from .jobs import install_jobs
 from .learning_catalog import install_learning_catalog
 from .learning_plans import install_learning_plans
@@ -69,6 +70,7 @@ def initialize(connection: Connection, *, role_passwords: dict[str, str] | None 
     install_purge(connection)
     install_retention(connection)
     install_restore(connection)
+    install_job_results(connection)
 
 
 def ensure_roles(connection: Connection, passwords: dict[str, str]) -> None:

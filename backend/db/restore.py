@@ -2,7 +2,9 @@
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
+from hashlib import sha256
+import json
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -60,16 +62,33 @@ def begin_restore(conn: Connection) -> None:
     ))
 
 
-def replay_restore(conn: Connection, receipts: Iterable[DeletionReceipt]) -> None:
+def receipt_manifest_digest(receipts: Iterable[DeletionReceipt]) -> str:
+    entries = {}
+    for receipt in receipts:
+        if receipt.requested_at.utcoffset() is None:
+            raise ValueError("INVALID_RECEIPT_TIMESTAMP")
+        entry = (
+            str(receipt.id), receipt.scope, str(receipt.subject_id),
+            receipt.requested_at.astimezone(timezone.utc).isoformat(),
+        )
+        if entries.setdefault(receipt.id, entry) != entry:
+            raise ValueError("DELETION_ID_CONFLICT")
+    return sha256(json.dumps(sorted(entries.values()), separators=(",", ":")).encode()).hexdigest()
+
+
+def replay_restore(
+    conn: Connection, receipts: Iterable[DeletionReceipt], *, expected_digest: str
+) -> None:
     """Reproduce el manifiesto completo y abre la barrera en la misma transacción."""
+    receipts = tuple(receipts)
+    if receipt_manifest_digest(receipts) != expected_digest:
+        raise ValueError("RESTORE_MANIFEST_MISMATCH")
     with conn.begin_nested():
         conn.execute(sa.select(sa.func.pg_advisory_xact_lock(RESTORE_LOCK)))
         pending = conn.scalar(sa.select(gate.c.singleton).where(gate.c.verified_at.is_(None)))
         if not pending:
             raise ValueError("RESTORE_NOT_PENDING")
-        for receipt in receipts:
-            if receipt.requested_at.utcoffset() is None:
-                raise ValueError("INVALID_RECEIPT_TIMESTAMP")
+        for receipt in sorted(receipts, key=lambda item: item.requested_at):
             canonical = _request_purge(
                 conn, request_id=receipt.id, scope=receipt.scope, subject_id=receipt.subject_id,
                 requested_at=receipt.requested_at,
