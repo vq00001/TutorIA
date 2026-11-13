@@ -453,7 +453,7 @@ paths:
       - $ref: '#/components/parameters/DocumentId'
     get:
       tags: [Documents]
-      summary: Obtiene la información de un documento
+      summary: Obtiene la información de un documento visible
       responses:
         '200':
           description: Documento
@@ -461,15 +461,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Documents]
       summary: Elimina un documento
-      description: Requiere permisos de propietario o administrador del curso.
+      description: Requiere ser quien subió el documento o coordinar una clase activa.
       responses:
         '204':
           description: Documento eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courses/{courseId}/documents/{documentId}/download:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documents]
+      summary: Descarga el archivo original
+      responses:
+        '200':
+          description: Bytes originales del documento
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /courses/{courseId}/documents/{documentId}/status:
     parameters:
@@ -1034,11 +1065,24 @@ components:
         uploadedBy: { $ref: '#/components/schemas/Member' }
         uploadedAt: { type: string, format: date-time }
         processedAt: { type: string, format: date-time, nullable: true }
+    DocumentMetadata:
+      type: object
+      required: [id, courseId, name, title, size, mimeType, status, uploadedById, uploadedAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string }
+        size: { type: integer }
+        mimeType: { type: string }
+        status: { type: string, enum: [queued, processing, ready, failed] }
+        uploadedById: { type: string, format: uuid }
+        uploadedAt: { type: string, format: date-time }
     DocumentResponse:
       type: object
       required: [data]
       properties:
-        data: { $ref: '#/components/schemas/Document' }
+        data: { $ref: '#/components/schemas/DocumentMetadata' }
     DocumentListResponse:
       type: object
       required: [data]
@@ -1050,19 +1094,7 @@ components:
       properties:
         data:
           type: array
-          items:
-            type: object
-            required: [id, courseId, name, title, size, mimeType, status, uploadedById, uploadedAt]
-            properties:
-              id: { type: string, format: uuid }
-              courseId: { type: string, format: uuid }
-              name: { type: string }
-              title: { type: string }
-              size: { type: integer }
-              mimeType: { type: string }
-              status: { type: string, enum: [queued, processing, ready, failed] }
-              uploadedById: { type: string, format: uuid }
-              uploadedAt: { type: string, format: date-time }
+          items: { $ref: '#/components/schemas/DocumentMetadata' }
         nextCursor:
           type: [object, 'null']
           required: [afterCreatedAt, afterId]

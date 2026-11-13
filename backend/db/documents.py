@@ -270,6 +270,7 @@ def register_upload(
     title: str | None = None,
     description: str = "",
     authors: list[str] | None = None,
+    warn_on_duplicate: bool = True,
 ) -> UUID | None:
     """Crea un documento independiente o avisa y devuelve None ante un duplicado."""
     statement = select(
@@ -285,7 +286,7 @@ def register_upload(
         )
     )
     identifier = conn.scalar(statement)
-    if identifier is None:
+    if identifier is None and warn_on_duplicate:
         warnings.warn(
             f"Archivo duplicado descartado: {filename!r}",
             DuplicateDocumentWarning,

@@ -33,3 +33,7 @@ line-length = 100
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", ".."]
+# Starlette TestClient usa este alias de AnyIO solo como anotación.
+filterwarnings = [
+    'ignore:The anyio\.abc\.BlockingPortal alias is deprecated:DeprecationWarning:starlette\.testclient',
+]
