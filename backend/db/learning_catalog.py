@@ -151,6 +151,21 @@ def add_concept_alias(conn: Connection, course_id: UUID, concept_id: UUID, alias
     ).scalar_one()
 
 
+def has_concept(conn: Connection, course_id: UUID, concept_id: UUID) -> bool:
+    stmt = sa.select(concepts.c.id).where(
+        concepts.c.course_id == course_id, concepts.c.id == concept_id
+    )
+    return conn.scalar(stmt) is not None
+
+
+def list_course_edges(conn: Connection, course_id: UUID) -> list[RowMapping]:
+    stmt = (
+        sa.select(concept_edges).where(concept_edges.c.course_id == course_id)
+        .order_by(concept_edges.c.source_id, concept_edges.c.target_id)
+    )
+    return list(conn.execute(stmt).mappings())
+
+
 def list_concept_aliases(conn: Connection, course_id: UUID, concept_id: UUID) -> list[RowMapping]:
     stmt = (
         sa.select(concept_aliases)

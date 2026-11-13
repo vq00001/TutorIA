@@ -150,6 +150,22 @@ def list_roadmaps(conn: Connection, course_id: UUID, goal_id: UUID) -> list[RowM
     return list(conn.execute(stmt).mappings())
 
 
+def has_learning_goal(conn: Connection, course_id: UUID, goal_id: UUID) -> bool:
+    stmt = sa.select(learning_goals.c.id).where(
+        learning_goals.c.course_id == course_id, learning_goals.c.id == goal_id
+    )
+    return conn.scalar(stmt) is not None
+
+
+def get_roadmap(
+    conn: Connection, course_id: UUID, goal_id: UUID, roadmap_id: UUID
+) -> RowMapping | None:
+    stmt = sa.select(roadmaps).where(
+        roadmaps.c.course_id == course_id, roadmaps.c.goal_id == goal_id, roadmaps.c.id == roadmap_id
+    )
+    return conn.execute(stmt).mappings().one_or_none()
+
+
 def list_roadmap_steps(conn: Connection, course_id: UUID, roadmap_id: UUID) -> list[RowMapping]:
     mastery = concept_mastery_statement(course_id).order_by(None).subquery()
     stmt = (
