@@ -2,6 +2,8 @@
 
 import pytest
 from tests.contract_utils import contract
+from unittest.mock import patch
+from contextlib import nullcontext
 
 OPERATIONS = list(contract.operations())
 IDS = [f"{m.upper()} {p}" for p, m, _ in OPERATIONS]
@@ -10,7 +12,16 @@ IDS = [f"{m.upper()} {p}" for p, m, _ in OPERATIONS]
 @pytest.mark.parametrize(("path", "method", "op"), OPERATIONS, ids=IDS)
 def test_success_response_matches_contract(client, path, method, op):
     status = contract.success_status(op)
-    response = client.request(**contract.build_request(path, method, op))
+    ctx = (
+        # Reemplaza expire_token por una función vacía durante la ejecución del test
+        # Esto para simular que el token se invalido correctamente
+        patch("app.routers.auth.expire_token", return_value=None)
+        if path == "/auth/logout" or (path == "/activity" and method == "get")
+        else nullcontext()
+    )
+
+    with ctx:
+        response = client.request(**contract.build_request(path, method, op))
 
     assert response.status_code == status, response.text
 

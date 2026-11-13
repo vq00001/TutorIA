@@ -3,3 +3,8 @@ uvicorn>=0.30
 python-multipart>=0.0.9
 pydantic>=2.7
 pydantic[email]
+
+# Autentificación JWT
+pyjwt[crypto]
+passlib[bcrypt]
+python-multipart
