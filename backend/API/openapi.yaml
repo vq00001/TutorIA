@@ -523,6 +523,16 @@ paths:
     get:
       tags: [Conversations]
       summary: Lista las conversaciones del usuario en el curso
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: beforeUpdatedAt
+          in: query
+          schema: { type: string, format: date-time }
+        - name: beforeId
+          in: query
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: Conversaciones
@@ -532,7 +542,9 @@ paths:
                 $ref: '#/components/schemas/ConversationListResponse'
     post:
       tags: [Conversations]
-      summary: Crea una conversación y realiza una consulta al LLM
+      summary: Crea una conversación y encola la primera pregunta
+      parameters:
+        - $ref: '#/components/parameters/ChatIdempotencyKey'
       requestBody:
         required: true
         content:
@@ -540,12 +552,16 @@ paths:
             schema:
               $ref: '#/components/schemas/AskRequest'
       responses:
-        '201':
-          description: Conversación con la respuesta del LLM
+        '202':
+          description: Pregunta aceptada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConversationResponse'
+                $ref: '#/components/schemas/ChatAcceptedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Cuota de generación agotada
 
   /courses/{courseId}/conversations/{conversationId}:
     parameters:
@@ -556,7 +572,14 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [Conversations]
-      summary: Retoma una conversación
+      summary: Consulta el historial de una conversación
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: afterSequence
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 9223372036854775807, default: 0 }
       responses:
         '200':
           description: Mensajes de la conversación
@@ -581,6 +604,8 @@ paths:
     post:
       tags: [Conversations]
       summary: Envía una pregunta a una conversación existente
+      parameters:
+        - $ref: '#/components/parameters/ChatIdempotencyKey'
       requestBody:
         required: true
         content:
@@ -588,12 +613,16 @@ paths:
             schema:
               $ref: '#/components/schemas/AskRequest'
       responses:
-        '201':
-          description: Respuesta del LLM
+        '202':
+          description: Pregunta aceptada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
+                $ref: '#/components/schemas/ChatAcceptedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Cuota de generación agotada
 
   /courses/{courseId}/exams:
     parameters:
@@ -756,6 +785,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ChatIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
     CourseId:
       name: courseId
       in: path
@@ -1136,44 +1170,61 @@ components:
         relevance: { type: number, minimum: 0, maximum: 1 }
     Message:
       type: object
-      required: [id, role, content, createdAt]
+      required: [id, role, content, sequence, status, inReplyTo, generationId, createdAt]
       properties:
         id: { type: string, format: uuid }
         role: { type: string, enum: [user, assistant] }
         content: { type: string }
+        sequence: { type: integer }
+        status: { type: string, enum: [completed, redacted] }
+        inReplyTo: { type: [string, 'null'], format: uuid }
+        generationId: { type: [string, 'null'], format: uuid }
         createdAt: { type: string, format: date-time }
-        usedDocuments: { type: boolean }
-        sourceDocuments: { type: array, items: { $ref: '#/components/schemas/SourceDocument' } }
-    MessageResponse:
-      type: object
-      required: [data]
-      properties:
-        data: { $ref: '#/components/schemas/Message' }
     Conversation:
       type: object
-      required: [id, courseId, title, messages, createdAt, updatedAt]
+      required: [id, courseId, title, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         courseId: { type: string, format: uuid }
         title: { type: string }
-        messages: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     ConversationResponse:
       type: object
-      required: [data]
+      required: [data, messages, nextAfterSequence]
       properties:
         data: { $ref: '#/components/schemas/Conversation' }
+        messages: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        nextAfterSequence: { type: [integer, 'null'] }
     ConversationListResponse:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+        nextCursor:
+          type: [object, 'null']
+          required: [beforeUpdatedAt, beforeId]
+          properties:
+            beforeUpdatedAt: { type: string, format: date-time }
+            beforeId: { type: string, format: uuid }
+    ChatAcceptedResponse:
       type: object
       required: [data]
       properties:
-        data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+        data:
+          type: object
+          required: [conversationId, messageId, generationId, jobId]
+          properties:
+            conversationId: { type: string, format: uuid }
+            messageId: { type: string, format: uuid }
+            generationId: { type: string, format: uuid }
+            jobId: { type: string, format: uuid }
     AskRequest:
       type: object
       required: [question]
       properties:
-        question: { type: string, minLength: 1 }
+        question: { type: string, minLength: 1, maxLength: 20000 }
         includeDocuments: { type: boolean, default: true }
     ExamSummary:
       type: object

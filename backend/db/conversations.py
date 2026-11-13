@@ -179,12 +179,22 @@ def append_assistant_message(
     )
 
 
+def get_conversation(
+    conn: Connection, course_id: UUID, conversation_id: UUID
+) -> RowMapping | None:
+    statement = sa.select(conversations).where(
+        conversations.c.course_id == course_id, conversations.c.id == conversation_id
+    )
+    return conn.execute(statement).mappings().one_or_none()
+
+
 def list_conversations(
     conn: Connection,
     course_id: UUID,
     *,
     limit: int = 50,
     before: tuple[datetime, UUID] | None = None,
+    lookahead: bool = False,
 ) -> list[RowMapping]:
     if not 1 <= limit <= 100:
         raise ValueError("limit debe estar entre 1 y 100")
@@ -195,7 +205,7 @@ def list_conversations(
         )
     statement = statement.order_by(
         conversations.c.updated_at.desc(), conversations.c.id.desc()
-    ).limit(limit)
+    ).limit(limit + int(lookahead))
     return list(conn.execute(statement).mappings())
 
 
@@ -206,6 +216,7 @@ def list_messages(
     *,
     limit: int = 50,
     after_sequence: int = 0,
+    lookahead: bool = False,
 ) -> list[RowMapping]:
     if not 1 <= limit <= 100 or after_sequence < 0:
         raise ValueError("Parámetros de paginación inválidos")
@@ -217,7 +228,7 @@ def list_messages(
             messages.c.sequence_no > after_sequence,
         )
         .order_by(messages.c.sequence_no)
-        .limit(limit)
+        .limit(limit + int(lookahead))
     )
     return list(conn.execute(statement).mappings())
 
