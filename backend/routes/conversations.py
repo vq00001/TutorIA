@@ -6,12 +6,12 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Header, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 from sqlalchemy.exc import DBAPIError
 
 from ..db.conversations import (
-    append_user_message, create_conversation, get_conversation, list_conversations, list_messages,
+    append_user_message, create_conversation, delete_own_conversation, get_conversation, list_conversations, list_messages,
 )
 from ..db.courses import get_member_course
 from ..db.generations import start_generation
@@ -219,3 +219,9 @@ def conversations_send(
     connection: AuthenticatedConnection, key: Key,
 ) -> SendResponse | JSONResponse:
     return _send(connection, courseId, payload, key, conversationId)
+
+@router.delete("/{conversationId}", status_code=204, responses=_ERRORS)
+def conversations_delete(courseId: UUID, conversationId: UUID, connection: AuthenticatedConnection) -> Response:
+    if not delete_own_conversation(connection, courseId, conversationId):
+        return _not_found()
+    return Response(status_code=204)

@@ -6,11 +6,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
 
-from ..db.courses import create_course, get_member_course, list_course_members, page_member_courses
+from ..db.courses import create_course, get_member_course, list_course_members, page_member_courses, update_course
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response
 
 router = APIRouter(tags=["Courses"])
@@ -147,3 +147,51 @@ def courses_members(
     if get_member_course(connection, courseId) is None:
         return _course_not_found()
     return CourseMembersResponse(data=_members(connection, courseId))
+
+class CourseUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rowVersion: int = Field(ge=1, lt=9223372036854775807)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    objectives: str | None = None
+    subject: str | None = Field(default=None, max_length=150)
+    color: Literal["mauve", "blue", "green", "peach", "pink", "yellow", "teal", "lavender"] | None = None
+    icon: str | None = Field(default=None, max_length=16)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def trim_name(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_changes(self):
+        changes = self.model_dump(exclude_unset=True, exclude={"rowVersion"})
+        if not changes or any(value is None or "\x00" in value for value in changes.values()):
+            raise ValueError("Envía al menos un campo editable válido")
+        return self
+
+
+@router.patch("/courses/{courseId}", response_model=CourseResponse,
+              responses={code: {"model": ErrorResponse} for code in (401, 403, 404, 409, 422)})
+def courses_update(
+    courseId: UUID, payload: CourseUpdateRequest, connection: AuthenticatedConnection,
+) -> CourseResponse | JSONResponse:
+    row = get_member_course(connection, courseId)
+    if row is None:
+        return _course_not_found()
+    if row.my_role != "coordinator":
+        return error_response(403, "COURSE_FORBIDDEN", "La cuenta no puede editar la clase.")
+    changes = payload.model_dump(exclude_unset=True, exclude={"rowVersion"})
+    try:
+        with connection.begin_nested():
+            updated = update_course(connection, courseId, payload.rowVersion, **changes)
+    except DBAPIError as exc:
+        if getattr(exc.orig, "sqlstate", None) == "42501":
+            return error_response(403, "COURSE_FORBIDDEN", "La cuenta no puede editar la clase.")
+        raise
+    if not updated:
+        return error_response(409, "COURSE_VERSION_CONFLICT", "La versión de la clase cambió.")
+    return CourseResponse(data=_course_data(
+        get_member_course(connection, courseId), _members(connection, courseId)
+    ))

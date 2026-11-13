@@ -247,10 +247,21 @@ paths:
           $ref: '#/components/responses/ValidationError'
     delete:
       tags: [Users]
-      summary: Elimina la cuenta del usuario actual
+      summary: Solicita el borrado de la cuenta propia
       responses:
-        '204':
-          description: Cuenta eliminada
+        '202':
+          description: Borrado solicitado y retirada aplicada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /dashboard/summary:
     get:
@@ -331,15 +342,28 @@ paths:
                 $ref: '#/components/schemas/CourseResponse'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
     delete:
       tags: [Courses]
-      summary: Elimina un curso
-      description: Requiere permisos de propietario o administrador del curso.
+      summary: Solicita el borrado de la clase
       responses:
-        '204':
-          description: Curso eliminado
+        '202':
+          description: Borrado solicitado y retirada aplicada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /courses/{courseId}/leave:
     parameters:
       - $ref: '#/components/parameters/CourseId'
@@ -672,6 +696,10 @@ paths:
       responses:
         '204':
           description: Conversación eliminada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /courses/{courseId}/conversations/{conversationId}/messages:
     parameters:
@@ -1655,13 +1683,27 @@ components:
         icon: { type: string, maxLength: 16, default: '✦' }
     UpdateCourseRequest:
       type: object
-      minProperties: 1
+      required: [rowVersion]
+      minProperties: 2
+      additionalProperties: false
       properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
+        rowVersion: { type: integer, minimum: 1, maximum: 9223372036854775806 }
+        name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string }
         objectives: { type: string }
-        color: { type: string }
-        icon: { type: string }
+        subject: { type: string, maxLength: 150 }
+        color: { type: string, enum: [mauve, blue, green, peach, pink, yellow, teal, lavender] }
+        icon: { type: string, maxLength: 16 }
+    DeletionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [requestId, status]
+          properties:
+            requestId: { type: string, format: uuid }
+            status: { type: string, const: deletion_pending }
     CourseMember:
       type: object
       required: [userId, displayName, role, joinedAt, rowVersion]

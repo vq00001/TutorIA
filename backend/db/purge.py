@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection
 
-from .connection import require_restore_ready
+from .connection import RESTORE_LOCK, require_restore_ready
 from .conversations import conversations
 from .courses import courses, memberships
 from .documents import document_versions, documents
@@ -46,6 +46,109 @@ def install_purge(conn: Connection) -> None:
     for table in (deletion_requests, deletion_ledger):
         table.create(conn, checkfirst=True)
         conn.exec_driver_sql(f"REVOKE ALL ON {table.fullname} FROM PUBLIC, tutoria_api, tutoria_worker")
+
+    _install_api_purge(conn)
+
+
+def _install_api_purge(conn: Connection) -> None:
+    conn.exec_driver_sql(
+        f"""CREATE OR REPLACE FUNCTION app.request_own_purge(target_scope text, target uuid)
+        RETURNS uuid
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        DECLARE
+            actor uuid := app.course_actor();
+            receipt uuid;
+            withdrawn_ids uuid[];
+            affected_courses uuid[];
+        BEGIN
+            PERFORM pg_advisory_xact_lock_shared({RESTORE_LOCK});
+            IF NOT app.restore_is_ready() OR actor IS NULL
+                OR target IS NULL OR target_scope IS NULL
+                OR target_scope NOT IN ('course', 'account')
+                OR (target_scope = 'account' AND target <> actor)
+                OR (target_scope = 'course' AND NOT app.has_course_role(target, ARRAY['coordinator']))
+            THEN
+                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+            END IF;
+
+            INSERT INTO app.deletion_requests (id, scope, subject_id, requested_at)
+            VALUES (gen_random_uuid(), target_scope, target, clock_timestamp())
+            ON CONFLICT (scope, subject_id) DO NOTHING;
+            SELECT id INTO STRICT receipt FROM app.deletion_requests
+            WHERE scope = target_scope AND subject_id = target FOR UPDATE;
+
+            IF target_scope = 'course' THEN
+                PERFORM FROM app.courses WHERE id = target FOR UPDATE;
+                IF NOT app.has_course_role(target, ARRAY['coordinator']) THEN
+                    RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+                END IF;
+                UPDATE app.courses SET status = 'deletion_pending' WHERE id = target;
+                DELETE FROM app.jobs WHERE course_id = target;
+            ELSE
+                PERFORM FROM app.courses c
+                WHERE EXISTS (SELECT FROM app.memberships m WHERE m.course_id = c.id AND m.user_id = actor)
+                   OR EXISTS (SELECT FROM app.documents d WHERE d.course_id = c.id AND d.uploaded_by = actor)
+                ORDER BY c.id FOR UPDATE;
+                PERFORM FROM app.users WHERE id = actor AND status IN ('active', 'pending') FOR UPDATE;
+                IF NOT FOUND THEN
+                    RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+                END IF;
+                PERFORM FROM app.courses c
+                WHERE EXISTS (SELECT FROM app.memberships m WHERE m.course_id = c.id AND m.user_id = actor)
+                   OR EXISTS (SELECT FROM app.documents d WHERE d.course_id = c.id AND d.uploaded_by = actor)
+                ORDER BY c.id FOR UPDATE;
+                IF EXISTS (
+                    SELECT FROM app.memberships m JOIN app.courses c ON c.id = m.course_id
+                    WHERE m.user_id = actor AND m.role = 'coordinator' AND m.status = 'active'
+                      AND c.status IN ('active', 'archived') AND NOT EXISTS (
+                          SELECT FROM app.memberships peer JOIN app.users u ON u.id = peer.user_id
+                          WHERE peer.course_id = c.id AND peer.user_id <> actor
+                            AND peer.role = 'coordinator' AND peer.status = 'active' AND u.status = 'active'
+                      )
+                ) THEN
+                    RAISE EXCEPTION 'LAST_COORDINATOR' USING ERRCODE = '23514';
+                END IF;
+                UPDATE app.users SET status = 'deletion_pending' WHERE id = actor;
+                DELETE FROM app.auth_sessions WHERE user_id = actor;
+                UPDATE app.memberships SET status = 'removed', left_at = clock_timestamp()
+                WHERE user_id = actor AND status = 'active';
+                DELETE FROM app.jobs WHERE requested_by = actor;
+            END IF;
+
+            WITH withdrawn AS (
+                UPDATE app.documents SET status = 'deletion_pending', active_run_id = NULL
+                WHERE status <> 'deletion_pending' AND (
+                    (target_scope = 'course' AND course_id = target)
+                    OR (target_scope = 'account' AND uploaded_by = actor)
+                )
+                RETURNING id, course_id
+            )
+            SELECT array_agg(id), array_agg(DISTINCT course_id)
+            INTO withdrawn_ids, affected_courses FROM withdrawn;
+
+            DELETE FROM app.jobs j
+            WHERE (j.kind = 'ingest_document' AND j.target_id = ANY(withdrawn_ids))
+               OR (j.kind IN ('generate_chat', 'generate_exam') AND EXISTS (
+                   SELECT FROM app.generation_requests r JOIN app.generation_sources s
+                     ON s.request_id = r.id
+                   WHERE r.generation_id = j.target_id AND s.document_id = ANY(withdrawn_ids)
+               ));
+            DELETE FROM app.chunk_embeddings e USING app.processing_runs r
+            WHERE e.run_id = r.id AND r.document_id = ANY(withdrawn_ids);
+            UPDATE app.courses SET corpus_revision = corpus_revision + 1
+            WHERE id = ANY(affected_courses);
+            INSERT INTO app.deletion_ledger (id) VALUES (receipt) ON CONFLICT DO NOTHING;
+            RETURN receipt;
+        END
+        $$"""
+    )
+    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.request_own_purge(text, uuid) FROM PUBLIC")
+    conn.exec_driver_sql("GRANT EXECUTE ON FUNCTION app.request_own_purge(text, uuid) TO tutoria_api")
+
+
+def request_own_purge(conn: Connection, *, scope: str, subject_id: UUID) -> UUID:
+    return conn.execute(sa.select(sa.func.app.request_own_purge(scope, subject_id))).scalar_one()
 
 
 def _lock_courses(conn: Connection, condition) -> None:

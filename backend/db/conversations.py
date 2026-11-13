@@ -240,6 +240,7 @@ def install_conversations(conn: Connection) -> None:
     _install_conversation_access(conn)
     _install_conversation_writes(conn)
     _install_message_redaction(conn)
+    _install_conversation_delete(conn)
 
 
 def _install_conversation_access(conn: Connection) -> None:
@@ -365,6 +366,53 @@ def _install_conversation_writes(conn: Connection) -> None:
     )
     conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signatures} FROM PUBLIC")
     conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signatures} TO tutoria_api")
+
+
+def _install_conversation_delete(conn: Connection) -> None:
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.delete_own_conversation(cid uuid, target uuid)
+        RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        DECLARE
+            actor uuid := app.course_actor();
+            linked uuid[];
+        BEGIN
+            PERFORM FROM app.courses WHERE id = cid AND status IN ('active', 'archived') FOR UPDATE;
+            IF NOT FOUND OR NOT app.has_course_role(cid, ARRAY['student', 'coordinator']) THEN
+                RETURN false;
+            END IF;
+            PERFORM FROM app.conversations WHERE id = target AND course_id = cid
+              AND user_id = actor AND status <> 'deletion_pending' FOR UPDATE;
+            IF NOT FOUND THEN
+                RETURN false;
+            END IF;
+            SELECT array_agg(gid) INTO linked FROM (
+                SELECT generation_id AS gid FROM app.messages WHERE conversation_id = target
+                  AND course_id = cid AND user_id = actor AND generation_id IS NOT NULL
+                UNION
+                SELECT target_id FROM app.jobs WHERE course_id = cid AND requested_by = actor
+                  AND kind = 'generate_chat' AND payload->>'conversation_id' = target::text
+            ) AS related;
+            UPDATE app.generation_runs SET status = 'cancelled'
+            WHERE course_id = cid AND user_id = actor AND status IN ('queued', 'running')
+              AND kind = 'chat' AND id = ANY(linked);
+            DELETE FROM app.conversations WHERE id = target AND course_id = cid AND user_id = actor;
+            DELETE FROM app.jobs WHERE course_id = cid AND requested_by = actor
+              AND kind = 'generate_chat' AND payload->>'conversation_id' = target::text;
+            DELETE FROM app.generation_runs g WHERE g.course_id = cid AND g.user_id = actor
+              AND g.kind = 'chat' AND g.id = ANY(linked)
+              AND NOT EXISTS (SELECT FROM app.messages m WHERE m.generation_id = g.id);
+            RETURN true;
+        END
+        $$"""
+    )
+    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.delete_own_conversation(uuid, uuid) FROM PUBLIC")
+    conn.exec_driver_sql("GRANT EXECUTE ON FUNCTION app.delete_own_conversation(uuid, uuid) TO tutoria_api")
+
+
+def delete_own_conversation(conn: Connection, course_id: UUID, conversation_id: UUID) -> bool:
+    return conn.scalar(sa.select(sa.func.app.delete_own_conversation(course_id, conversation_id))) is True
 
 
 def _install_message_redaction(conn: Connection) -> None:
