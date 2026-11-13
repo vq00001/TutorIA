@@ -7,17 +7,17 @@ import {
 
 import { useAppData } from '../../contexts/AppDataContext'
 
-import { compatible_file_formats } from '../../types'
+import { compatible_file_formats, isSupportedFile } from '../../types'
 
 export function ChatComposer({ courseId }: { courseId: string }) {
   const [value, setValue] = useState('')
   const [attached, setAttached] = useState<string[]>([])
+  const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const input = useRef<HTMLInputElement>(null)
 
   const { sendPrompt, addMaterials } = useAppData()
-
-
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -37,22 +37,32 @@ export function ChatComposer({ courseId }: { courseId: string }) {
   }
 
   async function attach(files: FileList | null) {
-    const accepted = Array.from(files ?? []).filter((file) =>
-      file.name.toLowerCase().endsWith('.txt'),
-    )
+    const selected = Array.from(files ?? [])
+    const accepted = selected.filter(isSupportedFile)
+    const invalidFilesNotice = selected.length !== accepted.length
+      ? `Formatos admitidos: ${compatible_file_formats}.`
+      : ''
 
-    if (accepted.length) {
-      await addMaterials(courseId, accepted)
+    if (!accepted.length) {
+      setError(invalidFilesNotice)
+      return
+    }
 
-      setAttached((names) => [
-        ...names,
-        ...accepted.map((file) => file.name),
-      ])
+    setError(invalidFilesNotice)
+    setUploading(true)
+    try {
+      const created = await addMaterials(courseId, accepted)
+      setAttached((names) => [...names, ...created.map((material) => material.name)])
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'No se pudieron subir los archivos.')
+    } finally {
+      setUploading(false)
     }
   }
 
   return (
     <form className="composer" onSubmit={submit}>
+      {error && <p className="upload-notice" role="alert">{error}</p>}
       {attached.length > 0 && (
         <div className="attachment-chips">
           {attached.map((name, index) => (
@@ -88,8 +98,9 @@ export function ChatComposer({ courseId }: { courseId: string }) {
             type="button"
             className="tool-button"
             onClick={() => input.current?.click()}
+            disabled={uploading}
           >
-            ＋ Adjuntar
+            {uploading ? 'Subiendo…' : '＋ Adjuntar'}
           </button>
 
         </div>

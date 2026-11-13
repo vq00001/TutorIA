@@ -1,7 +1,7 @@
 import { demoDatabase } from '../data/demoDatabase'
 import type { ChatMessageDto, Course, DashboardSummary, GraphologyExport, JsonApiResponse, MaterialDto, NewCourse, StudentProfile } from '../types'
 
-/** Adapter boundary: the in-memory implementation can be replaced by fetch/database services. */
+/** Adapter boundary for demo data and the document-upload HTTP endpoint. */
 export interface TutorIADataApi {
   getStudentProfile(): Promise<JsonApiResponse<StudentProfile>>
   getDashboardSummary(): Promise<JsonApiResponse<DashboardSummary>>
@@ -10,12 +10,55 @@ export interface TutorIADataApi {
   getCourseMaterials(courseId: string): Promise<JsonApiResponse<MaterialDto[]>>
   getCourseMessages(courseId: string): Promise<JsonApiResponse<ChatMessageDto[]>>
   getCourseGraph(courseId: string): Promise<JsonApiResponse<GraphologyExport>>
-  createCourseMaterials(courseId: string, files: Array<{ name: string; size: number }>): Promise<JsonApiResponse<MaterialDto[]>>
+  createCourseMaterials(courseId: string, files: File[]): Promise<JsonApiResponse<MaterialDto[]>>
   deleteCourseMaterial(courseId: string, materialId: string): Promise<JsonApiResponse<{ deleted: boolean }>>
 }
 
 function jsonResponse<T>(data: T): JsonApiResponse<T> { return JSON.parse(JSON.stringify({ data })) as JsonApiResponse<T> }
 const delay = () => new Promise<void>((resolve) => window.setTimeout(resolve, 80))
+
+interface UploadedDocument {
+  id: string
+  courseId: string
+  name: string
+  size: number
+  uploadedAt: string
+}
+
+interface DocumentListResponse {
+  data: UploadedDocument[]
+}
+
+async function uploadCourseMaterials(
+  courseId: string,
+  files: File[],
+): Promise<JsonApiResponse<MaterialDto[]>> {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('files', file, file.name))
+
+  const response = await fetch(
+    `/api/courses/${encodeURIComponent(courseId)}/documents`,
+    { method: 'POST', body: formData },
+  )
+
+  if (!response.ok) {
+    const detail = await response.text()
+    throw new Error(
+      `No se pudieron subir los archivos (HTTP ${response.status})${detail ? `: ${detail}` : '.'}`,
+    )
+  }
+
+  const result = await response.json() as DocumentListResponse
+  return jsonResponse(
+    result.data.map((document) => ({
+      id: document.id,
+      courseId: document.courseId,
+      name: document.name,
+      size: document.size,
+      addedAt: document.uploadedAt,
+    })),
+  )
+}
 
 /** Demo database: responses cross the same JSON DTO boundary as the future API. */
 export const databaseApi: TutorIADataApi = {
@@ -46,11 +89,7 @@ export const databaseApi: TutorIADataApi = {
   async getCourseMessages(courseId) { await delay(); return jsonResponse(demoDatabase.messagesByCourse[courseId] ?? []) },
   async getCourseGraph(courseId) { await delay(); return jsonResponse(demoDatabase.graphsByCourse[courseId] ?? { nodes: [], edges: [] }) },
   async createCourseMaterials(courseId, files) {
-    await delay()
-    const created = files.filter((file) => file.name.toLowerCase().endsWith('.txt')).map((file): MaterialDto => ({ id: crypto.randomUUID(), courseId, name: file.name, size: file.size, addedAt: new Date().toISOString() }))
-    const materials = demoDatabase.materialsByCourse[courseId] ?? (demoDatabase.materialsByCourse[courseId] = [])
-    materials.unshift(...created)
-    return jsonResponse(created)
+    return uploadCourseMaterials(courseId, files)
   },
   async deleteCourseMaterial(courseId, materialId) {
     await delay()

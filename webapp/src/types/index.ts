@@ -6,8 +6,13 @@ export type ThemePreference = 'system' | 'latte' | 'mocha'
 export type ResolvedTheme = Exclude<ThemePreference, 'system'>
 
 
-// Tipos de archivos soportados por el sistema
-export const compatible_file_formats = ".txt,text/plain,.md,text/markdown"
+export const compatible_file_formats = '.txt,text/plain,.md,text/markdown,.pdf,application/pdf'
+export const supported_file_extensions = ['.txt', '.md', '.pdf'] as const
+
+export function isSupportedFile(file: File): boolean {
+  const name = file.name.toLowerCase()
+  return supported_file_extensions.some((extension) => name.endsWith(extension))
+}
 
 export interface DashboardSummary {
   studyHours: number
@@ -102,5 +107,4 @@ export interface GraphologyExport {
     GraphologyEdgeExport | [string, string, string, Record<string, unknown>?]
   >
 }
-
 
