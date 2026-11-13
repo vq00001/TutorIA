@@ -1296,7 +1296,7 @@ paths:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Notifications]
-      summary: Lista notificaciones de eventos del curso
+      summary: Lista las invitaciones pendientes propias para el curso
       responses:
         '200':
           description: Notificaciones
@@ -1308,7 +1308,7 @@ paths:
   /notifications:
     get:
       tags: [Notifications]
-      summary: Lista notificaciones del usuario actual
+      summary: Lista las invitaciones pendientes propias
       responses:
         '200':
           description: Notificaciones
@@ -1320,7 +1320,7 @@ paths:
   /activity:
     get:
       tags: [Activity]
-      summary: Lista el historial de actividad del usuario
+      summary: Lista los eventos de auditoría propios del usuario
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -1328,7 +1328,9 @@ paths:
           in: query
           schema:
             type: string
-            enum: [login, logout, course, invitation, document, llm_query, exam, profile]
+            minLength: 1
+            maxLength: 40
+            pattern: '^[a-z][a-z0-9_]*$'
       responses:
         '200':
           description: Historial de actividades
@@ -2069,15 +2071,15 @@ components:
             steps: { type: array, items: { $ref: '#/components/schemas/LearningRoadmapStep' } }
     Notification:
       type: object
-      required: [id, type, title, message, read, createdAt]
+      required: [id, courseId, type, title, message, createdAt, expiresAt]
       properties:
         id: { type: string, format: uuid }
-        courseId: { type: string, format: uuid, nullable: true }
-        type: { type: string }
+        courseId: { type: string, format: uuid }
+        type: { type: string, const: course_invitation }
         title: { type: string }
         message: { type: string }
-        read: { type: boolean }
         createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
     NotificationListResponse:
       type: object
       required: [data]
@@ -2085,17 +2087,17 @@ components:
         data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
     Activity:
       type: object
-      required: [id, type, description, createdAt]
+      required: [id, courseId, action, type, result, createdAt]
       properties:
         id: { type: string, format: uuid }
+        courseId: { type: [string, 'null'], format: uuid }
+        action: { type: string }
         type: { type: string }
-        description: { type: string }
-        courseId: { type: string, format: uuid, nullable: true }
-        metadata: { type: object, additionalProperties: true }
+        result: { type: string, enum: [success, denied, error] }
         createdAt: { type: string, format: date-time }
     ActivityListResponse:
       type: object
-      required: [data]
+      required: [data, meta]
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/Activity' } }
         meta: { $ref: '#/components/schemas/Pagination' }
@@ -2105,18 +2107,22 @@ components:
       properties:
         data:
           type: object
-          required: [studyHours, studyHoursPeriod, studyHoursByDay, streakDays, masteredConcepts, roadmapStep, roadmapTotal, nextSessionMinutes]
+          required: [studyHours, studyHoursPeriod, studyHoursByDay, studyByDay, pendingInvitations]
           properties:
             studyHours: { type: number, minimum: 0 }
-            studyHoursPeriod: { type: string }
+            studyHoursPeriod: { type: string, const: last7DaysUtc }
             studyHoursByDay: { type: array, minItems: 7, maxItems: 7, items: { type: number, minimum: 0 } }
-            streakDays: { type: integer, minimum: 0 }
-            masteredConcepts: { type: integer, minimum: 0 }
-            masteredConceptsChange: { type: number }
-            roadmapStep: { type: integer, minimum: 0 }
-            roadmapTotal: { type: integer, minimum: 0 }
-            nextSessionMinutes: { type: integer, minimum: 0 }
-            nextCourseId: { type: string, format: uuid, nullable: true }
+            studyByDay:
+              type: array
+              minItems: 7
+              maxItems: 7
+              items:
+                type: object
+                required: [date, seconds]
+                properties:
+                  date: { type: string, format: date }
+                  seconds: { type: integer, minimum: 0 }
+            pendingInvitations: { type: integer, minimum: 0 }
     Pagination:
       type: object
       properties:
