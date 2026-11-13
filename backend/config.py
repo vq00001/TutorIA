@@ -1,4 +1,4 @@
-"""Configuración común de Ollama, Qdrant y los parámetros del pipeline."""
+"""Configuración común de Ollama, el AI gateway, Qdrant y el pipeline."""
 
 from __future__ import annotations
 
@@ -35,7 +35,8 @@ class Config:
     """Configuración compartida por todas las etapas del pipeline RAG.
 
     Los tamaños de tokens controlan el chunking; `collection` identifica las
-    colecciones de Qdrant; los modelos y URLs apuntan a los servicios externos.
+    colecciones de Qdrant; `model_llm` es el alias de chat del AI gateway y
+    `model_embed` identifica el modelo de embeddings de Ollama.
     """
 
     ollama_url: str
@@ -51,6 +52,8 @@ class Config:
     use_context: bool = False
     limit_query: int = 4
     similarity_threshold: float = 0.5
+    gateway_url: str = "http://localhost:4000"
+    gateway_api_key: str = ""
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -58,6 +61,7 @@ class Config:
 
         ollama_port = os.getenv("OLLAMA_PORT", "11434")
         qdrant_port = os.getenv("QDRANT_PORT", "6333")
+        litellm_port = os.getenv("LITELLM_PORT", "4000")
         return cls(
             ollama_url=os.getenv(
                 "OLLAMA_URL", f"http://localhost:{ollama_port}"
@@ -66,7 +70,7 @@ class Config:
                 "QDRANT_URL", f"http://localhost:{qdrant_port}"
             ).rstrip("/"),
             model_embed=os.getenv("MODEL_EMBED", "all-minilm"),
-            model_llm=os.getenv("MODEL_LLM", "qwen3:1.7b"),
+            model_llm=os.getenv("MODEL_LLM", "chat-principal"),
             collection=os.getenv("QDRANT_COLLECTION", "document_chunks"),
             child_target_tokens=int(os.getenv("CHILD_TARGET_TOKENS", "160")),
             parent_max_tokens=int(os.getenv("PARENT_MAX_TOKENS", "1200")),
@@ -76,6 +80,10 @@ class Config:
             use_context=_env_bool("USE_CONTEXT"),
             limit_query=int(os.getenv("LIMIT_QUERY", "4")),
             similarity_threshold=float(os.getenv("SIMILARITY_THRESHOLD", "0.5")),
+            gateway_url=os.getenv(
+                "AI_GATEWAY_URL", f"http://localhost:{litellm_port}"
+            ).rstrip("/"),
+            gateway_api_key=os.getenv("AI_GATEWAY_API_KEY", ""),
         )
 
     def __post_init__(self) -> None:
