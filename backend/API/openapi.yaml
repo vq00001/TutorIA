@@ -682,13 +682,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExamResponse'
 
-  /courses/{courseId}/exams/{examId}/submissions:
+  /courses/{courseId}/exams/{examId}/attempts:
     parameters:
       - $ref: '#/components/parameters/CourseId'
       - $ref: '#/components/parameters/ExamId'
     post:
       tags: [Exams]
-      summary: Envía y evalúa las respuestas de un examen
+      summary: Inicia o recupera el intento vigente
+      responses:
+        '200':
+          description: Intento y resultado disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courses/{courseId}/exams/{examId}/attempts/{attemptId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+      - name: attemptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Exams]
+      summary: Consulta el estado y resultado del intento
+      responses:
+        '200':
+          description: Intento y resultado disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /courses/{courseId}/exams/{examId}/attempts/{attemptId}/submissions:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+      - name: attemptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Exams]
+      summary: Envía las respuestas y devuelve el resultado
       requestBody:
         required: true
         content:
@@ -697,11 +751,21 @@ paths:
               $ref: '#/components/schemas/SubmitExamRequest'
       responses:
         '200':
-          description: Resultado evaluado con respuestas correctas y fuentes
+          description: Intento y resultado disponible
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /courses/{courseId}/progress:
     parameters:
@@ -1314,31 +1378,45 @@ components:
       properties:
         answers:
           type: array
+          maxItems: 20
           items:
             type: object
-            required: [questionId, answer]
+            required: [questionId]
             properties:
               questionId: { type: string, format: uuid }
-              answer: { type: string }
+              selectedOptionIds:
+                type: array
+                maxItems: 6
+                items: { type: string, format: uuid }
+              textAnswer: { type: [string, 'null'], maxLength: 20000 }
     ExamResult:
       type: object
-      required: [examId, score, answers]
+      required: [id, examId, attemptNo, status, startedAt, deadlineAt, submittedAt, gradedAt, scorePercent, answers]
       properties:
+        id: { type: string, format: uuid }
         examId: { type: string, format: uuid }
-        score: { type: number, minimum: 0, maximum: 100 }
+        attemptNo: { type: integer }
+        status: { type: string, enum: [in_progress, expired, graded, needs_review, invalidated] }
+        startedAt: { type: string, format: date-time }
+        deadlineAt: { type: string, format: date-time }
+        submittedAt: { type: [string, 'null'], format: date-time }
+        gradedAt: { type: [string, 'null'], format: date-time }
+        scorePercent: { type: [string, 'null'] }
         answers:
           type: array
           items:
             type: object
-            required: [questionId, answer, correct]
+            required: [questionId, selectedOptionIds, textAnswer, points, feedback, gradeStatus, gradeMethod]
             properties:
               questionId: { type: string, format: uuid }
-              answer: { type: string }
-              correctAnswer: { type: string }
-              correct: { type: boolean }
-              explanation: { type: string }
-              usedDocuments: { type: boolean }
-              sourceDocuments: { type: array, items: { $ref: '#/components/schemas/SourceDocument' } }
+              selectedOptionIds:
+                type: array
+                items: { type: string, format: uuid }
+              textAnswer: { type: [string, 'null'] }
+              points: { type: [string, 'null'] }
+              feedback: { type: [string, 'null'] }
+              gradeStatus: { type: string }
+              gradeMethod: { type: [string, 'null'] }
     ExamResultResponse:
       type: object
       required: [data]
