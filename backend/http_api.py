@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .routes import auth, courses, health, jobs
+from .routes import auth, courses, documents, health, jobs
 from .routes.dependencies import InvalidSession, error_response
 
 load_dotenv()
@@ -34,5 +34,5 @@ async def invalid_session(_request: Request, _error: InvalidSession) -> JSONResp
     )
 
 
-for router in (auth.router, courses.router, health.router, jobs.router):
+for router in (auth.router, courses.router, documents.router, health.router, jobs.router):
     app.include_router(router, prefix="/api/v1")

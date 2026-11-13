@@ -44,6 +44,23 @@ def _submit(conn, course_id, operation, key, fingerprint, create):
         raise
 
 
+def enqueue_upload(
+    conn: Connection, course_id: UUID, *, filename: str, mime_type: str,
+    data: bytes, deadline_at: datetime, **metadata,
+) -> dict[str, str | None]:
+    """Guarda y encola una carga dentro de la transacción del llamador."""
+    document = register_upload(
+        conn, course_id=course_id, data=data, filename=filename, mime_type=mime_type, **metadata
+    )
+    if document is None:
+        return {"document_id": None, "job_id": None}
+    job = enqueue_job(
+        conn, course_id, kind="ingest_document", target_id=document,
+        idempotency_key=str(document), deadline_at=deadline_at,
+    )
+    return {"document_id": str(document), "job_id": str(job)}
+
+
 def submit_upload(
     conn: Connection,
     *,
@@ -65,14 +82,7 @@ def submit_upload(
     }
 
     def create(active: Connection) -> dict[str, str | None]:
-        document = register_upload(active, course_id=course_id, data=data, **fields)
-        if document is None:
-            return {"document_id": None, "job_id": None}
-        job = enqueue_job(
-            active, course_id, kind="ingest_document", target_id=document,
-            idempotency_key=str(document), deadline_at=deadline_at,
-        )
-        return {"document_id": str(document), "job_id": str(job)}
+        return enqueue_upload(active, course_id, data=data, deadline_at=deadline_at, **fields)
 
     return _submit(
         conn, course_id, "ingest_document", key,

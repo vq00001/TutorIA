@@ -294,23 +294,15 @@ def register_upload(
     return identifier
 
 
-def list_documents(
-    conn: Connection,
-    course_id: UUID,
-    *,
-    limit: int,
-    after: tuple[datetime, UUID] | None = None,
-) -> list[RowMapping]:
-    """Lista metadatos de documentos visibles, con cursor por fecha e identificador."""
-    if not 1 <= limit <= 100:
-        raise ValueError("limit debe estar entre 1 y 100")
-    statement = (
+def _document_metadata(course_id: UUID):
+    return (
         select(
             documents,
             document_versions.c.original_name,
             document_versions.c.mime_type,
             document_versions.c.size_bytes,
             document_versions.c.status.label("processing_status"),
+            document_versions.c.error_code,
         )
         .join(
             document_versions,
@@ -318,9 +310,29 @@ def list_documents(
             & (document_versions.c.course_id == documents.c.course_id)
             & (document_versions.c.version_no == 1),
         )
-        .where(documents.c.course_id == course_id)
-        .order_by(documents.c.created_at, documents.c.id)
-        .limit(limit)
+        .where(documents.c.course_id == course_id, document_versions.c.status != "purged")
+    )
+
+
+def get_document_metadata(conn: Connection, course_id: UUID, document_id: UUID) -> RowMapping | None:
+    statement = _document_metadata(course_id).where(documents.c.id == document_id)
+    return conn.execute(statement).mappings().one_or_none()
+
+
+def list_documents(
+    conn: Connection,
+    course_id: UUID,
+    *,
+    limit: int,
+    after: tuple[datetime, UUID] | None = None,
+    lookahead: bool = False,
+) -> list[RowMapping]:
+    """Lista metadatos de documentos visibles, con cursor por fecha e identificador."""
+    if not 1 <= limit <= 100:
+        raise ValueError("limit debe estar entre 1 y 100")
+    statement = (
+        _document_metadata(course_id).order_by(documents.c.created_at, documents.c.id)
+        .limit(limit + int(lookahead))
     )
     if after is not None:
         statement = statement.where(tuple_(documents.c.created_at, documents.c.id) > tuple_(*after))
