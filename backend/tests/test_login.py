@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from backend import http_api
+from backend.routes import auth, dependencies
 from fastapi.testclient import TestClient
 
 LOGIN = "/api/v1/auth/login"
@@ -20,7 +21,7 @@ def _user(status):
         "display_name": "Persona",
         "status": status,
         "created_at": datetime.now(timezone.utc),
-        "password_hash": http_api.password_hasher.hash(PASSWORD),
+        "password_hash": auth.password_hasher.hash(PASSWORD),
     }
 
 
@@ -28,11 +29,11 @@ def _user(status):
 def test_login_returns_bearer_and_profile(monkeypatch, status):
     connection = Mock()
     user = _user(status)
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(connection))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(connection))
     lookup = Mock(return_value=user)
-    monkeypatch.setattr(http_api, "get_login_credentials", lookup)
+    monkeypatch.setattr(auth, "get_login_credentials", lookup)
     issue = Mock(return_value="test-token")
-    monkeypatch.setattr(http_api, "issue_session", issue)
+    monkeypatch.setattr(auth, "issue_session", issue)
 
     response = TestClient(http_api.app).post(LOGIN, json=PAYLOAD)
 
@@ -50,11 +51,11 @@ def test_login_returns_bearer_and_profile(monkeypatch, status):
 
 @pytest.mark.parametrize("account_exists", [True, False])
 def test_login_does_not_disclose_whether_an_account_exists(monkeypatch, account_exists):
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(Mock()))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(Mock()))
     user = _user("active") if account_exists else None
-    monkeypatch.setattr(http_api, "get_login_credentials", Mock(return_value=user))
+    monkeypatch.setattr(auth, "get_login_credentials", Mock(return_value=user))
     issue = Mock()
-    monkeypatch.setattr(http_api, "issue_session", issue)
+    monkeypatch.setattr(auth, "issue_session", issue)
 
     response = TestClient(http_api.app).post(LOGIN, json={**PAYLOAD, "password": "wrong-password"})
 
@@ -66,7 +67,7 @@ def test_login_does_not_disclose_whether_an_account_exists(monkeypatch, account_
 
 def test_login_validation_does_not_echo_password(monkeypatch):
     transaction = Mock()
-    monkeypatch.setattr(http_api, "transaction", transaction)
+    monkeypatch.setattr(dependencies, "transaction", transaction)
 
     response = TestClient(http_api.app).post(LOGIN, json={**PAYLOAD, "email": "invalido"})
 

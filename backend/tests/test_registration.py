@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pytest
 from backend import http_api
+from backend.routes import auth, dependencies
 from fastapi.testclient import TestClient
 
 REGISTER = "/api/v1/auth/register"
@@ -18,8 +19,8 @@ def test_register_returns_pending_account_without_credentials(monkeypatch):
     connection = Mock()
     transaction = Mock(return_value=nullcontext(connection))
     insert_user = Mock(return_value=True)
-    monkeypatch.setattr(http_api, "transaction", transaction)
-    monkeypatch.setattr(http_api, "insert_pending_user", insert_user)
+    monkeypatch.setattr(dependencies, "transaction", transaction)
+    monkeypatch.setattr(auth, "insert_pending_user", insert_user)
 
     response = TestClient(http_api.app).post(REGISTER, json=PAYLOAD)
 
@@ -37,7 +38,7 @@ def test_register_returns_pending_account_without_credentials(monkeypatch):
     insert_user.assert_called_once()
     stored_hash = insert_user.call_args.kwargs["password_hash"]
     assert stored_hash.startswith("$argon2id$")
-    assert http_api.password_hasher.verify(stored_hash, PAYLOAD["password"])
+    assert auth.password_hasher.verify(stored_hash, PAYLOAD["password"])
 
 
 @pytest.mark.parametrize(
@@ -52,7 +53,7 @@ def test_register_returns_pending_account_without_credentials(monkeypatch):
 )
 def test_registration_rejects_invalid_input_without_echoing_password(monkeypatch, fields):
     transaction = Mock()
-    monkeypatch.setattr(http_api, "transaction", transaction)
+    monkeypatch.setattr(dependencies, "transaction", transaction)
     payload = {**PAYLOAD, **fields}
 
     response = TestClient(http_api.app).post(REGISTER, json=payload)
@@ -64,8 +65,8 @@ def test_registration_rejects_invalid_input_without_echoing_password(monkeypatch
 
 
 def test_registration_conflict_returns_409(monkeypatch):
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(Mock()))
-    monkeypatch.setattr(http_api, "insert_pending_user", Mock(return_value=False))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(Mock()))
+    monkeypatch.setattr(auth, "insert_pending_user", Mock(return_value=False))
 
     response = TestClient(http_api.app).post(REGISTER, json=PAYLOAD)
 

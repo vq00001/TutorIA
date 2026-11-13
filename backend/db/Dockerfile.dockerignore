@@ -3,6 +3,8 @@
 !/*.py
 !db/
 !db/**
+!routes/
+!routes/**
 !tests/
 !tests/**
 **/__pycache__/

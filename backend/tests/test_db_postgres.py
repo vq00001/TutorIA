@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
+from backend.routes import auth, dependencies
 from db.users import get_current_user, users
 
 
@@ -56,7 +57,7 @@ def test_register_persists_pending_account_through_the_api_role(postgres, monkey
     from fastapi.testclient import TestClient
 
     client = TestClient(http_api.app)
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
     payload = {
         "email": uuid4().hex + "@example.com",
         "password": "registration-password",
@@ -81,7 +82,7 @@ def test_register_persists_pending_account_through_the_api_role(postgres, monkey
     assert str(stored["id"]) == first.json()["data"]["id"]
     assert stored["status"] == "pending"
     assert stored["email_verified_at"] is None
-    assert http_api.password_hasher.verify(stored["password_hash"], payload["password"])
+    assert auth.password_hasher.verify(stored["password_hash"], payload["password"])
 
 
 def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, monkeypatch):
@@ -94,7 +95,7 @@ def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, 
     from fastapi.testclient import TestClient
 
     client = TestClient(http_api.app)
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
     payload = {
         "email": uuid4().hex + "@example.com",
         "password": "registration-password",
@@ -135,10 +136,10 @@ def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
     identifier = _seed_user(postgres)
     email = uuid4().hex + "@example.com"
     postgres.execute(update(users).where(users.c.id == identifier).values(
-        status=account_status, email=email, password_hash=http_api.password_hasher.hash(password),
+        status=account_status, email=email, password_hash=auth.password_hasher.hash(password),
     ))
     postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
 
     response = TestClient(http_api.app).post("/api/v1/auth/login", json={
         "email": email, "password": password,
@@ -160,7 +161,7 @@ def test_session_isolates_profiles_and_revokes_only_the_presented_token(postgres
     first_token, second_token = issue_session(postgres, first), issue_session(postgres, second)
     another_token = issue_session(postgres, first)
     client = TestClient(http_api.app)
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
 
     def headers(token):
         return {"Authorization": f"Bearer {token}"}
@@ -206,7 +207,7 @@ def test_profile_rejects_sessions_that_are_no_longer_valid(postgres, monkeypatch
         postgres.execute(update(users).where(users.c.id == identifier).values(status=condition))
 
     postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(postgres))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
     response = TestClient(http_api.app).get(
         "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"},
     )

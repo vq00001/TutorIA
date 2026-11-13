@@ -17,6 +17,7 @@ from sqlalchemy import (
     func,
     select,
     text,
+    true,
     tuple_,
     update,
 )
@@ -316,6 +317,26 @@ def list_member_courses(
     if after is not None:
         statement = statement.where(tuple_(courses.c.created_at, courses.c.id) > tuple_(*after))
     return list(conn.execute(statement).mappings())
+
+
+def page_member_courses(
+    conn: Connection, *, page: int, page_size: int
+) -> tuple[list[RowMapping], int]:
+    """Devuelve una página y el total de clases visibles en una sola consulta."""
+    visible = _member_courses().cte("visible_courses")
+    total = select(func.count()).select_from(visible).scalar_subquery()
+    window = (
+        select(visible).order_by(visible.c.created_at, visible.c.id)
+        .offset((page - 1) * page_size).limit(page_size).subquery()
+    )
+    counts = select(total.label("total")).subquery()
+    statement = (
+        select(window, counts.c.total)
+        .select_from(counts.outerjoin(window, true()))
+        .order_by(window.c.created_at, window.c.id)
+    )
+    rows = conn.execute(statement).mappings().all()
+    return [row for row in rows if row.id is not None], rows[0].total
 
 
 def get_member_course(conn: Connection, course_id: UUID) -> RowMapping | None:

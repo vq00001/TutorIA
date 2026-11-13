@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from backend import http_api
+from backend.routes import auth, dependencies
 from fastapi.testclient import TestClient
 
 PROFILE = "/api/v1/users/me"
@@ -21,7 +22,7 @@ def test_protected_routes_reject_missing_or_invalid_bearer_without_database(
     authorization,
 ):
     transaction = Mock()
-    monkeypatch.setattr(http_api, "transaction", transaction)
+    monkeypatch.setattr(dependencies, "transaction", transaction)
     headers = {"Authorization": authorization} if authorization else {}
     method = "GET" if path == PROFILE else "POST"
 
@@ -36,11 +37,11 @@ def test_protected_routes_reject_missing_or_invalid_bearer_without_database(
 def test_profile_sets_user_context_before_reading(monkeypatch):
     connection = Mock()
     identifier = uuid4()
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(connection))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(connection))
     lookup = Mock(return_value=identifier)
-    monkeypatch.setattr(http_api, "get_session_user", lookup)
+    monkeypatch.setattr(dependencies, "get_session_user", lookup)
     context = Mock()
-    monkeypatch.setattr(http_api, "set_user_context", context)
+    monkeypatch.setattr(dependencies, "set_user_context", context)
 
     def read_profile(conn):
         assert conn is connection
@@ -55,7 +56,7 @@ def test_profile_sets_user_context_before_reading(monkeypatch):
             "email_verified_at": None,
         }
 
-    monkeypatch.setattr(http_api, "get_current_user", read_profile)
+    monkeypatch.setattr(auth, "get_current_user", read_profile)
     response = TestClient(http_api.app).get(PROFILE, headers=HEADERS)
 
     assert response.status_code == 200
@@ -68,9 +69,9 @@ def test_profile_sets_user_context_before_reading(monkeypatch):
 @pytest.mark.parametrize("revoked,expected", [(True, 204), (False, 401)])
 def test_logout_reports_whether_the_session_was_revoked(monkeypatch, revoked, expected):
     connection = Mock()
-    monkeypatch.setattr(http_api, "transaction", lambda: nullcontext(connection))
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(connection))
     revoke = Mock(return_value=revoked)
-    monkeypatch.setattr(http_api, "revoke_session", revoke)
+    monkeypatch.setattr(auth, "revoke_session", revoke)
 
     response = TestClient(http_api.app).post(LOGOUT, headers=HEADERS)
 
