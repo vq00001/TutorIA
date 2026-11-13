@@ -1,5 +1,5 @@
 import { demoDatabase } from '../data/demoDatabase'
-import type { ChatMessageDto, Course, DashboardSummary, GraphologyExport, JsonApiResponse, MaterialDto, NewCourse, StudentProfile } from '../types'
+import type { ChatMessage, ChatMessageDto, Course, DashboardSummary, GraphologyExport, JsonApiResponse, MaterialDto, NewCourse, StudentProfile } from '../types'
 
 /** Adapter boundary: the in-memory implementation can be replaced by fetch/database services. */
 export interface TutorIADataApi {
@@ -19,8 +19,12 @@ const delay = () => new Promise<void>((resolve) => window.setTimeout(resolve, 80
 
 /** Demo database: responses cross the same JSON DTO boundary as the future API. */
 export const databaseApi: TutorIADataApi = {
-  async getStudentProfile() { await delay(); return jsonResponse(demoDatabase.profile) },
-  async getDashboardSummary() { await delay(); return jsonResponse(demoDatabase.summary) },
+  async getStudentProfile() {
+    await delay(); return jsonResponse(demoDatabase.profile)
+  },
+  async getDashboardSummary() {
+    await delay(); return jsonResponse(demoDatabase.summary)
+  },
   async getCourses() { await delay(); return jsonResponse(demoDatabase.courses) },
   async createCourse(input) {
     await delay()
@@ -42,9 +46,21 @@ export const databaseApi: TutorIADataApi = {
     demoDatabase.graphsByCourse[course.id] = { nodes: [], edges: [] }
     return jsonResponse(course)
   },
-  async getCourseMaterials(courseId) { await delay(); return jsonResponse(demoDatabase.materialsByCourse[courseId] ?? []) },
-  async getCourseMessages(courseId) { await delay(); return jsonResponse(demoDatabase.messagesByCourse[courseId] ?? []) },
-  async getCourseGraph(courseId) { await delay(); return jsonResponse(demoDatabase.graphsByCourse[courseId] ?? { nodes: [], edges: [] }) },
+  async getCourseMaterials(courseId) {
+    await delay();
+    return jsonResponse(demoDatabase.materialsByCourse[courseId] ?? [])
+  },
+
+  async getCourseMessages(courseId) {
+    await delay();
+    return jsonResponse(demoDatabase.messagesByCourse[courseId] ?? [])
+  },
+
+  async getCourseGraph(courseId) {
+    await delay();
+    return jsonResponse(demoDatabase.graphsByCourse[courseId] ?? { nodes: [], edges: [] })
+  },
+
   async createCourseMaterials(courseId, files) {
     await delay()
     const created = files.filter((file) => file.name.toLowerCase().endsWith('.txt')).map((file): MaterialDto => ({ id: crypto.randomUUID(), courseId, name: file.name, size: file.size, addedAt: new Date().toISOString() }))
@@ -52,6 +68,7 @@ export const databaseApi: TutorIADataApi = {
     materials.unshift(...created)
     return jsonResponse(created)
   },
+
   async deleteCourseMaterial(courseId, materialId) {
     await delay()
     const current = demoDatabase.materialsByCourse[courseId] ?? []

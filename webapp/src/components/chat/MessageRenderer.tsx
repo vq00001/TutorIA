@@ -8,13 +8,14 @@ const ChartCard = lazy(() =>
   })),
 )
 
+
 export function MessageRenderer({
   message,
 }: {
   message: ChatMessage
 }) {
   return (
-    <div className="message-content">
+    <div className={`message-content${message.isError ? ' message-error' : ''}`}>
       {message.parts.map((part, index) =>
         part.type === 'markdown' ? (
           <MarkdownContent
@@ -38,7 +39,7 @@ export function MessageRenderer({
       {message.awaitingResponse && (
         <div className="response-placeholder">
           <span className="typing-dots">•••</span>
-          Respuesta del tutor lista para conectar
+          El tutor está escribiendo…
         </div>
       )}
     </div>

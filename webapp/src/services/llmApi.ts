@@ -1,0 +1,64 @@
+import type { ConversationDto, JsonApiResponse } from '../types'
+import { authorizedFetch } from './authApi'
+
+interface AskRequest {
+  question: string
+  includeDocuments: boolean
+}
+
+export async function uploadPromptFiles(courseId: string, files: File[]) {
+  if (files.length === 0) return
+
+  const form = new FormData()
+  files.forEach((file) => form.append('files', file))
+
+  const response = await authorizedFetch(
+    `/api/v1/courses/${toApiCourseId(courseId)}/documents`,
+    { method: 'POST', body: form },
+  )
+
+  if (!response.ok) {
+    throw new Error(await responseError(response, 'No se pudieron subir los archivos.'))
+  }
+}
+
+export async function sendPrompt(
+  courseId: string,
+  question: string,
+): Promise<JsonApiResponse<ConversationDto>> {
+  const body: AskRequest = { question, includeDocuments: true }
+  const response = await authorizedFetch(
+    `/api/v1/courses/${toApiCourseId(courseId)}/conversations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(await responseError(response, 'No se pudo enviar la pregunta.'))
+  }
+
+  return (await response.json()) as JsonApiResponse<ConversationDto>
+}
+
+// The current UI's demo courses use slugs, while the API contract requires UUIDs.
+// Keep demo interactions compatible with the API stubs until courses come from the backend.
+function toApiCourseId(courseId: string) {
+  const demoCourseIds: Record<string, string> = {
+    'calculo-i': '00000000-0000-4000-8000-000000000002',
+    fisica: '00000000-0000-4000-8000-00000000000c',
+    programacion: '00000000-0000-4000-8000-00000000000d',
+  }
+  return demoCourseIds[courseId] ?? courseId
+}
+
+async function responseError(response: Response, fallback: string) {
+  try {
+    const body = (await response.json()) as { message?: string; detail?: string }
+    return body.message ?? body.detail ?? `${fallback} (${response.status})`
+  } catch {
+    return `${fallback} (${response.status})`
+  }
+}

@@ -13,6 +13,7 @@ import {
   databaseApi,
   type TutorIADataApi,
 } from '../services/databaseApi'
+import { sendPrompt as requestPrompt, uploadPromptFiles } from '../services/llmApi'
 
 import type {
   ChatMessage,
@@ -22,6 +23,7 @@ import type {
   GraphologyExport,
   MaterialDto,
   MaterialFile,
+  MessageDto,
   NewCourse,
   StudentProfile,
 } from '../types'
@@ -42,7 +44,8 @@ interface AppDataContextValue {
 
   loadError: string | null
 
-  sendPrompt: (courseId: string, content: string) => void
+  sendPrompt: (courseId: string, content: string, files?: File[]) => Promise<void>
+
   addCourse: (course: NewCourse) => Promise<Course>
   addMaterials: (courseId: string, files: File[]) => Promise<MaterialFile[]>
   removeMaterial: (courseId: string, materialId: string) => Promise<void>
@@ -62,6 +65,13 @@ const adaptMaterial = (dto: MaterialDto): MaterialFile => ({
 const adaptMessage = (dto: ChatMessageDto): ChatMessage => ({
   ...dto,
   createdAt: new Date(dto.createdAt),
+})
+
+const adaptAssistantMessage = (dto: MessageDto): ChatMessage => ({
+  id: dto.id,
+  role: dto.role,
+  createdAt: new Date(dto.createdAt),
+  parts: [{ type: 'markdown', content: dto.content }],
 })
 
 // Provider
@@ -179,8 +189,9 @@ export function AppDataProvider({
   // Chat messages
 
   const sendPrompt = useCallback(
-    (courseId: string, content: string) => {
+    async (courseId: string, content: string, files: File[] = []) => {
       const now = new Date()
+      const placeholderId = crypto.randomUUID()
 
       setMessagesByCourse((current) => ({
         ...current,
@@ -198,7 +209,7 @@ export function AppDataProvider({
             ],
           },
           {
-            id: crypto.randomUUID(),
+            id: placeholderId,
             role: 'assistant',
             createdAt: new Date(now.getTime() + 1000),
             awaitingResponse: true,
@@ -206,6 +217,44 @@ export function AppDataProvider({
           },
         ],
       }))
+
+      try {
+        await uploadPromptFiles(courseId, files)
+        const response = await requestPrompt(courseId, content)
+        const assistantMessages = response.data.messages
+          .filter((message) => message.role === 'assistant')
+          .map(adaptAssistantMessage)
+
+        if (assistantMessages.length === 0) {
+          throw new Error('El tutor no devolvió una respuesta.')
+        }
+
+        setMessagesByCourse((current) => ({
+          ...current,
+          [courseId]: [
+            ...(current[courseId] ?? []).filter((message) => message.id !== placeholderId),
+            ...assistantMessages,
+          ],
+        }))
+      } catch (error) {
+        const errorMessage = error instanceof Error
+          ? error.message
+          : 'No se pudo obtener una respuesta del tutor.'
+
+        setMessagesByCourse((current) => ({
+          ...current,
+          [courseId]: [
+            ...(current[courseId] ?? []).filter((message) => message.id !== placeholderId),
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              createdAt: new Date(),
+              isError: true,
+              parts: [{ type: 'markdown', content: errorMessage }],
+            },
+          ],
+        }))
+      }
     },
     []
   )

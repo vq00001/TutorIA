@@ -11,6 +11,7 @@ const KnowledgeGraph = lazy(() =>
   })),
 )
 
+
 export function ChatPage() {
   const { courseId } = useParams()
   const data = useAppData()
