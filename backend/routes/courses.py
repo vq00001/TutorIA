@@ -42,6 +42,7 @@ class CourseMember(BaseModel):
     displayName: str
     role: Literal["coordinator", "student"]
     joinedAt: datetime
+    rowVersion: int
 
 
 class CourseData(BaseModel):
@@ -89,7 +90,7 @@ def _course_data(row, members=None) -> CourseData:
 def _members(connection: Connection, course_id: UUID) -> list[CourseMember]:
     return [
         CourseMember(userId=row.user_id, displayName=row.display_name,
-                     role=row.role, joinedAt=row.joined_at)
+                     role=row.role, joinedAt=row.joined_at, rowVersion=row.row_version)
         for row in list_course_members(connection, course_id)
     ]
 

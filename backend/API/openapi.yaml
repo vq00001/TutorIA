@@ -158,7 +158,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/CurrentUserResponse'
         '422':
           $ref: '#/components/responses/ValidationError'
     delete:
@@ -294,14 +294,12 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateMemberRequest'
       responses:
-        '200':
-          description: Miembro actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MemberResponse'
+        '204':
+          description: Membresía actualizada
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /courses/{courseId}/invitations:
     parameters:
@@ -316,14 +314,11 @@ paths:
             schema:
               $ref: '#/components/schemas/InviteRequest'
       responses:
-        '201':
-          description: Invitación creada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvitationResponse'
+        '202':
+          description: Solicitud recibida con respuesta uniforme para cualquier correo válido
         '403':
           $ref: '#/components/responses/Forbidden'
+
   /invitations:
     get:
       tags: [Courses]
@@ -1365,30 +1360,11 @@ components:
         data: { $ref: '#/components/schemas/User' }
     UpdateUserRequest:
       type: object
-      minProperties: 1
+      required: [displayName]
+      additionalProperties: false
       properties:
         displayName: { type: string, minLength: 1, maxLength: 100 }
-        email: { type: string, format: email }
-        avatarUrl: { type: string, format: uri, nullable: true }
-        password: { type: string, format: password, minLength: 8 }
-    JobResponse:
-      type: object
-      required: [data]
-      properties:
-        data:
-          type: object
-          required: [id, kind, targetId, state, attempts, maxAttempts, runAfter, deadlineAt, errorCode, createdAt]
-          properties:
-            id: { type: string, format: uuid }
-            kind: { type: string, enum: [ingest_document, generate_chat, generate_exam] }
-            targetId: { type: string, format: uuid }
-            state: { type: string, enum: [queued, running, succeeded, failed] }
-            attempts: { type: integer }
-            maxAttempts: { type: integer }
-            runAfter: { type: string, format: date-time }
-            deadlineAt: { type: string, format: date-time }
-            errorCode: { type: [string, 'null'] }
-            createdAt: { type: string, format: date-time }
+
     Course:
       type: object
       required: [id, name, description, objectives, subject, color, icon, status, myRole, ownerId, rowVersion]
@@ -1439,12 +1415,13 @@ components:
         icon: { type: string }
     CourseMember:
       type: object
-      required: [userId, displayName, role, joinedAt]
+      required: [userId, displayName, role, joinedAt, rowVersion]
       properties:
         userId: { type: string, format: uuid }
         displayName: { type: string }
         role: { type: string, enum: [coordinator, student] }
         joinedAt: { type: string, format: date-time }
+        rowVersion: { type: integer, minimum: 1 }
     CourseMemberListResponse:
       type: object
       required: [data]
@@ -1470,29 +1447,35 @@ components:
         data: { type: array, items: { $ref: '#/components/schemas/Member' } }
     UpdateMemberRequest:
       type: object
-      required: [role]
+      required: [role, rowVersion]
       properties:
-        role: { type: string, enum: [admin, editor, member] }
+        role: { type: string, enum: [coordinator, student] }
+        status: { type: string, enum: [active, removed], default: active }
+        rowVersion: { type: integer, minimum: 1 }
     InviteRequest:
       type: object
       required: [email]
       properties:
-        email: { type: string, format: email }
+        email: { type: string, format: email, maxLength: 254 }
     Invitation:
       type: object
-      required: [id, courseId, courseName, email, status, createdAt]
+      required: [id, courseId, courseName, createdAt, expiresAt]
       properties:
         id: { type: string, format: uuid }
         courseId: { type: string, format: uuid }
         courseName: { type: string }
-        email: { type: string, format: email }
-        status: { type: string, enum: [pending, accepted, rejected, expired] }
         createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
     InvitationResponse:
       type: object
       required: [data]
       properties:
-        data: { $ref: '#/components/schemas/Invitation' }
+        data:
+          type: object
+          required: [courseId, status]
+          properties:
+            courseId: { type: string, format: uuid }
+            status: { type: string, enum: [accepted, declined] }
     InvitationListResponse:
       type: object
       required: [data]
