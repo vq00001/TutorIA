@@ -1,1 +1,1 @@
-"""Generación experimental del grafo de conocimiento."""
+"""Generación de propuestas para el grafo de conocimiento."""
