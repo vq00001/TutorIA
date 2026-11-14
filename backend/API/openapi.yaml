@@ -81,11 +81,11 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
-          description: Usuario registrado y sesión iniciada
+          description: Cuenta registrada con estado pendiente
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/RegisterResponse'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -105,12 +105,17 @@ paths:
       responses:
         '200':
           description: Sesión iniciada
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /auth/logout:
     post:
@@ -122,6 +127,90 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /auth/email-verification/request:
+    post:
+      tags: [Auth]
+      summary: Solicita la verificación de correo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountEmailRequest'
+      responses:
+        '202':
+          description: Solicitud recibida
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/email-verification/confirm:
+    post:
+      tags: [Auth]
+      summary: Confirma la verificación de correo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountTokenRequest'
+      responses:
+        '204':
+          description: Código aplicado
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '400':
+          description: Código inválido, vencido o consumido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/password-reset/request:
+    post:
+      tags: [Auth]
+      summary: Solicita la recuperación de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountEmailRequest'
+      responses:
+        '202':
+          description: Solicitud recibida
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/password-reset/confirm:
+    post:
+      tags: [Auth]
+      summary: Confirma la recuperación de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '204':
+          description: Código aplicado
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '400':
+          description: Código inválido, vencido o consumido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /users/me:
     get:
       tags: [Users]
@@ -129,10 +218,15 @@ paths:
       responses:
         '200':
           description: Perfil del usuario
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       tags: [Users]
       summary: Modifica el perfil del usuario actual
@@ -148,15 +242,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/CurrentUserResponse'
         '422':
           $ref: '#/components/responses/ValidationError'
     delete:
       tags: [Users]
-      summary: Elimina la cuenta del usuario actual
+      summary: Solicita el borrado de la cuenta propia
       responses:
-        '204':
-          description: Cuenta eliminada
+        '202':
+          description: Borrado solicitado y retirada aplicada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /dashboard/summary:
     get:
@@ -237,15 +342,28 @@ paths:
                 $ref: '#/components/schemas/CourseResponse'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
     delete:
       tags: [Courses]
-      summary: Elimina un curso
-      description: Requiere permisos de propietario o administrador del curso.
+      summary: Solicita el borrado de la clase
       responses:
-        '204':
-          description: Curso eliminado
+        '202':
+          description: Borrado solicitado y retirada aplicada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /courses/{courseId}/leave:
     parameters:
       - $ref: '#/components/parameters/CourseId'
@@ -269,7 +387,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MemberListResponse'
+                $ref: '#/components/schemas/CourseMemberListResponse'
   /courses/{courseId}/members/{userId}:
     parameters:
       - $ref: '#/components/parameters/CourseId'
@@ -284,14 +402,12 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateMemberRequest'
       responses:
-        '200':
-          description: Miembro actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MemberResponse'
+        '204':
+          description: Membresía actualizada
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /courses/{courseId}/invitations:
     parameters:
@@ -306,14 +422,11 @@ paths:
             schema:
               $ref: '#/components/schemas/InviteRequest'
       responses:
-        '201':
-          description: Invitación creada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvitationResponse'
+        '202':
+          description: Solicitud recibida con respuesta uniforme para cualquier correo válido
         '403':
           $ref: '#/components/responses/Forbidden'
+
   /invitations:
     get:
       tags: [Courses]
@@ -348,22 +461,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/InvitationResponse'
 
+  /courses/{courseId}/jobs/{jobId}:
+    get:
+      tags: [Jobs]
+      summary: Consulta un trabajo propio de la clase
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Estado del trabajo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /courses/{courseId}/documents:
     parameters:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Documents]
       summary: Lista los documentos asociados al curso
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: afterCreatedAt
+          in: query
+          schema: { type: string, format: date-time }
+        - name: afterId
+          in: query
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: Documentos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentListResponse'
+                $ref: '#/components/schemas/DocumentPageResponse'
     post:
       tags: [Documents]
-      summary: Sube documentos al curso
+      summary: Sube documentos al curso de forma idempotente
+      description: El lote admite hasta 20 archivos de texto plano o Markdown y 20 MiB en total.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -374,6 +525,7 @@ paths:
               properties:
                 files:
                   type: array
+                  minItems: 1
                   maxItems: 20
                   items:
                     type: string
@@ -384,7 +536,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentListResponse'
+                $ref: '#/components/schemas/DocumentUploadResponse'
+        '409':
+          description: La clave ya se usó con otro lote
+        '413':
+          description: El lote supera el límite de tamaño
+        '429':
+          description: Cuota de carga agotada
         '415':
           description: Tipo de archivo no soportado
           content:
@@ -398,7 +556,7 @@ paths:
       - $ref: '#/components/parameters/DocumentId'
     get:
       tags: [Documents]
-      summary: Obtiene la información de un documento
+      summary: Obtiene la información de un documento visible
       responses:
         '200':
           description: Documento
@@ -406,15 +564,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Documents]
       summary: Elimina un documento
-      description: Requiere permisos de propietario o administrador del curso.
+      description: Requiere ser quien subió el documento o coordinar una clase activa.
       responses:
         '204':
           description: Documento eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courses/{courseId}/documents/{documentId}/download:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documents]
+      summary: Descarga el archivo original
+      responses:
+        '200':
+          description: Bytes originales del documento
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /courses/{courseId}/documents/{documentId}/status:
     parameters:
@@ -437,6 +626,16 @@ paths:
     get:
       tags: [Conversations]
       summary: Lista las conversaciones del usuario en el curso
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: beforeUpdatedAt
+          in: query
+          schema: { type: string, format: date-time }
+        - name: beforeId
+          in: query
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: Conversaciones
@@ -446,7 +645,9 @@ paths:
                 $ref: '#/components/schemas/ConversationListResponse'
     post:
       tags: [Conversations]
-      summary: Crea una conversación y realiza una consulta al LLM
+      summary: Crea una conversación y encola la primera pregunta
+      parameters:
+        - $ref: '#/components/parameters/ChatIdempotencyKey'
       requestBody:
         required: true
         content:
@@ -454,12 +655,16 @@ paths:
             schema:
               $ref: '#/components/schemas/AskRequest'
       responses:
-        '201':
-          description: Conversación con la respuesta del LLM
+        '202':
+          description: Pregunta aceptada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConversationResponse'
+                $ref: '#/components/schemas/ChatAcceptedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Cuota de generación agotada
 
   /courses/{courseId}/conversations/{conversationId}:
     parameters:
@@ -470,7 +675,14 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [Conversations]
-      summary: Retoma una conversación
+      summary: Consulta el historial de una conversación
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: afterSequence
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 9223372036854775807, default: 0 }
       responses:
         '200':
           description: Mensajes de la conversación
@@ -484,6 +696,10 @@ paths:
       responses:
         '204':
           description: Conversación eliminada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /courses/{courseId}/conversations/{conversationId}/messages:
     parameters:
@@ -495,6 +711,8 @@ paths:
     post:
       tags: [Conversations]
       summary: Envía una pregunta a una conversación existente
+      parameters:
+        - $ref: '#/components/parameters/ChatIdempotencyKey'
       requestBody:
         required: true
         content:
@@ -502,19 +720,27 @@ paths:
             schema:
               $ref: '#/components/schemas/AskRequest'
       responses:
-        '201':
-          description: Respuesta del LLM
+        '202':
+          description: Pregunta aceptada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
+                $ref: '#/components/schemas/ChatAcceptedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Cuota de generación agotada
 
   /courses/{courseId}/exams:
     parameters:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Exams]
-      summary: Lista exámenes pendientes y realizados
+      summary: Lista los exámenes propios
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
       responses:
         '200':
           description: Exámenes
@@ -524,7 +750,12 @@ paths:
                 $ref: '#/components/schemas/ExamSummaryListResponse'
     post:
       tags: [Exams]
-      summary: Genera un examen sobre un tema
+      summary: Encola la generación de un examen
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -532,12 +763,16 @@ paths:
             schema:
               $ref: '#/components/schemas/GenerateExamRequest'
       responses:
-        '201':
-          description: Examen generado
+        '202':
+          description: Generación aceptada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExamResponse'
+                $ref: '#/components/schemas/ExamAcceptedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Cuota de generación agotada
 
   /courses/{courseId}/exams/{examId}:
     parameters:
@@ -554,13 +789,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExamResponse'
 
-  /courses/{courseId}/exams/{examId}/submissions:
+  /courses/{courseId}/exams/{examId}/attempts:
     parameters:
       - $ref: '#/components/parameters/CourseId'
       - $ref: '#/components/parameters/ExamId'
     post:
       tags: [Exams]
-      summary: Envía y evalúa las respuestas de un examen
+      summary: Inicia o recupera el intento vigente
+      responses:
+        '200':
+          description: Intento y resultado disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courses/{courseId}/exams/{examId}/attempts/{attemptId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+      - name: attemptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Exams]
+      summary: Consulta el estado y resultado del intento
+      responses:
+        '200':
+          description: Intento y resultado disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /courses/{courseId}/exams/{examId}/attempts/{attemptId}/submissions:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/ExamId'
+      - name: attemptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Exams]
+      summary: Envía las respuestas y devuelve el resultado
       requestBody:
         required: true
         content:
@@ -569,60 +858,557 @@ paths:
               $ref: '#/components/schemas/SubmitExamRequest'
       responses:
         '200':
-          description: Resultado evaluado con respuestas correctas y fuentes
+          description: Intento y resultado disponible
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
-  /courses/{courseId}/progress:
+  /courses/{courseId}/exams/{examId}/attempts/{attemptId}/answers/{answerId}/review:
     parameters:
       - $ref: '#/components/parameters/CourseId'
-    get:
-      tags: [Learning]
-      summary: Obtiene el progreso del curso
+      - $ref: '#/components/parameters/ExamId'
+      - name: attemptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: answerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Exams]
+      summary: Guarda la autorrevisión de una respuesta de desarrollo
+      description: Repetir la misma nota y feedback devuelve el resultado vigente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevelopmentReviewRequest'
       responses:
         '200':
-          description: Progreso y conceptos dominados
+          description: Intento con el resultado actualizado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CourseProgressResponse'
+                $ref: '#/components/schemas/ExamResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /courses/{courseId}/knowledge-graph:
     parameters:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Learning]
-      summary: Obtiene el grafo de conocimiento del curso
+      summary: Consulta el grafo dirigido de la clase
       responses:
         '200':
-          description: Grafo en formato compatible con Graphology
+          description: Operación completada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/KnowledgeGraphResponse'
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningGraph' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /courses/{courseId}/progress:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Consulta el dominio propio por concepto
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/LearningMastery' } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /courses/{courseId}/concepts:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Learning]
+      summary: Crea un concepto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearningConceptInput' }
+      responses:
+        '201':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningIdentifier' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /courses/{courseId}/concepts/{conceptId}/aliases:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: conceptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Lista los alias
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/LearningAlias' } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Learning]
+      summary: Agrega un alias
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearningAliasInput' }
+      responses:
+        '201':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningAlias' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /courses/{courseId}/concepts/{conceptId}/prerequisites:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: conceptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Learning]
+      summary: Agrega un prerrequisito dirigido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearningPrerequisiteInput' }
+      responses:
+        '201':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningIdentifier' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /courses/{courseId}/learning-goals:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Lista las metas propias
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/LearningGoal' } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Learning]
+      summary: Crea una meta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearningGoalInput' }
+      responses:
+        '201':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningIdentifier' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /courses/{courseId}/learning-goals/{goalId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: goalId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Learning]
+      summary: Completa o archiva una meta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearningGoalStatusInput' }
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningIdentifier' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /courses/{courseId}/learning-goals/{goalId}/roadmaps:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: goalId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Lista las versiones de una ruta
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/LearningRoadmap' } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Learning]
+      summary: Construye o reutiliza una ruta
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningIdentifier' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /courses/{courseId}/learning-goals/{goalId}/roadmaps/{roadmapId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: goalId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: roadmapId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Consulta los pasos de una ruta
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LearningRoadmapDetail' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
+  /courses/{courseId}/study-sessions:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Learning]
+      summary: Lista las sesiones propias
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Learning]
+      summary: Inicia o recupera la sesión abierta
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /courses/{courseId}/study-sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Consulta una sesión propia
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /courses/{courseId}/study-sessions/{sessionId}/heartbeat:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Learning]
+      summary: Registra un pulso de estudio
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /courses/{courseId}/study-sessions/{sessionId}/finish:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Learning]
+      summary: Cierra una sesión de estudio
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySessionResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /courses/{courseId}/materials:
     parameters:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Learning]
-      summary: Lista los materiales generados del curso
+      summary: Lista los materiales propios
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: beforeCreatedAt
+          in: query
+          schema: { type: string, format: date-time }
+        - name: beforeId
+          in: query
+          schema: { type: string, format: uuid }
       responses:
         '200':
-          description: Materiales
+          description: Operación completada
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/GeneratedMaterialListResponse'
+              schema: { $ref: '#/components/schemas/GeneratedMaterialListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /courses/{courseId}/materials/{materialId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - name: materialId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Learning]
+      summary: Consulta un material propio
+      responses:
+        '200':
+          description: Operación completada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeneratedMaterialResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /courses/{courseId}/notifications:
     parameters:
       - $ref: '#/components/parameters/CourseId'
     get:
       tags: [Notifications]
-      summary: Lista notificaciones de eventos del curso
+      summary: Lista las invitaciones pendientes propias para el curso
       responses:
         '200':
           description: Notificaciones
@@ -634,7 +1420,7 @@ paths:
   /notifications:
     get:
       tags: [Notifications]
-      summary: Lista notificaciones del usuario actual
+      summary: Lista las invitaciones pendientes propias
       responses:
         '200':
           description: Notificaciones
@@ -646,7 +1432,7 @@ paths:
   /activity:
     get:
       tags: [Activity]
-      summary: Lista el historial de actividad del usuario
+      summary: Lista los eventos de auditoría propios del usuario
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -654,7 +1440,9 @@ paths:
           in: query
           schema:
             type: string
-            enum: [login, logout, course, invitation, document, llm_query, exam, profile]
+            minLength: 1
+            maxLength: 40
+            pattern: '^[a-z][a-z0-9_]*$'
       responses:
         '200':
           description: Historial de actividades
@@ -670,6 +1458,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ChatIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
     CourseId:
       name: courseId
       in: path
@@ -751,31 +1544,82 @@ components:
           additionalProperties:
             type: string
             enum: [up, down, degraded]
+    AccountEmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+    AccountTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true }
+    PasswordResetRequest:
+      allOf:
+        - $ref: '#/components/schemas/AccountTokenRequest'
+        - type: object
+          required: [password]
+          properties:
+            password: { type: string, format: password, minLength: 8, maxLength: 128, writeOnly: true }
     RegisterRequest:
       type: object
       required: [email, password, displayName]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password, minLength: 8 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 8, maxLength: 128 }
         displayName: { type: string, minLength: 1, maxLength: 100 }
+    RegisterResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, nickname, email, displayName, status]
+          properties:
+            id: { type: string, format: uuid }
+            nickname: { type: string }
+            email: { type: string, format: email }
+            displayName: { type: string }
+            status: { type: string, const: pending }
     LoginRequest:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 8, maxLength: 128 }
     AuthResponse:
       type: object
       required: [data]
       properties:
         data:
           type: object
-          required: [accessToken, tokenType, user]
+          required: [accessToken, tokenType, expiresIn, user]
           properties:
             accessToken: { type: string }
             tokenType: { type: string, enum: [Bearer] }
             expiresIn: { type: integer }
-            user: { $ref: '#/components/schemas/User' }
+            user: { $ref: '#/components/schemas/LoginUser' }
+    LoginUser:
+      type: object
+      required: [id, nickname, email, displayName, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        status: { type: string, enum: [pending, active] }
+        createdAt: { type: string, format: date-time }
+    CurrentUserResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/LoginUser'
+            - type: object
+              required: [emailVerifiedAt]
+              properties:
+                emailVerifiedAt: { type: [string, 'null'], format: date-time }
     User:
       type: object
       required: [id, email, displayName, role, createdAt]
@@ -793,28 +1637,27 @@ components:
         data: { $ref: '#/components/schemas/User' }
     UpdateUserRequest:
       type: object
-      minProperties: 1
+      required: [displayName]
+      additionalProperties: false
       properties:
         displayName: { type: string, minLength: 1, maxLength: 100 }
-        email: { type: string, format: email }
-        avatarUrl: { type: string, format: uri, nullable: true }
-        password: { type: string, format: password, minLength: 8 }
+
     Course:
       type: object
-      required: [id, name, subject, progress, color, icon, nextTopic, lastActivity]
+      required: [id, name, description, objectives, subject, color, icon, status, myRole, ownerId, rowVersion]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
         objectives: { type: string }
         subject: { type: string }
-        progress: { type: number, minimum: 0, maximum: 100 }
         color: { type: string }
         icon: { type: string }
-        nextTopic: { type: string }
-        lastActivity: { type: string }
-        ownerId: { type: string, format: uuid }
-        members: { type: array, items: { $ref: '#/components/schemas/Member' } }
+        status: { type: string, enum: [active, archived] }
+        myRole: { type: string, enum: [coordinator, student] }
+        ownerId: { type: [string, 'null'], format: uuid }
+        rowVersion: { type: integer, minimum: 1 }
+        members: { type: array, items: { $ref: '#/components/schemas/CourseMember' } }
     CourseResponse:
       type: object
       required: [data]
@@ -832,21 +1675,49 @@ components:
       type: object
       required: [name, description, objectives]
       properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
+        name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string }
         objectives: { type: string }
-        subject: { type: string }
-        color: { type: string }
-        icon: { type: string }
+        subject: { type: string, maxLength: 150, default: '' }
+        color: { type: string, enum: [mauve, blue, green, peach, pink, yellow, teal, lavender], default: mauve }
+        icon: { type: string, maxLength: 16, default: '✦' }
     UpdateCourseRequest:
       type: object
-      minProperties: 1
+      required: [rowVersion]
+      minProperties: 2
+      additionalProperties: false
       properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
+        rowVersion: { type: integer, minimum: 1, maximum: 9223372036854775806 }
+        name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string }
         objectives: { type: string }
-        color: { type: string }
-        icon: { type: string }
+        subject: { type: string, maxLength: 150 }
+        color: { type: string, enum: [mauve, blue, green, peach, pink, yellow, teal, lavender] }
+        icon: { type: string, maxLength: 16 }
+    DeletionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [requestId, status]
+          properties:
+            requestId: { type: string, format: uuid }
+            status: { type: string, const: deletion_pending }
+    CourseMember:
+      type: object
+      required: [userId, displayName, role, joinedAt, rowVersion]
+      properties:
+        userId: { type: string, format: uuid }
+        displayName: { type: string }
+        role: { type: string, enum: [coordinator, student] }
+        joinedAt: { type: string, format: date-time }
+        rowVersion: { type: integer, minimum: 1 }
+    CourseMemberListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/CourseMember' } }
     Member:
       type: object
       required: [userId, displayName, role, joinedAt]
@@ -867,29 +1738,35 @@ components:
         data: { type: array, items: { $ref: '#/components/schemas/Member' } }
     UpdateMemberRequest:
       type: object
-      required: [role]
+      required: [role, rowVersion]
       properties:
-        role: { type: string, enum: [admin, editor, member] }
+        role: { type: string, enum: [coordinator, student] }
+        status: { type: string, enum: [active, removed], default: active }
+        rowVersion: { type: integer, minimum: 1 }
     InviteRequest:
       type: object
       required: [email]
       properties:
-        email: { type: string, format: email }
+        email: { type: string, format: email, maxLength: 254 }
     Invitation:
       type: object
-      required: [id, courseId, courseName, email, status, createdAt]
+      required: [id, courseId, courseName, createdAt, expiresAt]
       properties:
         id: { type: string, format: uuid }
         courseId: { type: string, format: uuid }
         courseName: { type: string }
-        email: { type: string, format: email }
-        status: { type: string, enum: [pending, accepted, rejected, expired] }
         createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
     InvitationResponse:
       type: object
       required: [data]
       properties:
-        data: { $ref: '#/components/schemas/Invitation' }
+        data:
+          type: object
+          required: [courseId, status]
+          properties:
+            courseId: { type: string, format: uuid }
+            status: { type: string, enum: [accepted, declined] }
     InvitationListResponse:
       type: object
       required: [data]
@@ -914,26 +1791,66 @@ components:
         uploadedBy: { $ref: '#/components/schemas/Member' }
         uploadedAt: { type: string, format: date-time }
         processedAt: { type: string, format: date-time, nullable: true }
+    DocumentMetadata:
+      type: object
+      required: [id, courseId, name, title, size, mimeType, status, uploadedById, uploadedAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string }
+        size: { type: integer }
+        mimeType: { type: string }
+        status: { type: string, enum: [queued, processing, ready, failed] }
+        uploadedById: { type: string, format: uuid }
+        uploadedAt: { type: string, format: date-time }
     DocumentResponse:
       type: object
       required: [data]
       properties:
-        data: { $ref: '#/components/schemas/Document' }
+        data: { $ref: '#/components/schemas/DocumentMetadata' }
     DocumentListResponse:
       type: object
       required: [data]
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/Document' } }
+    DocumentPageResponse:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DocumentMetadata' }
+        nextCursor:
+          type: [object, 'null']
+          required: [afterCreatedAt, afterId]
+          properties:
+            afterCreatedAt: { type: string, format: date-time }
+            afterId: { type: string, format: uuid }
+    DocumentUploadResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [documentId, jobId, duplicate]
+            properties:
+              documentId: { type: [string, 'null'], format: uuid }
+              jobId: { type: [string, 'null'], format: uuid }
+              duplicate: { type: boolean }
     DocumentStatusResponse:
       type: object
       required: [data]
       properties:
         data:
           type: object
-          required: [documentId, status]
+          required: [documentId, status, errorCode]
           properties:
             documentId: { type: string, format: uuid }
             status: { type: string, enum: [queued, processing, ready, failed] }
+            errorCode: { type: [string, 'null'] }
             progress: { type: integer, minimum: 0, maximum: 100 }
             errorMessage: { type: string, nullable: true }
     SourceDocument:
@@ -945,77 +1862,99 @@ components:
         relevance: { type: number, minimum: 0, maximum: 1 }
     Message:
       type: object
-      required: [id, role, content, createdAt]
+      required: [id, role, content, sequence, status, inReplyTo, generationId, createdAt]
       properties:
         id: { type: string, format: uuid }
         role: { type: string, enum: [user, assistant] }
         content: { type: string }
+        sequence: { type: integer }
+        status: { type: string, enum: [completed, redacted] }
+        inReplyTo: { type: [string, 'null'], format: uuid }
+        generationId: { type: [string, 'null'], format: uuid }
         createdAt: { type: string, format: date-time }
-        usedDocuments: { type: boolean }
-        sourceDocuments: { type: array, items: { $ref: '#/components/schemas/SourceDocument' } }
-    MessageResponse:
-      type: object
-      required: [data]
-      properties:
-        data: { $ref: '#/components/schemas/Message' }
     Conversation:
       type: object
-      required: [id, courseId, title, messages, createdAt, updatedAt]
+      required: [id, courseId, title, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         courseId: { type: string, format: uuid }
         title: { type: string }
-        messages: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     ConversationResponse:
       type: object
-      required: [data]
+      required: [data, messages, nextAfterSequence]
       properties:
         data: { $ref: '#/components/schemas/Conversation' }
+        messages: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        nextAfterSequence: { type: [integer, 'null'] }
     ConversationListResponse:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+        nextCursor:
+          type: [object, 'null']
+          required: [beforeUpdatedAt, beforeId]
+          properties:
+            beforeUpdatedAt: { type: string, format: date-time }
+            beforeId: { type: string, format: uuid }
+    ChatAcceptedResponse:
       type: object
       required: [data]
       properties:
-        data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+        data:
+          type: object
+          required: [conversationId, messageId, generationId, jobId]
+          properties:
+            conversationId: { type: string, format: uuid }
+            messageId: { type: string, format: uuid }
+            generationId: { type: string, format: uuid }
+            jobId: { type: string, format: uuid }
     AskRequest:
       type: object
       required: [question]
       properties:
-        question: { type: string, minLength: 1 }
+        question: { type: string, minLength: 1, maxLength: 20000 }
         includeDocuments: { type: boolean, default: true }
     ExamSummary:
       type: object
-      required: [id, courseId, title, topics, durationMinutes, questionCount, status]
+      required: [id, generationId, title, kind, status, durationSeconds, publishedAt, questionCount]
       properties:
         id: { type: string, format: uuid }
-        courseId: { type: string, format: uuid }
+        generationId: { type: string, format: uuid }
         title: { type: string }
-        type: { type: string }
-        topics: { type: array, items: { type: string } }
-        scheduledAt: { type: string, format: date-time, nullable: true }
-        durationMinutes: { type: integer, minimum: 1 }
-        questionCount: { type: integer, minimum: 1 }
-        status: { type: string, enum: [upcoming, available, completed] }
-        score: { type: number, minimum: 0, maximum: 100, nullable: true }
+        kind: { type: string, enum: [diagnostic, practice] }
+        status: { type: string, enum: [ready, invalidated] }
+        durationSeconds: { type: integer, minimum: 60, maximum: 7200 }
+        publishedAt: { type: string, format: date-time }
+        questionCount: { type: integer, minimum: 0, maximum: 20 }
     ExamQuestion:
       type: object
-      required: [id, type, topic, prompt]
+      required: [id, position, kind, prompt, maxPoints, options]
       properties:
         id: { type: string, format: uuid }
-        type: { type: string, enum: [alternatives, multiple, development, true-false] }
-        topic: { type: string }
+        position: { type: integer }
+        kind: { type: string, enum: [alternatives, multiple, development, true_false] }
         prompt: { type: string }
-        options: { type: array, items: { type: string } }
+        maxPoints: { type: string }
+        options:
+          type: array
+          items:
+            type: object
+            required: [id, position, text]
+            properties:
+              id: { type: string, format: uuid }
+              position: { type: integer }
+              text: { type: string }
     Exam:
-      type: object
-      required: [id, courseId, title, durationMinutes, questions]
-      properties:
-        id: { type: string, format: uuid }
-        courseId: { type: string, format: uuid }
-        title: { type: string }
-        durationMinutes: { type: integer, minimum: 1 }
-        questions: { type: array, items: { $ref: '#/components/schemas/ExamQuestion' } }
+      allOf:
+        - $ref: '#/components/schemas/ExamSummary'
+        - type: object
+          required: [questions]
+          properties:
+            questions: { type: array, items: { $ref: '#/components/schemas/ExamQuestion' } }
     ExamResponse:
       type: object
       required: [data]
@@ -1026,15 +1965,27 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/ExamSummary' } }
+    ExamAcceptedResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [generationId, jobId]
+          properties:
+            generationId: { type: string, format: uuid }
+            jobId: { type: string, format: uuid }
     GenerateExamRequest:
       type: object
       required: [topic, questionCount]
       properties:
-        topic: { type: string, minLength: 1 }
-        questionCount: { type: integer, minimum: 1, maximum: 50 }
-        durationMinutes: { type: integer, minimum: 1, default: 30 }
+        topic: { type: string, minLength: 1, maxLength: 255 }
+        questionCount: { type: integer, minimum: 1, maximum: 20 }
+        durationMinutes: { type: integer, minimum: 1, maximum: 120, default: 30 }
         questionTypes:
-          type: array
+          type: [array, 'null']
+          minItems: 1
+          maxItems: 4
           items: { type: string, enum: [alternatives, multiple, development, true-false] }
     SubmitExamRequest:
       type: object
@@ -1042,87 +1993,236 @@ components:
       properties:
         answers:
           type: array
+          maxItems: 20
           items:
             type: object
-            required: [questionId, answer]
+            required: [questionId]
             properties:
               questionId: { type: string, format: uuid }
-              answer: { type: string }
+              selectedOptionIds:
+                type: array
+                maxItems: 6
+                items: { type: string, format: uuid }
+              textAnswer: { type: [string, 'null'], maxLength: 20000 }
+    DevelopmentReviewRequest:
+      type: object
+      required: [points, feedback]
+      properties:
+        points:
+          description: Nota entre cero y el máximo de la pregunta, con hasta cinco decimales.
+          anyOf:
+            - type: number
+              minimum: 0
+              maximum: 999.99999
+            - type: string
+        feedback: { type: string, minLength: 1, maxLength: 10000 }
     ExamResult:
       type: object
-      required: [examId, score, answers]
+      required: [id, examId, attemptNo, status, startedAt, deadlineAt, submittedAt, gradedAt, scorePercent, answers]
       properties:
+        id: { type: string, format: uuid }
         examId: { type: string, format: uuid }
-        score: { type: number, minimum: 0, maximum: 100 }
+        attemptNo: { type: integer }
+        status: { type: string, enum: [in_progress, expired, graded, needs_review, invalidated] }
+        startedAt: { type: string, format: date-time }
+        deadlineAt: { type: string, format: date-time }
+        submittedAt: { type: [string, 'null'], format: date-time }
+        gradedAt: { type: [string, 'null'], format: date-time }
+        scorePercent: { type: [string, 'null'] }
         answers:
           type: array
           items:
             type: object
-            required: [questionId, answer, correct]
+            required: [answerId, questionId, selectedOptionIds, textAnswer, points, feedback, gradeStatus, gradeMethod]
             properties:
+              answerId: { type: string, format: uuid }
               questionId: { type: string, format: uuid }
-              answer: { type: string }
-              correctAnswer: { type: string }
-              correct: { type: boolean }
-              explanation: { type: string }
-              usedDocuments: { type: boolean }
-              sourceDocuments: { type: array, items: { $ref: '#/components/schemas/SourceDocument' } }
+              selectedOptionIds:
+                type: array
+                items: { type: string, format: uuid }
+              textAnswer: { type: [string, 'null'] }
+              points: { type: [string, 'null'] }
+              feedback: { type: [string, 'null'] }
+              gradeStatus: { type: string }
+              gradeMethod: { type: [string, 'null'] }
     ExamResultResponse:
       type: object
       required: [data]
       properties:
         data: { $ref: '#/components/schemas/ExamResult' }
-    GenerateMaterial:
+    StudySession:
       type: object
-      required: [id, courseId, title, type, createdAt]
+      required: [id, courseId, startedAt, lastHeartbeatAt, endedAt, activeSeconds]
       properties:
         id: { type: string, format: uuid }
         courseId: { type: string, format: uuid }
+        startedAt: { type: string, format: date-time }
+        lastHeartbeatAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        activeSeconds: { type: integer, minimum: 0 }
+    StudySessionResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/StudySession' }
+    StudySessionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/StudySession' } }
+    GeneratedMaterialSummary:
+      type: object
+      required: [id, courseId, generationId, title, type, status, schemaVersion, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        generationId: { type: string, format: uuid }
         title: { type: string }
-        type: { type: string }
-        content: { type: string }
+        type: { type: string, enum: [summary, flashcards, explanation] }
+        status: { type: string, enum: [active, invalidated, redacted] }
+        schemaVersion: { type: integer, minimum: 1 }
         createdAt: { type: string, format: date-time }
     GeneratedMaterialListResponse:
       type: object
-      required: [data]
+      required: [data, nextCursor]
       properties:
-        data: { type: array, items: { $ref: '#/components/schemas/GenerateMaterial' } }
-    CourseProgress:
-      type: object
-      required: [courseId, progress, masteredConcepts]
-      properties:
-        courseId: { type: string, format: uuid }
-        progress: { type: number, minimum: 0, maximum: 100 }
-        masteredConcepts: { type: integer, minimum: 0 }
-        masteredConceptsChange: { type: number }
-        nextTopic: { type: string }
-    CourseProgressResponse:
-      type: object
-      required: [data]
-      properties:
-        data: { $ref: '#/components/schemas/CourseProgress' }
-    KnowledgeGraphResponse:
+        data: { type: array, items: { $ref: '#/components/schemas/GeneratedMaterialSummary' } }
+        nextCursor:
+          type: [object, 'null']
+          required: [beforeCreatedAt, beforeId]
+          properties:
+            beforeCreatedAt: { type: string, format: date-time }
+            beforeId: { type: string, format: uuid }
+    GeneratedMaterialResponse:
       type: object
       required: [data]
       properties:
         data:
-          type: object
-          required: [nodes, edges]
-          properties:
-            attributes: { type: object, additionalProperties: true }
-            nodes: { type: array, items: { type: object, additionalProperties: true } }
-            edges: { type: array, items: { type: object, additionalProperties: true } }
-    Notification:
+          allOf:
+            - $ref: '#/components/schemas/GeneratedMaterialSummary'
+            - type: object
+              required: [content]
+              properties:
+                content: { type: object, additionalProperties: true }
+    LearningIdentifier:
       type: object
-      required: [id, type, title, message, read, createdAt]
+      required: [id]
       properties:
         id: { type: string, format: uuid }
-        courseId: { type: string, format: uuid, nullable: true }
-        type: { type: string }
+    LearningConcept:
+      type: object
+      required: [id, label, description]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string }
+        description: { type: string }
+    LearningAlias:
+      type: object
+      required: [alias, normalizedAlias]
+      properties:
+        alias: { type: string }
+        normalizedAlias: { type: string }
+    LearningGraphNode:
+      type: object
+      required: [key, attributes]
+      properties:
+        key: { type: string, format: uuid }
+        attributes: { $ref: '#/components/schemas/LearningConcept' }
+    LearningGraphEdge:
+      type: object
+      required: [key, source, target]
+      properties:
+        key: { type: string, format: uuid }
+        source: { type: string, format: uuid }
+        target: { type: string, format: uuid }
+    LearningGraph:
+      type: object
+      required: [nodes, edges]
+      properties:
+        nodes: { type: array, items: { $ref: '#/components/schemas/LearningGraphNode' } }
+        edges: { type: array, items: { $ref: '#/components/schemas/LearningGraphEdge' } }
+    LearningMastery:
+      type: object
+      required: [conceptId, label, evidenceCount, score, level]
+      properties:
+        conceptId: { type: string, format: uuid }
+        label: { type: string }
+        evidenceCount: { type: integer }
+        score: { type: number }
+        level: { type: string }
+    LearningGoal:
+      type: object
+      required: [id, title, status, targetDate, conceptIds, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { type: string }
+        targetDate: { type: [string, 'null'], format: date }
+        conceptIds: { type: array, items: { type: string, format: uuid } }
+        createdAt: { type: string, format: date-time }
+    LearningRoadmap:
+      type: object
+      required: [id, versionNo, graphRevision, algorithmVersion, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        versionNo: { type: integer }
+        graphRevision: { type: integer }
+        algorithmVersion: { type: string }
+        createdAt: { type: string, format: date-time }
+    LearningRoadmapStep:
+      type: object
+      required: [conceptId, position, label, masteryLevel]
+      properties:
+        conceptId: { type: string, format: uuid }
+        position: { type: integer }
+        label: { type: string }
+        masteryLevel: { type: string }
+    LearningConceptInput:
+      type: object
+      required: [label]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, default: '' }
+    LearningAliasInput:
+      type: object
+      required: [alias]
+      properties:
+        alias: { type: string, minLength: 1, maxLength: 255 }
+    LearningPrerequisiteInput:
+      type: object
+      required: [prerequisiteId]
+      properties:
+        prerequisiteId: { type: string, format: uuid }
+    LearningGoalInput:
+      type: object
+      required: [title, conceptIds]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 255 }
+        conceptIds: { type: array, minItems: 1, maxItems: 100, items: { type: string, format: uuid } }
+        targetDate: { type: [string, 'null'], format: date }
+    LearningGoalStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [completed, archived] }
+    LearningRoadmapDetail:
+      allOf:
+        - $ref: '#/components/schemas/LearningRoadmap'
+        - type: object
+          required: [steps]
+          properties:
+            steps: { type: array, items: { $ref: '#/components/schemas/LearningRoadmapStep' } }
+    Notification:
+      type: object
+      required: [id, courseId, type, title, message, createdAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        courseId: { type: string, format: uuid }
+        type: { type: string, const: course_invitation }
         title: { type: string }
         message: { type: string }
-        read: { type: boolean }
         createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
     NotificationListResponse:
       type: object
       required: [data]
@@ -1130,17 +2230,17 @@ components:
         data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
     Activity:
       type: object
-      required: [id, type, description, createdAt]
+      required: [id, courseId, action, type, result, createdAt]
       properties:
         id: { type: string, format: uuid }
+        courseId: { type: [string, 'null'], format: uuid }
+        action: { type: string }
         type: { type: string }
-        description: { type: string }
-        courseId: { type: string, format: uuid, nullable: true }
-        metadata: { type: object, additionalProperties: true }
+        result: { type: string, enum: [success, denied, error] }
         createdAt: { type: string, format: date-time }
     ActivityListResponse:
       type: object
-      required: [data]
+      required: [data, meta]
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/Activity' } }
         meta: { $ref: '#/components/schemas/Pagination' }
@@ -1150,18 +2250,22 @@ components:
       properties:
         data:
           type: object
-          required: [studyHours, studyHoursPeriod, studyHoursByDay, streakDays, masteredConcepts, roadmapStep, roadmapTotal, nextSessionMinutes]
+          required: [studyHours, studyHoursPeriod, studyHoursByDay, studyByDay, pendingInvitations]
           properties:
             studyHours: { type: number, minimum: 0 }
-            studyHoursPeriod: { type: string }
+            studyHoursPeriod: { type: string, const: last7DaysUtc }
             studyHoursByDay: { type: array, minItems: 7, maxItems: 7, items: { type: number, minimum: 0 } }
-            streakDays: { type: integer, minimum: 0 }
-            masteredConcepts: { type: integer, minimum: 0 }
-            masteredConceptsChange: { type: number }
-            roadmapStep: { type: integer, minimum: 0 }
-            roadmapTotal: { type: integer, minimum: 0 }
-            nextSessionMinutes: { type: integer, minimum: 0 }
-            nextCourseId: { type: string, format: uuid, nullable: true }
+            studyByDay:
+              type: array
+              minItems: 7
+              maxItems: 7
+              items:
+                type: object
+                required: [date, seconds]
+                properties:
+                  date: { type: string, format: date }
+                  seconds: { type: integer, minimum: 0 }
+            pendingInvitations: { type: integer, minimum: 0 }
     Pagination:
       type: object
       properties:

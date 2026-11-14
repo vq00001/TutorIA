@@ -1,0 +1,11 @@
+*
+!pyproject.toml
+!/*.py
+!db/
+!db/**
+!routes/
+!routes/**
+!tests/
+!tests/**
+**/__pycache__/
+**/*.pyc

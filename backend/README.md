@@ -1,123 +1,515 @@
-# Backend de RAG local con Ollama y Qdrant
+# Backend de TutorIA
 
-Pipeline de **Retrieval-Augmented Generation (RAG)** para procesar documentos,
-guardarlos como vectores en Qdrant y consultarlos usando modelos locales de
-Ollama.
+La persistencia se organiza en [db/](db/). El prototipo de procesamiento permite previsualizar documentos mientras se conecta la ingestión y la búsqueda a PostgreSQL.
 
-## Requisitos
-
-- [Docker](https://docs.docker.com/get-docker/) y Docker Compose
-- [uv](https://docs.astral.sh/uv/)
-- `make`
-
-## Puesta en marcha
-
-1. Instala `uv` si todavía no lo tienes:
-
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-2. Crea el archivo de configuración local:
-
-   ```bash
-   cp ../.env.example ../.env
-   ```
-
-3. Levanta Qdrant y Ollama:
-
-   ```bash
-   docker compose up --build
-   ```
-
-   La primera ejecución puede tardar porque Ollama descarga los modelos
-   `qwen3:1.7b` y `all-minilm`.
-
-4. En otra terminal, instala las dependencias del proyecto:
-
-   ```bash
-   make install
-   ```
-
-## Uso
-
-### Previsualizar documentos
-
-Muestra los chunks que se generarían sin conectarse a los servicios:
-
-```bash
-make preview DOCS=docs
+```text
+backend/
+├── db/
+│   ├── connection.py        # Transacciones y contexto del usuario
+│   ├── initialize.py        # Prepara la extensión y los módulos
+│   └── users.py             # Tabla y consulta del perfil propio
+├── API/                     # Contrato OpenAPI
+└── experiments/             # Calibración y datos de evaluación
 ```
 
-### Ingestar documentos
+## Base de datos local
 
-Procesa los documentos, genera embeddings y los guarda en Qdrant:
-
-```bash
-make ingest DOCS=docs
-```
-
-Se admiten `.txt`, `.md`, `.markdown` y `.pdf`. Los PDF con texto extraíble
-se convierten a Markdown antes de entrar al pipeline; los PDF escaneados aún no
-se procesan porque todavía no hay OCR.
-
-Para generar contexto adicional con el modelo LLM, activa la flag opcional:
+Desde la raíz del proyecto:
 
 ```bash
-make ingest DOCS=docs CONTEXT=1
+docker compose up -d --build db db-init
+docker compose wait db-init
 ```
 
-### Buscar información
+Compose inicia PostgreSQL. El servicio `db-init` crea los roles locales que falten, habilita pgvector e instala el esquema `app`. Los roles existentes conservan su contraseña. La API puede leer el perfil del usuario asociado a la transacción. El hash de contraseña queda fuera de los permisos de lectura de la API.
 
-Recupera los documentos más relevantes:
+Usa un volumen nuevo para instalar el esquema desde cero. Volver a levantar Compose reutiliza un esquema ya creado por este instalador. La conexión local predeterminada está en `.env.example`. Configura `DATABASE_URL` con el rol de aplicación y usa `backend.db.connection.transaction(user_id)` para consultar con el contexto del usuario.
+
+## Previsualizar documentos
+
+Desde la raíz, instala el entorno del backend y ejecuta:
 
 ```bash
-make search QUERY="tu pregunta"
+make -C backend install
+make -C backend preview DOCS=/ruta/al/documento.md
 ```
 
-Genera también una respuesta usando el contexto recuperado:
+La ingestión y la búsqueda se conectarán a PostgreSQL en cambios posteriores.
+
+## Pruebas
+
+Desde la raíz, con Docker y Compose disponibles:
 
 ```bash
-make search QUERY="tu pregunta" ANSWER=1
+docker compose --profile test build test-db-init backend-test
+docker compose run --rm backend-test
 ```
 
-## Comandos disponibles
+Compose inicia `test-db` con almacenamiento temporal y sin publicar un puerto. Espera a que `test-db-init` prepare el esquema y ejecuta pytest dentro del contenedor. La base de desarrollo usa su propio volumen. Las pruebas de PostgreSQL usan datos sintéticos y revierten sus transacciones. Si falla el arranque, consulta `docker compose --profile test logs test-db test-db-init`. Para detener la base de pruebas y liberar su almacenamiento, usa `docker compose --profile test stop test-db`.
 
-Ejecuta `make help` para ver todos los comandos:
+Para ejecutar las pruebas unitarias directamente en el equipo, instala las dependencias y usa `make -C backend test`. Si quieres incluir PostgreSQL en esa ejecución local, configura `TUTORIA_TEST_ADMIN_URL` con la URL del administrador de una base de desarrollo inicializada.
 
-| Comando | Descripción |
-| --- | --- |
-| `make install` | Instala dependencias de desarrollo y producción |
-| `make prod` | Instala solo dependencias de producción |
-| `make sync` | Sincroniza el entorno usando `uv.lock` |
-| `make lint` | Ejecuta Ruff |
-| `make format` | Formatea el código |
-| `make test` | Ejecuta los tests |
-| `make evaluate` | Evalúa los thresholds de recuperación |
-| `make evaluate-limit` | Compara valores de `LIMIT_QUERY` |
-| `make calibrate` | Calibra `TOKEN_ESTIMATE_RATIO` |
 
-## Configuración
+## Registro de usuarios
 
-La configuración se define en el `.env` de la raíz del repositorio. Consulta
-[`.env.example`](../.env.example) para ver todas las opciones disponibles,
-incluyendo:
-
-- URLs y puertos de Ollama y Qdrant.
-- Modelos de lenguaje y embeddings.
-- Tamaño de los chunks y solapamiento.
-- Límite de resultados y umbral de similitud.
-
-## Detener los servicios
-
-Para detener los contenedores sin eliminar los datos:
+Configura `DATABASE_URL` con el rol de la API. Si todavía no tienes `.env`, puedes copiar
+`.env.example`. Con PostgreSQL iniciado y `db-init` completado, ejecuta desde la raíz:
 
 ```bash
-docker compose down
+uv run --project backend uvicorn backend.http_api:app
 ```
 
-Para eliminar también los volúmenes persistentes de Ollama y Qdrant:
+El endpoint `POST /api/v1/auth/register` recibe `email`, `password` y `displayName`.
+Devuelve la cuenta pendiente con un nickname asignado. Un correo repetido devuelve
+`409`. La contraseña se guarda con Argon2id y la respuesta solo contiene los datos
+de la cuenta. Para habilitar el registro en una base ya creada, reconstruye y
+ejecuta el inicializador con `docker compose up -d --build db db-init` y espera con
+`docker compose wait db-init`.
+
+## Inicio de sesión
+
+`POST /api/v1/auth/login` recibe `email` y `password`. Las cuentas pendientes y
+activas pueden autenticarse. Las cuentas pendientes conservan su estado para el
+flujo de verificación de correo. La respuesta incluye un token Bearer válido
+durante una hora y PostgreSQL guarda solamente su hash. Las cuentas suspendidas
+o pendientes de borrado reciben el mismo `401` que las credenciales incorrectas.
+
+Reconstruye y ejecuta `db-init` para crear la tabla de sesiones y los permisos
+sobre una base ya iniciada.
+
+## Perfil propio y cierre de sesión
+
+Envía el token devuelto por el inicio de sesión en `Authorization: Bearer <token>`.
+
+- `GET /api/v1/users/me` devuelve el perfil asociado a la sesión y la fecha de verificación del correo, si existe.
+- `POST /api/v1/auth/logout` revoca la sesión usada y responde `204`. Los demás tokens de esa cuenta siguen vigentes.
+- Un token desconocido, caducado o revocado, o una cuenta suspendida o pendiente de borrado, recibe `401`.
+
+Reconstruye y vuelve a ejecutar `db-init` para instalar estas operaciones sobre una base ya creada.
+
+## Verificación de correo y recuperación de contraseña
+
+`db/account_tokens.py` ofrece las operaciones de persistencia. El inicializador
+crea la tabla y sus permisos al volver a ejecutar `db-init`.
+
+- `issue_account_token(conn, email, purpose)` reemplaza el token anterior del
+  mismo propósito. Devuelve el token al servicio que se encargue de enviarlo.
+  Confirma la transacción antes del envío. PostgreSQL guarda solo el hash.
+- `verify_email(conn, token)` activa una cuenta pendiente. El token dura 24 horas.
+- `reset_password(conn, token, password_hash)` acepta un hash Argon2id, consume el
+  token de 30 minutos y elimina todas las sesiones de la cuenta.
+
+El envío de correo y las rutas HTTP quedan fuera de este bloque. Al integrarlos,
+la solicitud de un token debe responder igual exista o no una cuenta para el correo.
+
+## Clases y membresías
+
+`db/courses.py` instala las clases y su relación N:M con los usuarios. Una cuenta
+activa puede crear una clase y queda como coordinadora en la misma transacción.
+Los miembros activos consultan sus clases y los datos públicos del resto del
+curso. Solo la coordinación puede editar la clase o modificar membresías. Los
+cambios de configuración y membresía requieren la versión de la fila que se leyó.
+Una clase activa o archivada conserva al menos una membresía coordinadora activa.
+
+Usa estos repositorios dentro de `transaction(user_id)`. Reconstruye y ejecuta
+`db-init` para instalar el módulo en una base ya iniciada. Los roles persistidos
+siguen el ZIP original, `student` y `coordinator`. La integración HTTP, las
+invitaciones y el borrado físico quedan para sus propios cambios.
+
+## Invitaciones directas
+
+`db/invitations.py` permite a la coordinación invitar por correo a una cuenta
+activa. La operación responde igual si el correo no existe, no es elegible o ya
+pertenece a la clase. Las invitaciones duran siete días. Repetir una invitación
+vigente conserva su ID y su vencimiento.
+
+La cuenta destinataria puede listar sus invitaciones pendientes y aceptarlas o
+rechazarlas. Aceptar crea o reactiva su membresía como `student` en la misma
+transacción, respetando el rol si ya tiene una membresía activa. Renovar una
+invitación vencida o rechazada genera otro ID.
+
+Usa estos repositorios dentro de `transaction(user_id)` y vuelve a ejecutar
+`db-init` para instalar el módulo. Las rutas HTTP y las notificaciones se
+integrarán por separado.
+
+## Documentos
+
+`db/documents.py` adapta las tablas de documentos, metadatos del archivo y
+contenido del ZIP. `register_upload` guarda el archivo original en PostgreSQL y
+calcula SHA-256 sobre sus bytes. Si la clase ya tiene ese hash, emite
+`DuplicateDocumentWarning` y devuelve `None`. Un archivo con bytes distintos
+se registra como otro documento, incluso si tiene el mismo nombre. La fila
+inicial de `document_versions` sirve al procesamiento interno.
+
+`list_documents` lista los metadatos visibles para los miembros de la clase,
+con cursor por fecha e identificador. Las cargas se permiten en clases activas.
+El listado también funciona en clases archivadas. Usa ambos repositorios dentro
+de `transaction(user_id)` y vuelve a ejecutar `db-init` para instalar el módulo.
+`download_document` devuelve los bytes originales y los metadatos de descarga
+a los miembros activos de una clase visible. El archivo está disponible desde
+la carga. Los documentos retirados o archivos purgados quedan fuera.
+
+`delete_document` permite a quien subió el archivo o a la coordinación borrar
+el documento de una clase activa. La operación elimina el archivo y sus metadatos,
+libera el hash y actualiza la revisión del corpus en la misma transacción.
+Las clases archivadas se mantienen en modo lectura. El borrado también elimina
+los derivados de procesamiento. Las operaciones de documentos se exponen como
+repositorios de base de datos.
+
+## Procesamiento y embeddings
+
+`db/processing.py` reutiliza las ejecuciones, fragmentos y espacios de
+embeddings del ZIP. El administrador registra el espacio con
+`register_embedding_space`. El worker usa `transaction(user_id)` con una cuenta
+activa de la clase y llama a `start_processing`, `get_processing_source` y
+`publish_processing`, o a `fail_processing` si falla el procesamiento.
+
+El resultado incluye el texto extraído exacto. Los hijos usan intervalos
+`[inicio, fin)` de caracteres Unicode dentro de ese texto. PostgreSQL comprueba
+que el intervalo reproduce el hijo y que cada vector normalizado tiene la
+dimensión del espacio. Publicar guarda padres, hijos y vectores juntos. Un
+fallo de reprocesamiento conserva el resultado ya publicado.
+
+El borrado del documento elimina también sus ejecuciones, fragmentos y vectores.
+Vuelve a ejecutar `db-init` para instalar el módulo en una base existente.
+La extracción y las llamadas al modelo se integran desde el proceso externo.
+
+## Búsqueda vectorial
+
+`db/vector_search.py` ofrece `search_course_chunks(conn, course_id,
+embedding_space_id, vector, limit=4, threshold=0.5)`. Úsala dentro de
+`transaction(user_id)` con el rol de la API. El vector debe corresponder al
+espacio de embeddings indicado y la consulta se limita a las ejecuciones
+publicadas de los documentos visibles en la clase.
+
+La búsqueda calcula similitud coseno exacta, elige el mejor hijo por padre y
+aplica el límite sobre los padres. Cada resultado incluye el texto del padre
+que sirve de contexto, el hijo ganador y sus offsets Unicode `[inicio, fin)`,
+junto con los IDs del documento, la ejecución y el espacio. Los empates se
+resuelven por identificador. Vuelve a ejecutar `db-init` para instalarla en
+una base existente. La API HTTP y el registro de fuentes de una generación
+quedan para sus respectivos módulos.
+
+## Registro de generaciones
+
+`db/generations.py` separa la ejecución, cada solicitud al modelo y sus fuentes
+ordenadas. Usa `start_generation` y `record_generation_request` dentro de
+`transaction(user_id)` con el rol de la API. Pasa los mismos bytes UTF-8 que
+usará el cliente HTTP para enviar el JSON de chat. El registro conserva
+espacios, escapes y orden de claves. Confirma la transacción antes del envío
+para conservar el intento aunque falle la llamada.
+
+Pasa las fuentes que se incorporaron al mensaje, con los campos devueltos por
+`search_course_chunks`.
+PostgreSQL comprueba la clase, la ejecución publicada, la relación padre/hijo,
+el espacio y los offsets. El propietario puede consultar su registro con
+`get_generation_request`. Si se borra un embedding utilizado, se invalida la
+generación y se eliminan sus solicitudes, que pueden contener texto del documento.
+Vuelve a ejecutar `db-init` para instalar el módulo. El cliente del modelo y
+las rutas HTTP se integrarán por separado.
+
+## Conversaciones y mensajes
+
+`db/conversations.py` conserva historiales privados por usuario y clase.
+Usa `create_conversation`, `list_conversations` y `list_messages` dentro de
+`transaction(user_id)`. Los mensajes se ordenan por secuencia, incluso si llegan
+varias escrituras a la vez. Las clases archivadas permiten leer el historial.
+
+`append_user_message` guarda las partes estructuradas de la pregunta.
+`append_assistant_message` requiere esa pregunta y una generación de chat de
+la misma cuenta y clase con una solicitud registrada. Guardar la respuesta
+completa la generación en la misma transacción. Si se invalida la generación
+al borrar una fuente, PostgreSQL retira el contenido de la respuesta y conserva
+su lugar en el historial.
+
+Vuelve a ejecutar `db-init` para instalar el módulo. Las rutas HTTP y el cliente
+del modelo se integrarán por separado.
+
+## Citas de respuestas
+
+`db/citations.py` ofrece `append_cited_assistant_message` para guardar una
+respuesta y sus citas en una sola transacción. Indica el ID de la solicitud al
+modelo que produjo la respuesta. Cada cita identifica una fuente por su
+`rank` dentro de esa solicitud. Las respuestas sin citas pueden seguir usando
+`append_assistant_message`.
+
+`list_message_citations` devuelve las citas en el orden registrado, con los
+IDs del padre y del hijo y sus offsets `[inicio, fin)`, tomados directamente
+de la fuente. Si la fuente se elimina, queda un marcador `source_removed`
+sin el enlace ni los offsets. El historial sigue siendo privado para su
+propietario. Vuelve a ejecutar `db-init` para instalar el módulo.
+
+## Materiales generados
+
+`db/generated_materials.py` guarda resúmenes, tarjetas y explicaciones como
+resultados de una generación con una solicitud registrada. Cada material tiene
+un título, un tipo, un objeto JSON y una versión positiva del formato.
+`store_generated_materials` guarda el lote en una transacción. Al reintentar,
+conserva los IDs de los materiales para evitar duplicados.
+
+`list_generated_materials` y `get_generated_material` consultan los materiales
+del propietario de la generación en la clase indicada. Si se invalida la
+generación, PostgreSQL sustituye el título por «Contenido retirado» y limpia el
+contenido, conservando el vínculo y la versión del esquema. El módulo se
+instala al volver a ejecutar `db-init`.
+
+## Exámenes generados
+
+`db/exams.py` conserva exámenes diagnósticos y de práctica, preguntas
+ordenadas, opciones y claves de corrección en tablas separadas. Una generación
+de tipo `exam` con una solicitud registrada puede publicar un examen.
+`publish_exam` guarda todas las filas y completa la generación en una
+transacción. Los índices correctos se indican desde cero, como en el ZIP.
+Las preguntas de desarrollo guardan una respuesta esperada y una rúbrica.
+
+`list_exams` y `list_exam_questions` leen el examen y sus opciones para el
+propietario. Las claves correctas y explicaciones quedan fuera de los permisos
+de la API y del worker. Si se invalida la generación, PostgreSQL retira el
+contenido de las preguntas y las claves. Vuelve a ejecutar `db-init` para
+instalar el módulo. Las rutas HTTP se integrarán por separado.
+
+### Fuentes por pregunta
+
+Al publicar un examen con fuentes, pasa a `publish_exam` el `request_id` de
+la solicitud usada y entre uno y cuatro `source_ranks` por pregunta, en el
+orden en que deben mostrarse. PostgreSQL verifica que los rangos sean únicos
+por pregunta y correspondan a documentos con procesamiento vigente en la
+solicitud de esa generación. La publicación de exámenes sin fuentes sigue
+disponible para solicitudes sin contexto documental.
+
+`list_exam_questions` devuelve `sources` junto a cada pregunta, con los IDs
+del documento, procesamiento, fragmentos padre e hijo y los offsets Unicode
+`[inicio, fin)` del hijo dentro del texto extraído. Los offsets se leen del
+registro validado de la generación. Si se reprocesa el documento, una pregunta
+ya publicada conserva su referencia original. Si se elimina el documento, se
+invalida el examen y se retiran los enlaces. Los exámenes ya existentes se
+conservan con `sources` vacío por pregunta.
+
+## Intentos de examen
+
+`db/exam_attempts.py` abre o recupera un intento vigente con
+`start_exam_attempt`. `submit_exam_attempt` guarda la entrega, incluidas las
+preguntas omitidas, y corrige las opciones en la misma transacción. Cada
+pregunta de opción recibe sus puntos completos si el conjunto seleccionado
+coincide exactamente con las opciones correctas. Una entrega repetida conserva
+el resultado registrado. Un intento vencido rechaza la entrega y permite abrir
+uno nuevo.
+
+Las respuestas de desarrollo escritas quedan pendientes de revisión y el
+porcentaje final queda vacío hasta corregirlas. Las omitidas tienen cero
+puntos. El propietario puede consultar sus intentos, respuestas y puntuación
+sin acceder a las claves. Si se invalida el examen, se limpia el contenido de
+las respuestas y se conserva el intento con estado `invalidated`.
+
+`review_development_answer` permite al propietario del intento registrar una
+nota y feedback para una respuesta de desarrollo pendiente. La nota va de cero
+al máximo de la pregunta y el feedback admite hasta 10.000 caracteres. Al
+revisar la última pendiente, PostgreSQL guarda el porcentaje ponderado y
+cierra el intento en la misma transacción. Reenviar una revisión idéntica
+conserva el resultado.
+
+Vuelve a ejecutar `db-init` para instalar la revisión y habilitarla también
+en intentos ya entregados. Las rutas HTTP se integrarán por separado.
+
+## Catálogo de aprendizaje
+
+`db/learning_catalog.py` guarda conceptos y alias por clase. Un coordinador
+puede registrar conceptos, prerrequisitos y fuentes en una clase activa. Los
+miembros activos pueden consultar el catálogo, incluso si la clase se archiva.
+PostgreSQL normaliza las claves y los alias y rechaza prerrequisitos entre
+clases y relaciones que formen ciclos.
+
+Cada fuente de un concepto o prerrequisito apunta al fragmento padre de un
+documento de la misma clase. Solo se muestran fuentes del procesamiento activo.
+Al reprocesar el documento, las referencias anteriores dejan de aparecer. Al
+borrarlo, PostgreSQL elimina las referencias sin borrar el catálogo.
+
+Vuelve a ejecutar `db-init` para instalar el módulo.
+
+## Progreso de aprendizaje
+
+`ExamQuestion.concept_id` es opcional y, si se indica, debe corresponder al
+catálogo de la clase. Al cerrar el primer intento calificado de un examen,
+PostgreSQL registra una evidencia de peso 1 por cada pregunta vinculada con
+nota determinista. Su valor es la fracción de puntos obtenida. Las revisiones
+manuales cierran el intento cuando corresponde, pero sus notas no se usan como
+evidencia de dominio. Si el examen se invalida, se eliminan sus evidencias.
+
+`list_mastery_evidence` y `list_concept_mastery` consultan el progreso propio en
+cada clase. El cálculo `beta_v1` del ZIP parte de alfa y beta iguales a 1 y
+clasifica cada concepto como `unknown` sin evidencias, `reinforce` por debajo
+de 0.60, `mastered` desde 0.80 con al menos tres evidencias y `developing` en
+los demás casos con evidencia. El resultado se calcula al consultar el registro.
+
+Vuelve a ejecutar `db-init` para instalar el módulo. Los exámenes anteriores
+conservan sus preguntas sin asociación a conceptos.
+
+## Metas, rutas y sesiones de estudio
+
+`db/learning_plans.py` guarda metas personales por clase, con fecha objetivo
+opcional y uno o más conceptos del catálogo. El propietario puede completar o
+archivar sus metas. `build_roadmap` guarda una ruta con los conceptos objetivo
+y todos sus prerrequisitos transitivos, en orden topológico. Cuando varios
+conceptos están disponibles a la vez, se ordenan por su clave canónica.
+Volver a generar con el mismo grafo devuelve la misma ruta. Si el grafo cambia,
+se guarda una nueva versión y las anteriores siguen disponibles. Cada paso
+muestra el dominio actual al consultarlo.
+
+`db/study_sessions.py` registra una sesión abierta por usuario y clase.
+`heartbeat_study_session` devuelve los segundos activos acumulados. Como en
+el ZIP, los intervalos inferiores a 25 segundos se acumulan hasta el siguiente
+pulso y cada intervalo acreditado aporta un máximo de 30 segundos. Tras más de
+120 segundos sin un pulso acreditado, la sesión se cierra en la última marca.
+`finish_study_session` permite cerrarla explícitamente.
+
+Solo el propietario puede consultar estas metas, rutas y sesiones. Las clases
+archivadas permiten consultar el historial. Vuelve a ejecutar `db-init` para
+instalar los módulos.
+
+## Cuotas de carga y generación
+
+`db/quotas.py` aplica en PostgreSQL los límites del ZIP. Cada clase puede
+almacenar hasta 2.000.000.000 bytes. Cada usuario puede cargar hasta
+1.000.000.000 bytes en una ventana móvil de 24 horas, sumando sus clases.
+Los duplicados descartados y las cargas rechazadas no consumen cuota.
+Borrar un archivo libera el espacio de la clase y mantiene el comprobante
+de carga para el límite de 24 horas.
+
+Cada usuario puede tener hasta dos generaciones activas, incluyendo las
+encoladas y en ejecución en cualquier clase. `stop_generation` permite cerrar
+una generación propia como fallida o cancelada para liberar su cupo.
+PostgreSQL rechaza los excesos con `UPLOAD_QUOTA_EXCEEDED` o
+`GENERATION_QUOTA_EXCEEDED`.
+
+Vuelve a ejecutar `db-init` para instalar las cuotas. Las cargas de las
+últimas 24 horas que aún figuran en la base se incorporan al historial de uso.
+
+## Cola de trabajos e idempotencia
+
+`db/jobs.py` encola trabajos de procesamiento de documentos y generación de
+chat o exámenes. La clave identifica una solicitud por usuario, clase y tipo.
+Repetir los mismos parámetros devuelve el mismo trabajo. Cambiar los parámetros
+con la misma clave genera un conflicto. El propietario puede consultar el
+estado del trabajo.
+
+El rol `tutoria_worker` reclama trabajos listos con `FOR UPDATE SKIP LOCKED`.
+Cada intento recibe un token nuevo y una reserva de hasta 120 segundos, acotada
+por la fecha límite del trabajo. La renovación, la finalización y el fallo
+requieren el token vigente. Para aplicar resultados en PostgreSQL, guarda los
+cambios y confirma el trabajo en la misma transacción. Si la confirmación
+devuelve `False`, revierte esa transacción.
+
+Los fallos recuperables reintentan a los 10 segundos tras el primer intento y
+a los 30 segundos tras el segundo, con un máximo configurable de tres intentos.
+`recover_jobs` procesa hasta 100 trabajos por llamada, reprograma reservas
+vencidas y marca como fallidos los trabajos que agotaron sus intentos o su plazo.
+Un fallo definitivo del trabajo de generación libera el cupo correspondiente.
+
+`db/idempotency.py` permite guardar el resultado JSON de una operación
+transaccional durante 24 horas por usuario, ámbito y clave. La misma solicitud
+recupera el resultado previo. Si cambia el payload, se devuelve un conflicto.
+Si falla la operación, se revierten sus cambios y su reserva. El callback debe
+limitarse a operaciones PostgreSQL que usen la conexión recibida.
+
+Vuelve a ejecutar `db-init` para instalar ambos módulos. El bucle que consume
+la cola y llama periódicamente a `recover_jobs` se integrará por separado.
+
+## Auditoría
+
+`db/audit.py` registra eventos correlacionados por `request_id`. La API registra acciones
+del usuario activo de la transacción. Si incluye una clase, el usuario debe tener una
+membresía activa en ella. El worker registra sus propios eventos sin atribuirlos a un usuario.
+La API puede leer los eventos propios y los de las clases que coordina. Los roles de
+aplicación escriben mediante funciones con permisos separados. El worker no lee la tabla.
+
+Usa códigos de acción y entidad, IDs y, opcionalmente, un `reason_code` definido por el
+esquema. El registrador no recibe cuerpos, tokens ni texto libre como metadatos. Al borrar
+una cuenta se desvincula su actor de los eventos. El ID histórico de clase se conserva.
+
+Registra un éxito con la conexión de la operación, de modo que ambos se confirmen o se
+reviertan juntos. Si la operación se revierte, registra una denegación o un error después del
+rollback, en una transacción nueva con el mismo `request_id`. Para denegaciones sin
+membresía válida, omite la clase y los identificadores de recursos ajenos. Este módulo ofrece
+los registradores de base. La integración con la API, el worker y la retención queda para
+sus respectivos cambios.
+
+Vuelve a ejecutar `db-init` para instalar la auditoría sobre una base existente.
+
+## Retención, purga y restauración
+
+El planificador externo puede invocar este comando periódicamente con las credenciales
+administrativas de Compose, una vez instalado el esquema con `db-init`:
 
 ```bash
-docker compose down -v
+docker compose run --rm db-init python -m backend.db.maintenance
 ```
+
+Cada ejecución recupera reservas vencidas y procesa hasta 25 purgas confirmadas. La
+retención se reclama una vez por día UTC en PostgreSQL. Si la transacción falla, se
+revierte la marca del día junto con el trabajo. Los trabajos terminales existentes al
+instalar el módulo comienzan su plazo de siete días en ese momento.
+
+La limpieza conserva el resultado activo y los resultados históricos usados por
+generaciones. Borra ejecuciones fallidas tras 24 horas y ejecuciones listas elegibles
+tras 30 días, hasta 100 por ejecución diaria. Después de 30 días retira datos privados de
+membresías salientes sin borrar la membresía histórica. Los archivos corregidos siguen
+siendo documentos independientes. Se retiran sesiones vencidas y tokens vencidos o
+consumidos tras 24 horas, comprobantes de carga al cerrar su ventana de 24 horas,
+claves idempotentes al vencer, trabajos terminales tras siete días y auditoría tras 90 días.
+
+Las operaciones de `db/purge.py` y `db/restore.py` reciben una conexión administrativa
+dentro de una transacción. El operador autoriza la solicitud antes de llamar a
+`request_purge(conn, request_id=..., scope=..., subject_id=...)`. Los ámbitos son
+`document`, `course` y `account`. La solicitud retira el ámbito en la misma transacción
+y los reintentos devuelven el ID original. La purga de cuenta elimina sus archivos
+porque el esquema requiere conservar un autor de carga para cada archivo vigente.
+Una cuenta que sea la última coordinación activa de una clase vigente debe transferir
+la coordinación antes de retirarse.
+
+El operador obtiene los registros con `pending_receipts(conn)`, conserva sus campos
+`id`, `scope`, `subject_id` y `requested_at` en un registro externo y confirma su copia
+durable con `acknowledge_receipt(conn, id)`. La purga física solo reclama registros
+confirmados. El comprobante interno expira 30 días después de la confirmación y la
+ejecución, cuando ambas fechas cumplen el plazo. Conserva el registro externo mientras
+pueda restaurarse un respaldo anterior a cualquiera de sus purgas.
+
+Para restaurar, prepara una base aislada y confirma `begin_restore(conn)` antes de
+importar. Excluye el esquema `restore_control` del respaldo y vuelve a ejecutar el
+instalador después de importar. Valida el registro externo y pásalo completo, en orden
+de solicitud, como instancias de `DeletionReceipt` a `replay_restore(conn, receipts, expected_digest=...)`.
+Obtén el digest de un manifiesto completo y autenticado fuera de la base. Calcularlo
+sobre un archivo parcial al momento de restaurar no comprueba su completitud.
+Una reproducción conflictiva revierte todo el lote y mantiene cerrada la barrera.
+La aplicación comprueba la barrera por transacción. Mantén aislada la base restaurada
+hasta confirmar la reproducción, también si hay consumidores que usan conexiones SQL
+directas. El respaldo, la custodia externa del registro y la invocación periódica son
+responsabilidades del entorno de despliegue.
+
+## Integrar solicitudes con la cola
+
+`db/submissions.py` ofrece `submit_upload` y `submit_generation` para una transacción
+autenticada. Cada llamada crea el recurso y su trabajo en la misma transacción. El
+consumidor futuro de HTTP debe pasar una clave estable por solicitud y traducir
+`SubmissionConflict` a 409. La clave se acota al usuario, clase y operación durante
+24 horas. Un reenvío equivalente devuelve los mismos IDs y conserva el plazo original.
+Una carga duplicada por bytes devuelve IDs nulos y no encola un trabajo. El objetivo
+de los trabajos de chat y examen es el ID de la generación.
+
+PostgreSQL permite reclamar por tipo con `claim_job(..., kinds=[...])`. Los permisos
+de reclamo, renovación y finalización siguen asignados al rol de procesamiento. Al
+integrar la publicación, guarda el resultado y comprueba `complete_job` en la misma
+transacción. Si devuelve `False`, revierte la transacción para descartar el resultado.
+
+### Publicación con reserva y borrados restaurables
+
+El rol de procesamiento puede registrar la solicitud exacta mediante `app.record_job_request`
+y publicar con `app.publish_chat_job`, `app.publish_exam_job` o `app.publish_ingestion_job`.
+Las funciones reciben el ID del trabajo y su token. PostgreSQL toma el propietario, la clase
+y el objetivo de la fila reclamada. La publicación y el cierre del trabajo son atómicos.
+Para ingestión, `app.start_ingestion_job` vincula la ejecución a la cola. Un nuevo reclamo
+del mismo trabajo puede retomar esa ejecución con la misma configuración.
+
+El borrado directo de documentos genera un comprobante pendiente de copia externa en la
+misma transacción. Exporta estos comprobantes por el mismo mecanismo que las solicitudes
+de purga. La copia externa debe incluirlos antes de dar por verificado el registro del
+período cubierto por un respaldo.

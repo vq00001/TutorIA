@@ -1,5 +1,10 @@
 name: tutoria
 
+x-postgres-env: &postgres-env
+  POSTGRES_DB: ${POSTGRES_DB:-tutoria}
+  POSTGRES_USER: ${POSTGRES_USER:-tutoria_migrator}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tutoria_local_migrator}
+
 services:
   webapp:
     profiles:
@@ -48,14 +53,65 @@ services:
 
     restart: unless-stopped
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: rag-qdrant
+  db:
+    image: &postgres-image pgvector/pgvector:0.8.7-pg18-bookworm@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
+    environment:
+      <<: *postgres-env
     ports:
-      - "${QDRANT_PORT:-6333}:6333"
+      - "127.0.0.1:${DB_PORT:-55432}:5432"
     volumes:
-      - qdrant_data:/qdrant/storage
-    restart: unless-stopped
+      - postgres_data:/var/lib/postgresql
+    healthcheck: &postgres-healthcheck
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  db-init:
+    build: &backend-build
+      context: ./backend
+      dockerfile: db/Dockerfile
+      target: db-init
+    environment: &db-init-env
+      <<: *postgres-env
+      POSTGRES_HOST: db
+      API_DB_PASSWORD: ${API_DB_PASSWORD:-tutoria_local_api}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-tutoria_local_worker}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  test-db:
+    profiles: [test]
+    image: *postgres-image
+    environment: *postgres-env
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck: *postgres-healthcheck
+
+  test-db-init:
+    profiles: [test]
+    build: *backend-build
+    environment:
+      <<: *db-init-env
+      POSTGRES_HOST: test-db
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+  backend-test:
+    profiles: [test]
+    build:
+      <<: *backend-build
+      target: test
+    environment:
+      <<: *postgres-env
+      POSTGRES_HOST: test-db
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-db-init:
+        condition: service_completed_successfully
 
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
@@ -71,7 +127,7 @@ services:
 
 volumes:
   ollama_data:
-  qdrant_data:
+  postgres_data:
 
     # Future backend integration:
     # Add a `backend` service here and expose its API on container port 8000.
