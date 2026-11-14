@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from backend.experiments.knowledge_graph import consolidation
+from backend.knowledge_graph import consolidation
 
 
 def candidates():

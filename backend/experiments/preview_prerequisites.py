@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 
 from backend.config import Config
-from backend.experiments.knowledge_graph.concepts import normalized_label
-from backend.experiments.knowledge_graph.consolidation import consolidate_candidates
-from backend.experiments.knowledge_graph.prerequisites import propose_prerequisites
+from backend.knowledge_graph.concepts import normalized_label
+from backend.knowledge_graph.consolidation import consolidate_candidates
+from backend.knowledge_graph.prerequisites import propose_prerequisites
 
 
 DEFAULT_NODES = Path(__file__).parent / "fixtures" / "integracion_multivariable_nodes.json"

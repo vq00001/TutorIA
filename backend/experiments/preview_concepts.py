@@ -4,9 +4,9 @@ from pathlib import Path
 from backend.chunking import count_tokens
 from backend.config import Config
 from backend.documents import SUPPORTED_EXTENSIONS
-from backend.experiments.knowledge_graph.concepts import extract_candidates
-from backend.experiments.knowledge_graph.consolidation import consolidate_candidates
-from backend.experiments.knowledge_graph.prerequisites import propose_prerequisites
+from backend.knowledge_graph.concepts import extract_candidates
+from backend.knowledge_graph.consolidation import consolidate_candidates
+from backend.knowledge_graph.prerequisites import propose_prerequisites
 from backend.pipeline import prepare_document
 
 

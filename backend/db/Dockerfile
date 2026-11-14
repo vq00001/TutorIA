@@ -16,5 +16,6 @@ WORKDIR /app/backend
 COPY pyproject.toml *.py ./
 COPY routes/ ./routes/
 COPY experiments/ ./experiments/
+COPY knowledge_graph/ ./knowledge_graph/
 COPY tests/ ./tests/
 CMD ["python", "-m", "pytest"]

@@ -1,8 +1,8 @@
 # Generación experimental del grafo
 
-Esta carpeta conserva los algoritmos de extracción de conceptos, consolidación
-y propuesta de prerrequisitos de `feature/consolidacion-grafo`. No persiste
-resultados en PostgreSQL ni modifica el catálogo de `only_database`.
+Los algoritmos de extracción, consolidación y propuesta de prerrequisitos
+están ahora en [backend/knowledge_graph/](../../knowledge_graph/). Los
+experimentos no persisten resultados en PostgreSQL ni modifican el catálogo.
 
 Desde la raíz del repositorio, con las dependencias del backend instaladas y
 Ollama disponible en `OLLAMA_URL`:
