@@ -59,6 +59,34 @@ def test_does_not_force_merges(monkeypatch):
     assert applied == []
 
 
+def test_skips_single_node_merge_and_keeps_other_valid_merges(monkeypatch):
+    nodes = candidates()
+    monkeypatch.setattr(
+        consolidation, "model_json",
+        lambda *_: {"merges": [merge(("C3",)), merge()]},
+    )
+
+    result, applied = consolidation.consolidate_candidates(nodes, 2, "test", lambda: 30)
+
+    assert len(result) == 2
+    assert result["coordenadas polares"] == nodes["coordenadas polares"]
+    assert applied == [{
+        "from_keys": ["jacobiano para volumen", "jacobiano en integrales de volumen"],
+        "to_key": "jacobiano de volumen",
+        "reason": "Conceptos solapados",
+    }]
+
+
+def test_single_node_merge_alone_leaves_candidates_unchanged(monkeypatch):
+    nodes = candidates()
+    monkeypatch.setattr(consolidation, "model_json", lambda *_: {"merges": [merge(("C3",))]})
+
+    result, applied = consolidation.consolidate_candidates(nodes, 2, "test", lambda: 30)
+
+    assert result == nodes
+    assert applied == []
+
+
 def test_skips_group_that_would_overshoot_target(monkeypatch):
     monkeypatch.setattr(
         consolidation, "model_json",

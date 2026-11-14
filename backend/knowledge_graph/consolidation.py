@@ -43,7 +43,11 @@ def consolidate_candidates(candidates, target_count, model, remaining):
     if not isinstance(result, dict) or not isinstance(result.get("merges"), list):
         raise ValueError("INVALID_CONSOLIDATION_RESPONSE")
 
-    proposals = [MergeProposal.model_validate(item) for item in result["merges"]]
+    proposals = []
+    for item in result["merges"]:
+        if isinstance(item, dict) and isinstance(item.get("refs"), list) and len(item["refs"]) < 2:
+            continue
+        proposals.append(MergeProposal.model_validate(item))
     used = set()
     for proposal in proposals:
         refs = proposal.refs

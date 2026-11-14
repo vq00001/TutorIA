@@ -13,8 +13,8 @@ uv run --project backend python -m backend.experiments.preview_prerequisites
 uv run --project backend python -m backend.experiments.learning_gaps.preview
 ```
 
-Las previsualizaciones de conceptos aceptan `.md`, `.markdown` y `.txt`. Los
-identificadores de fuente son los fragmentos parent del chunker actual de
-`only_database`; se muestran sección e índice del fragmento. La integración
+Las previsualizaciones de conceptos aceptan `.md`, `.markdown` y `.txt`. La
+salida identifica cada fuente por el archivo, la sección y el índice del
+fragmento generado; no usa UUID de `parent_chunks` persistidos. La integración
 posterior con el catálogo y los trabajos de base de datos requiere una
 adaptación específica al backend actual.
