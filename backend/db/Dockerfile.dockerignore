@@ -5,6 +5,8 @@
 !db/**
 !routes/
 !routes/**
+!experiments/
+!experiments/**
 !tests/
 !tests/**
 **/__pycache__/

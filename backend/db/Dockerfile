@@ -15,5 +15,6 @@ RUN python -c 'import subprocess, sys, tomllib; deps = tomllib.load(open("pyproj
 WORKDIR /app/backend
 COPY pyproject.toml *.py ./
 COPY routes/ ./routes/
+COPY experiments/ ./experiments/
 COPY tests/ ./tests/
 CMD ["python", "-m", "pytest"]

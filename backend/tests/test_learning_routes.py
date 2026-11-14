@@ -17,6 +17,7 @@ def test_learning_graph_progress_and_private_roadmaps(postgres, monkeypatch):
     course = create_course(postgres, name="Aprendizaje")
     postgres.exec_driver_sql("RESET ROLE")
     postgres.execute(insert(memberships).values(course_id=course, user_id=student, role="student"))
+    postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
     monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
     client = TestClient(http_api.app)
     base = f"/api/v1/courses/{course}"

@@ -1,0 +1,6 @@
+{
+  "results": [
+    {"label": "Jacobiano en coordenadas polares", "correct": 2, "total": 10},
+    {"label": "Cálculo de integrales iteradas", "correct": 3, "total": 10}
+  ]
+}
