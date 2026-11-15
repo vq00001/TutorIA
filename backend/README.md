@@ -24,14 +24,24 @@ Ollama.
    cp ../.env.example ../.env
    ```
 
-3. Levanta Qdrant y Ollama:
+3. Levanta la plataforma completa:
 
    ```bash
    docker compose up --build
    ```
 
-   La primera ejecución puede tardar porque Ollama descarga los modelos
-   `qwen3:1.7b` y `all-minilm`.
+   Esto inicia Qdrant, Ollama y LiteLLM. La primera
+   ejecución puede tardar porque Ollama descarga los modelos `qwen3:1.7b` y
+   `all-minilm`.
+
+LiteLLM funciona aquí en modo stateless: lee su configuración desde
+`backend/ai_gateway/config.yaml` y las credenciales desde `.env`, por lo que
+no necesita un volumen propio para las conversaciones ni para el arranque
+actual. Ollama y Qdrant sí tienen volúmenes porque almacenan modelos y
+vectores. Si más adelante se habilitan claves virtuales, equipos, usuarios,
+gastos o configuración administrada desde la API de LiteLLM, habrá que añadir
+PostgreSQL para persistir ese estado; Redis solo sería necesario para caché,
+rate limiting o estado compartido entre varias réplicas.
 
 4. En otra terminal, instala las dependencias del proyecto:
 
@@ -99,7 +109,7 @@ La configuración se define en el `.env` de la raíz del repositorio. Consulta
 [`.env.example`](../.env.example) para ver todas las opciones disponibles,
 incluyendo:
 
-- URLs y puertos de Ollama y Qdrant.
+- URLs y puertos de Ollama, el gateway LiteLLM y Qdrant.
 - Modelos de lenguaje y embeddings.
 - Tamaño de los chunks y solapamiento.
 - Límite de resultados y umbral de similitud.

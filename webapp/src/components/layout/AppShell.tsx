@@ -4,6 +4,7 @@ import { Link, NavLink } from 'react-router-dom'
 
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAppData } from '../../contexts/AppDataContext'
+import { logout } from '../../services/authApi'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -118,6 +119,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="top-actions">
+            <button className="logout-button" type="button" onClick={() => void logout()}>
+              Cerrar sesión
+            </button>
             <button
               className="icon-button"
               onClick={toggleTheme}

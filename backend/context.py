@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import re
 import sys
 
 import requests
 
 from .config import Config
+from .llm import chat_completion
 
 
 def generate_chunk_context(config: Config, breadcrumb: str, text: str) -> str:
@@ -18,24 +18,8 @@ def generate_chunk_context(config: Config, breadcrumb: str, text: str) -> str:
         f"Ubicación: {breadcrumb}\n\nFragmento:\n{text[:1500]}"
     )
     try:
-        response = requests.post(
-            f"{config.ollama_url}/api/chat",
-            json={
-                "model": config.model_llm,
-                "messages": [{"role": "user", "content": prompt}],
-                "stream": False,
-                "think": False,
-                "options": {"temperature": 0, "num_predict": 80},
-            },
-            timeout=180,
-        )
-        response.raise_for_status()
-        content = response.json()["message"]["content"]
-        return (
-            re.sub(r"<think>.*?</think>", "", content, flags=re.S)
-            .replace("\n", " ")
-            .strip()
-        )
+        content = chat_completion(config, prompt, temperature=0, max_tokens=80, timeout=180)
+        return content.replace("\n", " ").strip()
     except (requests.RequestException, KeyError, TypeError, ValueError) as error:
         print(f"  [aviso] no se pudo generar contexto: {error}", file=sys.stderr)
         return ""

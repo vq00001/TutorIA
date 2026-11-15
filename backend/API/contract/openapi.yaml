@@ -1,34 +1,3 @@
-# TODO
-# Ver en estos archivos que cosas necesita el frontend
-# Wedapp/src/types/index.ts
-# Wedapp/src/types/exams.ts
-
-
-# Se deben de loggear los usuarios, tambien registrar y salir de la seccion.
-# Los usuarios deben poder crear cursos, tambien salir de estos
-# Se deben de poder invitar a otros usuarios a los cursos, y aceptar o rechazar invitaciones
-# Los usuarios deben poder subir documentos a los cursos a los que pertenecen, y poder ver los documentos subidos por otros usuarios
-# Los usuarios deben poder realizar consultas al LLM.
-# Los usuarios deben poder generar examenes de un tema dado en el curso, y ver los examenes ya realizados y los pendientes
-# Los usuarios deben poder ver el progreso de un curso, y ver el grafo de conocimiento del curso
-# Los usuarios deben poder ver las notificaciones de eventos importantes en el curso
-# Los usuarios deben poder ver los materiales generados de un curso
-# Los usuarios deben poder ver la informacion de los documentos asociados al curso
-# Los usuarios deben poder ver la informacion de los cursos y de los usuarios que estan en estos (informacion reducida de los otros usuarios)
-# Los usuarios deben poder ver la informacion de su propio usuario (informacion completa)
-# Los usuarios deben poder modificar la informacion de su propio usuario (informacion completa)
-# Los usuarios deben poder eliminar su propio usuario
-# Los usuarios deben poder configurar los cursos en los que tienen los permisos para hacerlo
-# Los usuarios deben poder eliminar los documentos si es que tienen los permisos para hacerlo
-# Los usuarios deben poder eliminar los cursos si es que tienen los permisos para hacerlo
-# Los usuarios deben poder ver las conversaciones que han tenido con el LLM, retomarlas, y poder eliminar estas conversaciones
-# En las respuestas del LLM, en el body, ademas de la respuesta a la pregunta como tal, se debe de indicar de si se usaron documentos para responder, y si es asi, cuales fueron estos documentos
-# Se puede solicitar las preguntas de un examen, y posteriormente a que el usuario las responda, esta se envian al backend, en donde este las evalua y retorna la calificacion obtenida, ademas de la respuesta correcta a cada pregunta, y si es que se usaron documentos para responder, y si es asi, cuales fueron estos documentos
-# Debe de exponerse un endpoint para indicar el estado del backend, para que el frontend pueda saber si este esta funcionando correctamente
-# Debe de poder verse el estado de procesamiento de los documentos subidos, para que el frontend pueda mostrarle al usuario si es que estos ya estan listos para ser usados por el LLM
-# Los usuarios deben poder ver el historial de sus actividades en el sistema, incluyendo las consultas realizadas al LLM, los documentos subidos, los examenes realizados, y cualquier otra actividad relevante.
-
-
 openapi: 3.1.0
 info:
   title: TutorIA API
