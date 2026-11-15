@@ -7,18 +7,15 @@ Este experimento no usa la base de datos, `learning.py`, el roadmap ni modifica
 el grafo del curso.
 
 La ruta `POST /api/v1/courses/{courseId}/knowledge-graph/learning-gaps/preview`
-acepta nodos y resultados explícitos, sin leer evaluaciones ni guardar cambios.
-Pueden usarla los miembros de una clase activa. `C1`, `C2`, etc. identifican
-los nodos por su posición en la lista; la respuesta usa esas referencias y
-marca las sugerencias como hipótesis. Ejemplo de cuerpo:
+lee los nodos guardados de la clase y acepta resultados simulados asociados a
+sus UUID. Pueden usarla los miembros de una clase activa. Identifica al usuario
+mediante su sesión, pero no lee evaluaciones reales ni guarda cambios. La
+respuesta usa UUID para conceptos existentes y referencias `N1`, `N2`, etc.
+para temas nuevos propuestos; todos siguen siendo hipótesis. Ejemplo de cuerpo:
 
 ```json
 {
-  "nodes": [
-    {"label": "Integral doble", "description": "Integrar sobre una región"},
-    {"label": "Jacobiano", "description": "Cambio de variables"}
-  ],
-  "results": [{"ref": "C2", "correct": 2, "total": 10}],
+  "results": [{"conceptId": "UUID-de-un-concepto-del-curso", "correct": 2, "total": 10}],
   "threshold": 0.4
 }
 ```
