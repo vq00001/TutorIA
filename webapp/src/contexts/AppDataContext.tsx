@@ -216,10 +216,7 @@ export function AppDataProvider({
     async (courseId: string, files: File[]) => {
       const response = await api.createCourseMaterials(
         courseId,
-        files.map(({ name, size }) => ({
-          name,
-          size,
-        }))
+        files
       )
 
       const created = response.data.map(adaptMaterial)

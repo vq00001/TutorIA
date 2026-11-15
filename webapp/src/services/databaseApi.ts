@@ -37,8 +37,12 @@ async function uploadCourseMaterials(
   files.forEach((file) => formData.append('files', file, file.name))
 
   const response = await fetch(
-    `/api/courses/${encodeURIComponent(courseId)}/documents`,
-    { method: 'POST', body: formData },
+    `/api/v1/courses/${encodeURIComponent(courseId)}/documents`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      body: formData,
+    },
   )
 
   if (!response.ok) {

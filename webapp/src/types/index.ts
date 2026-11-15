@@ -6,7 +6,7 @@ export type ThemePreference = 'system' | 'latte' | 'mocha'
 export type ResolvedTheme = Exclude<ThemePreference, 'system'>
 
 
-export const compatible_file_formats = '.txt,text/plain,.md,text/markdown,.pdf,application/pdf'
+export const compatible_file_formats = '.txt,.md,.pdf'
 export const supported_file_extensions = ['.txt', '.md', '.pdf'] as const
 
 export function isSupportedFile(file: File): boolean {

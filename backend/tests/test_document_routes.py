@@ -1,15 +1,15 @@
-from contextlib import nullcontext
 import warnings
+from contextlib import nullcontext
 
-from fastapi.testclient import TestClient
-from sqlalchemy import insert
-
-from backend import http_api
+from backend import file_storage, http_api
 from backend.db.sessions import issue_session
 from backend.routes import dependencies
+from fastapi.testclient import TestClient
+from sqlalchemy import insert
+from test_courses import _as_user, _user
+
 from db.courses import create_course, memberships
 from db.documents import DuplicateDocumentWarning
-from test_courses import _as_user, _user
 
 
 def test_document_upload_replay_listing_and_status(postgres, monkeypatch):
@@ -46,6 +46,42 @@ def test_document_upload_replay_listing_and_status(postgres, monkeypatch):
     assert client.get(status_path, headers=owner_headers).json()["data"]["status"] == "queued"
     assert client.get(status_path, headers=outsider_headers).status_code == 404
     assert client.get(path, headers=outsider_headers).status_code == 404
+
+
+def test_document_upload_accepts_pdf_markdown_and_text_files(postgres, monkeypatch, tmp_path):
+    owner = _user(postgres)
+    owner_token = issue_session(postgres, owner)
+    _as_user(postgres, owner)
+    course = create_course(postgres, name="Cálculo III")
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
+    monkeypatch.setattr(file_storage, "FILES_DIR", tmp_path)
+
+    client = TestClient(http_api.app)
+    path = f"/api/v1/courses/{course}/documents"
+    response = client.post(
+        path,
+        files=[
+            ("files", ("guia.md", b"# Apuntes", "text/markdown")),
+            ("files", ("resumen.txt", "Apuntes de cálculo".encode(), "text/plain")),
+            ("files", ("clase.pdf", b"%PDF-1.7\ncontenido", "application/pdf")),
+        ],
+        headers={
+            "Authorization": f"Bearer {owner_token}",
+            "Idempotency-Key": "all-supported-formats",
+        },
+    )
+
+    assert response.status_code == 202
+    (course_folder,) = list(tmp_path.iterdir())
+    assert course_folder.name.startswith("calculo-iii-")
+    saved_files = {
+        path.name.rsplit("_", 1)[-1]: path.read_bytes() for path in course_folder.iterdir()
+    }
+    assert saved_files == {
+        "guia.md": b"# Apuntes",
+        "resumen.txt": "Apuntes de cálculo".encode(),
+        "clase.pdf": b"%PDF-1.7\ncontenido",
+    }
 
 
 def test_document_detail_download_and_delete_follow_membership(postgres, monkeypatch):
