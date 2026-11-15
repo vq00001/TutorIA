@@ -25,6 +25,7 @@ from .jobs import install_jobs
 from .learning_catalog import install_learning_catalog
 from .learning_plans import install_learning_plans
 from .learning_progress import install_learning_progress
+from .personal_graph import install_personal_graph
 from .processing import install_processing
 from .purge import install_purge
 from .quotas import install_quotas
@@ -63,6 +64,7 @@ def initialize(connection: Connection, *, role_passwords: dict[str, str] | None 
     install_exam_attempts(connection)
     install_learning_progress(connection)
     install_learning_plans(connection)
+    install_personal_graph(connection)
     install_study_sessions(connection)
     install_conversations(connection)
     install_citations(connection)

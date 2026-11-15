@@ -20,6 +20,27 @@ para temas nuevos propuestos; todos siguen siendo hipótesis. Ejemplo de cuerpo:
 }
 ```
 
+Un alumno puede aceptar una selección mediante
+`POST /api/v1/courses/{courseId}/knowledge-graph/learning-gaps/accept`.
+La operación guarda temas y recomendaciones solo para su cuenta. Por ejemplo:
+
+```json
+{
+  "newNodes": [{"ref": "N1", "label": "Determinantes", "description": "Repaso de álgebra lineal"}],
+  "recommendations": [
+    {"targetConceptId": "UUID-del-concepto", "newNodeRef": "N1", "reason": "Base previa posible"}
+  ]
+}
+```
+
+`GET /api/v1/courses/{courseId}/knowledge-graph/learning-gaps/accepted` muestra
+los refuerzos guardados del alumno autenticado. El grafo común del curso no se
+modifica. Los temas nuevos se enlazan con conceptos del curso; recomendar repasar
+un concepto ya existente se guarda como recomendación, no como prerrequisito
+aprobado. Esta etapa todavía no combina ambas vistas en un grafo personalizado.
+Antes de usar las rutas en una base existente, vuelve a ejecutar `db-init` para
+crear las tablas y políticas privadas.
+
 Con las dependencias del backend instaladas y Ollama levantado, desde la raíz del proyecto:
 
 ```bash
