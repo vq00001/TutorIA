@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from backend.experiments.learning_gaps import infer, preview
+from backend.experiments.learning_gaps import preview
+from backend.knowledge_graph import learning_gaps as infer
 
 
 def nodes():
