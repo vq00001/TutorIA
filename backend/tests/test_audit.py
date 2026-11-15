@@ -7,8 +7,8 @@ from sqlalchemy.exc import IntegrityError, ProgrammingError
 from db.audit import audit_events, record_audit_event, record_worker_audit_event
 from db.courses import create_course, memberships
 from db.users import users
-from test_courses import _user
-from test_exams import _role
+from .test_courses import _user
+from .test_exams import _role
 
 
 def _event(request_id, course_id=None):

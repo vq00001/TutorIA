@@ -13,7 +13,7 @@ from backend.db.personal_graph import create_personal_node
 from backend.db.sessions import issue_session
 from backend.routes import dependencies
 from db.courses import create_course, memberships
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def test_accepted_gaps_are_private_and_leave_course_graph_unchanged(postgres, monkeypatch):

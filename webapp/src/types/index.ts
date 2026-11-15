@@ -1,6 +1,7 @@
 import type { ChartPayload } from './charts'
 
 export * from './charts'
+export * from './chat.ts'
 
 export type ThemePreference = 'system' | 'latte' | 'mocha'
 export type ResolvedTheme = Exclude<ThemePreference, 'system'>
@@ -57,24 +58,6 @@ export interface MaterialFile {
 
 export type MaterialDto = Omit<MaterialFile, 'addedAt'> & {
   addedAt: string
-}
-
-
-export type MessagePart =
-  | { type: 'markdown'; content: string }
-  | { type: 'chart'; chart: ChartPayload }
-
-
-export interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  parts: MessagePart[]
-  createdAt: Date
-  awaitingResponse?: boolean
-}
-
-export type ChatMessageDto = Omit<ChatMessage, 'createdAt'> & {
-  createdAt: string
 }
 
 export interface JsonApiResponse<T> {

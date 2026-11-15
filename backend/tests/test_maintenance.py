@@ -25,11 +25,11 @@ from db.retention import run_retention
 from db.sessions import issue_session, sessions
 from db.users import users
 from db.vector_search import search_course_chunks
-from test_courses import _user
-import test_document_processing
-from test_document_processing import _publish, _start
-from test_exams import _generation, _role
-from test_jobs import _ingest
+from .test_courses import _user
+from . import test_document_processing
+from .test_document_processing import _publish, _start
+from .test_exams import _generation, _role
+from .test_jobs import _ingest
 
 processing_context = test_document_processing.processing_context
 

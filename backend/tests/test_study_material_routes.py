@@ -8,8 +8,8 @@ from backend.db.sessions import issue_session
 from backend.routes import dependencies
 from db.courses import create_course, memberships
 from db.generated_materials import GeneratedMaterial, store_generated_materials
-from test_courses import _as_user, _user
-from test_exams import _generation
+from .test_courses import _as_user, _user
+from .test_exams import _generation
 
 
 def test_study_sessions_and_generated_materials_are_private(postgres, monkeypatch):

@@ -10,7 +10,7 @@ from db.courses import create_course, memberships
 from db.jobs import jobs
 from db.purge import deletion_requests
 from db.sessions import issue_session
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def test_edit_and_delete_course_account_and_conversation(postgres, monkeypatch):

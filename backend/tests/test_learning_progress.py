@@ -3,11 +3,11 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-import test_exams
+from . import test_exams
 from sqlalchemy import insert, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from test_exam_attempts import ALTERNATIVES, _exam
-from test_exams import DEVELOPMENT, _generation, _publish, _role
+from .test_exam_attempts import ALTERNATIVES, _exam
+from .test_exams import DEVELOPMENT, _generation, _publish, _role
 
 from db.exam_attempts import (
     ExamAnswer,

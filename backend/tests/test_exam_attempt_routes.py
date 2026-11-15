@@ -9,8 +9,8 @@ from backend.db.sessions import issue_session
 from backend.routes import dependencies
 from db.courses import create_course
 from db.exams import list_exam_questions
-from test_courses import _as_user, _user
-from test_exams import DEVELOPMENT, MULTIPLE, _generation, _publish
+from .test_courses import _as_user, _user
+from .test_exams import DEVELOPMENT, MULTIPLE, _generation, _publish
 
 
 def test_attempt_routes_start_submit_and_return_private_result(postgres, monkeypatch):

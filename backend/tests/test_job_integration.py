@@ -11,8 +11,8 @@ from db.documents import DuplicateDocumentWarning, documents
 from db.generations import generation_runs
 from db.jobs import claim_job, complete_job, get_job
 from db.submissions import SubmissionConflict, submit_generation, submit_upload
-from test_courses import _user
-from test_exams import _role
+from .test_courses import _user
+from .test_exams import _role
 
 
 def _deadline():

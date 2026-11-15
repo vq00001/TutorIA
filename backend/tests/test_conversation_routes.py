@@ -8,8 +8,8 @@ from backend.db.sessions import issue_session
 from backend.routes import dependencies
 from db.courses import create_course
 from db.jobs import claim_job
-from test_courses import _as_user, _user
-from test_exams import _role
+from .test_courses import _as_user, _user
+from .test_exams import _role
 
 
 def test_chat_replay_history_and_quota_rollback(postgres, monkeypatch):

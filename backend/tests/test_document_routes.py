@@ -9,7 +9,7 @@ from backend.db.sessions import issue_session
 from backend.routes import dependencies
 from db.courses import create_course, memberships
 from db.documents import DuplicateDocumentWarning
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def test_document_upload_replay_listing_and_status(postgres, monkeypatch):

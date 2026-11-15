@@ -1,10 +1,10 @@
 from datetime import timedelta
 
 import pytest
-import test_exams
+from . import test_exams
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from test_exams import _generation, _role
+from .test_exams import _generation, _role
 
 from db.documents import DuplicateDocumentWarning, delete_document, list_documents, register_upload
 from db.generations import generation_runs, stop_generation

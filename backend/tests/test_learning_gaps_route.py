@@ -11,7 +11,7 @@ from backend.db.learning_catalog import create_concept
 from backend.db.sessions import issue_session
 from backend.routes import learning_gaps
 from db.courses import create_course, memberships
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def _request(concept_id):

@@ -4,10 +4,10 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-import test_exams
+from . import test_exams
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from test_exams import DEVELOPMENT, MULTIPLE, _generation, _publish, _role
+from .test_exams import DEVELOPMENT, MULTIPLE, _generation, _publish, _role
 
 from db.exam_attempts import (
     ExamAnswer,

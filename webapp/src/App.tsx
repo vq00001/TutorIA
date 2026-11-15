@@ -1,7 +1,9 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppDataProvider } from './contexts/AppDataContext'
 import { AppShell } from './components/layout/AppShell'
+import { LoginPage } from './pages/LoginPage'
+import { getAccessToken, listenForAuthExpiration } from './services/authApi'
 import './styles/exams.css'
 
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })))
@@ -13,7 +15,7 @@ const ExamPage = lazy(() => import('./pages/ExamPage').then((m) => ({ default: m
 const TakeExamPage = lazy(() => import('./pages/TakeExamPage').then((m) => ({ default: m.TakeExamPage })))
 
 export default function App() {
-  return <AppDataProvider><AppShell><Suspense fallback={<div className="page-loading">Cargando módulo…</div>}><Routes>
+  return <AuthGate><AppDataProvider><AppShell><Suspense fallback={<div className="page-loading">Cargando módulo…</div>}><Routes>
     <Route path="/" element={<HomePage />} />
     <Route path="/cursos/:courseId" element={<ChatPage />} />
     <Route path="/cursos/crear" element={<CreateCoursePage />} />
@@ -25,5 +27,14 @@ export default function App() {
     <Route path="/curso/:courseId" element={<ChatPage />} />
     <Route path="/materiales" element={<MaterialsPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes></Suspense></AppShell></AppDataProvider>
+  </Routes></Suspense></AppShell></AppDataProvider></AuthGate>
+}
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const [authenticated, setAuthenticated] = useState(() => Boolean(getAccessToken()))
+
+  useEffect(() => listenForAuthExpiration(() => setAuthenticated(false)), [])
+
+  if (!authenticated) return <LoginPage onLogin={() => setAuthenticated(true)} />
+  return children
 }

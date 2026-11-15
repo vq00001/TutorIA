@@ -10,8 +10,8 @@ from db.courses import create_course
 from db.exams import publish_exam
 from db.generations import record_generation_request
 from db.jobs import claim_job
-from test_courses import _as_user, _user
-from test_exams import MULTIPLE, REQUEST, _role
+from .test_courses import _as_user, _user
+from .test_exams import MULTIPLE, REQUEST, _role
 
 
 def test_exam_generation_replay_and_private_detail(postgres, monkeypatch):

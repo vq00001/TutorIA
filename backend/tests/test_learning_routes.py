@@ -7,7 +7,7 @@ from backend import http_api
 from backend.db.sessions import issue_session
 from backend.routes import dependencies
 from db.courses import create_course, memberships
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def test_learning_graph_progress_and_private_roadmaps(postgres, monkeypatch):

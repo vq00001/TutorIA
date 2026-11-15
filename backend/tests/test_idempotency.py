@@ -1,8 +1,8 @@
 import pytest
-import test_exams
+from . import test_exams
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from test_exams import _role
+from .test_exams import _role
 
 from db.idempotency import idempotency_requests, run_idempotent
 from db.learning_catalog import create_concept, list_concepts

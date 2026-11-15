@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 from backend import http_api
 from backend.routes import dependencies
 from backend.db.sessions import issue_session
-from test_courses import _user
-from test_job_integration import _upload
+from .test_courses import _user
+from .test_job_integration import _upload
 
 
 def test_course_routes_use_authenticated_postgres_membership(postgres, monkeypatch):

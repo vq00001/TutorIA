@@ -8,7 +8,7 @@ from backend.routes import dependencies
 from db.courses import create_course
 from db.users import users
 from sqlalchemy import update
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def test_profile_membership_and_invitation_workflow(postgres, monkeypatch):

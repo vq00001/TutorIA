@@ -11,22 +11,29 @@ import { compatible_file_formats } from '../../types'
 
 export function ChatComposer({ courseId }: { courseId: string }) {
   const [value, setValue] = useState('')
-  const [attached, setAttached] = useState<string[]>([])
+  const [attached, setAttached] = useState<File[]>([])
+  const [isSending, setIsSending] = useState(false)
 
   const input = useRef<HTMLInputElement>(null)
+  const sending = useRef(false)
 
-  const { sendPrompt, addMaterials } = useAppData()
+  const { sendPrompt } = useAppData()
 
-
-
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
 
-    if (!value.trim()) return
+    if (!value.trim() || sending.current) return
 
-    sendPrompt(courseId, value.trim())
-    setValue('')
-    setAttached([])
+    sending.current = true
+    setIsSending(true)
+    try {
+      await sendPrompt(courseId, value.trim(), attached)
+      setValue('')
+      setAttached([])
+    } finally {
+      sending.current = false
+      setIsSending(false)
+    }
   }
 
   function keyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -38,16 +45,11 @@ export function ChatComposer({ courseId }: { courseId: string }) {
 
   async function attach(files: FileList | null) {
     const accepted = Array.from(files ?? []).filter((file) =>
-      file.name.toLowerCase().endsWith('.txt'),
+      /\.(txt|md)$/i.test(file.name),
     )
 
     if (accepted.length) {
-      await addMaterials(courseId, accepted)
-
-      setAttached((names) => [
-        ...names,
-        ...accepted.map((file) => file.name),
-      ])
+      setAttached((current) => [...current, ...accepted])
     }
   }
 
@@ -55,14 +57,15 @@ export function ChatComposer({ courseId }: { courseId: string }) {
     <form className="composer" onSubmit={submit}>
       {attached.length > 0 && (
         <div className="attachment-chips">
-          {attached.map((name, index) => (
-            <span key={`${name}-${index}`}>▤ {name}</span>
+          {attached.map((file, index) => (
+            <span key={`${file.name}-${index}`}>▤ {file.name}</span>
           ))}
         </div>
       )}
 
       <textarea
         value={value}
+        disabled={isSending}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={keyDown}
         placeholder="Pregúntale algo a tu tutor…"
@@ -78,6 +81,7 @@ export function ChatComposer({ courseId }: { courseId: string }) {
             type="file"
             accept={compatible_file_formats}
             multiple
+            disabled={isSending}
             onChange={(event) => {
               void attach(event.target.files)
               event.currentTarget.value = ''
@@ -97,9 +101,9 @@ export function ChatComposer({ courseId }: { courseId: string }) {
         <button
           className="send-button"
           type="submit"
-          disabled={!value.trim()}
+          disabled={!value.trim() || isSending}
         >
-          Enviar ↑
+          {isSending ? 'Enviando…' : 'Enviar ↑'}
         </button>
       </div>
     </form>

@@ -1,12 +1,12 @@
 from uuid import uuid4
 
 import pytest
-import test_exams
-import test_vector_search
+from . import test_exams
+from . import test_vector_search
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from test_exams import _role
-from test_vector_search import _as_role, _publish, _start, _upload
+from .test_exams import _role
+from .test_vector_search import _as_role, _publish, _start, _upload
 
 from db.courses import courses, create_course
 from db.documents import delete_document

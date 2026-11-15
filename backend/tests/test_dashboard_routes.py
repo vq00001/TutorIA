@@ -13,7 +13,7 @@ from db.invitations import invite_member
 from db.sessions import issue_session
 from db.study_sessions import start_study_session, study_intervals
 from db.users import users
-from test_courses import _as_user, _user
+from .test_courses import _as_user, _user
 
 
 def test_dashboard_activity_and_notifications_use_private_data(postgres, monkeypatch):

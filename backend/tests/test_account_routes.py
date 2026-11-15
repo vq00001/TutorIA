@@ -7,7 +7,7 @@ from backend import http_api
 from backend.routes import account, dependencies
 from db.sessions import issue_session
 from db.users import users
-from test_courses import _user
+from .test_courses import _user
 
 
 def test_verification_and_password_reset(postgres, monkeypatch):

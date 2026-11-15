@@ -12,6 +12,17 @@ backend/
 └── experiments/             # Calibración y datos de evaluación
 ```
 
+## Servicios de desarrollo
+
+Compose incluye PostgreSQL con pgvector, Ollama para embeddings y LiteLLM para
+chat. Configura los modelos y las credenciales con las variables de
+`.env.example`.
+
+El servicio Compose `backend` ejecuta la API de simulación de `backend/API`
+y usa su contrato `backend/API/contract/openapi.yaml`. Para ejecutar la API
+que usa PostgreSQL, sigue los pasos de registro de usuarios de este
+documento. Su contrato está en `backend/API/openapi.yaml`.
+
 ## Base de datos local
 
 Desde la raíz del proyecto:
