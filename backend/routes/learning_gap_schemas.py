@@ -159,3 +159,33 @@ class SavedGapResponse(GapModel):
     data: SavedGapResult
 
 
+class PersonalizedGraphNode(GapModel):
+    key: UUID
+    attributes: SavedPersonalNode
+    origin: Literal["course", "personal"]
+
+
+class PersonalizedGraphEdge(GapModel):
+    key: UUID
+    source: UUID
+    target: UUID
+
+
+class PersonalizedGraphRecommendation(GapModel):
+    id: UUID
+    source: UUID
+    target: UUID
+    kind: Literal["existing", "new"]
+    reason: str
+
+
+class PersonalizedGraph(GapModel):
+    nodes: list[PersonalizedGraphNode]
+    edges: list[PersonalizedGraphEdge]
+    recommendations: list[PersonalizedGraphRecommendation]
+
+
+class PersonalizedGraphResponse(GapModel):
+    data: PersonalizedGraph
+
+

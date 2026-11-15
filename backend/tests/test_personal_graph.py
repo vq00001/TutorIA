@@ -8,7 +8,7 @@ from sqlalchemy.exc import DBAPIError
 
 from backend import http_api
 from backend.db.connection import set_user_context
-from backend.db.learning_catalog import create_concept
+from backend.db.learning_catalog import add_prerequisite, create_concept
 from backend.db.personal_graph import create_personal_node
 from backend.db.sessions import issue_session
 from backend.routes import dependencies
@@ -23,6 +23,7 @@ def test_accepted_gaps_are_private_and_leave_course_graph_unchanged(postgres, mo
     course = create_course(postgres, name="Cálculo")
     integral = create_concept(postgres, course, label="Integral doble")
     jacobian = create_concept(postgres, course, label="Jacobiano")
+    approved_edge = add_prerequisite(postgres, course, integral, jacobian)
     postgres.exec_driver_sql("RESET ROLE")
     for student in (first_student, second_student):
         postgres.execute(insert(memberships).values(
@@ -63,16 +64,43 @@ def test_accepted_gaps_are_private_and_leave_course_graph_unchanged(postgres, mo
     }
     assert client.get(base + "/learning-gaps/accepted", headers=coordinator).status_code == 403
 
+    personalized = client.get(base + "/personalized", headers=own)
+    assert personalized.status_code == 200
+    graph = personalized.json()["data"]
+    assert {(node["key"], node["origin"]) for node in graph["nodes"]} == {
+        (str(integral), "course"), (str(jacobian), "course"),
+        (first_node_id, "personal"),
+    }
+    assert graph["edges"] == [{
+        "key": str(approved_edge), "source": str(integral), "target": str(jacobian)
+    }]
+    assert {(item["source"], item["target"], item["kind"]) for item in graph["recommendations"]} == {
+        (first_node_id, str(jacobian), "new"),
+        (str(integral), str(jacobian), "existing"),
+    }
+    assert client.get(base + "/personalized", headers=coordinator).status_code == 403
+    peer_graph = client.get(base + "/personalized", headers=peer).json()["data"]
+    assert {node["key"] for node in peer_graph["nodes"]} == {str(integral), str(jacobian)}
+    assert peer_graph["recommendations"] == []
+
     # El mismo tema se puede añadir al grafo privado de otro alumno.
     second = client.post(base + "/learning-gaps/accept", json=accepted, headers=peer)
     assert second.status_code == 201
-    assert second.json()["data"]["personalNodeIdsByRef"]["N1"] != first_node_id
+    second_node_id = second.json()["data"]["personalNodeIdsByRef"]["N1"]
+    assert second_node_id != first_node_id
+    peer_graph = client.get(base + "/personalized", headers=peer).json()["data"]
+    assert {node["key"] for node in peer_graph["nodes"]} == {
+        str(integral), str(jacobian), second_node_id
+    }
+    assert all(item["source"] != first_node_id for item in peer_graph["recommendations"])
     assert client.post(base + "/learning-gaps/accept", json=accepted, headers=own).status_code == 409
     assert len(client.get(base + "/learning-gaps/accepted", headers=own).json()["data"]["nodes"]) == 1
 
     shared = client.get(base, headers=peer).json()["data"]
     assert {node["key"] for node in shared["nodes"]} == {str(integral), str(jacobian)}
-    assert shared["edges"] == []
+    assert [(edge["source"], edge["target"]) for edge in shared["edges"]] == [
+        (str(integral), str(jacobian))
+    ]
 
     # La política de PostgreSQL también impide escribir en nombre de otro alumno.
     set_user_context(postgres, first_student)

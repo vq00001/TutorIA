@@ -9,7 +9,7 @@ from sqlalchemy.exc import DBAPIError
 
 from ..db.connection import set_user_context, transaction
 from ..db.courses import get_member_course
-from ..db.learning_catalog import list_concepts
+from ..db.learning_catalog import list_concepts, list_course_edges
 from ..db.personal_graph import (
     create_personal_node, create_personal_recommendation,
     list_personal_nodes, list_personal_recommendations,
@@ -19,7 +19,9 @@ from ..knowledge_graph.learning_gaps import infer_gaps, normalized
 from .dependencies import AuthenticatedConnection, BearerToken, ErrorResponse, InvalidSession, error_response
 from .learning_gap_schemas import (
     AcceptGapRequest, AcceptedGapResponse, AcceptedGapResult, GapRecommendation,
-    GapRequest, GapResponse, GapResult, NewGapNode, SavedGapResponse,
+    GapRequest, GapResponse, GapResult, NewGapNode, PersonalizedGraph,
+    PersonalizedGraphEdge, PersonalizedGraphNode,
+    PersonalizedGraphRecommendation, PersonalizedGraphResponse, SavedGapResponse,
     SavedGapResult, SavedPersonalNode, SavedRecommendation, WeakConcept,
 )
 
@@ -165,4 +167,42 @@ def accepted_learning_gaps(courseId: UUID, connection: AuthenticatedConnection):
             personal_node_id=row.personal_node_id, reason=row.reason,
         )
                          for row in list_personal_recommendations(connection, courseId)],
+    ))
+
+
+@router.get(
+    "/knowledge-graph/personalized",
+    response_model=PersonalizedGraphResponse,
+    responses={code: {"model": ErrorResponse} for code in (401, 403, 404)},
+)
+def personalized_knowledge_graph(courseId: UUID, connection: AuthenticatedConnection):
+    denied = _student_course(connection, courseId)
+    if denied is not None:
+        return denied
+
+    course_nodes = list_concepts(connection, courseId)
+    course_edges = list_course_edges(connection, courseId)
+    personal_nodes = list_personal_nodes(connection, courseId)
+    recommendations = list_personal_recommendations(connection, courseId)
+
+    return PersonalizedGraphResponse(data=PersonalizedGraph(
+        nodes=[PersonalizedGraphNode(
+            key=row.id,
+            attributes=SavedPersonalNode(id=row.id, label=row.label, description=row.description),
+            origin="course",
+        ) for row in course_nodes] + [PersonalizedGraphNode(
+            key=row.id,
+            attributes=SavedPersonalNode(id=row.id, label=row.label, description=row.description),
+            origin="personal",
+        ) for row in personal_nodes],
+        edges=[PersonalizedGraphEdge(
+            key=row.id, source=row.source_id, target=row.target_id,
+        ) for row in course_edges],
+        recommendations=[PersonalizedGraphRecommendation(
+            id=row.id,
+            source=row.existing_concept_id or row.personal_node_id,
+            target=row.target_concept_id,
+            kind="existing" if row.existing_concept_id is not None else "new",
+            reason=row.reason,
+        ) for row in recommendations],
     ))

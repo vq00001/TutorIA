@@ -37,7 +37,16 @@ La operación guarda temas y recomendaciones solo para su cuenta. Por ejemplo:
 los refuerzos guardados del alumno autenticado. El grafo común del curso no se
 modifica. Los temas nuevos se enlazan con conceptos del curso; recomendar repasar
 un concepto ya existente se guarda como recomendación, no como prerrequisito
-aprobado. Esta etapa todavía no combina ambas vistas en un grafo personalizado.
+aprobado.
+
+`GET /api/v1/courses/{courseId}/knowledge-graph/personalized` devuelve al alumno
+el grafo del curso junto con sus nodos personales. Cada nodo indica su `origin`:
+`course` o `personal`. `edges` contiene únicamente prerrequisitos aprobados del
+curso. `recommendations` vincula temas existentes o personales con conceptos del
+curso mediante `source` y `target`, con su motivo y tipo; siguen siendo
+recomendaciones de repaso, no aristas aprobadas. La ruta no genera contenido con
+el modelo ni escribe datos.
+
 Antes de usar las rutas en una base existente, vuelve a ejecutar `db-init` para
 crear las tablas y políticas privadas.
 
