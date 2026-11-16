@@ -1,5 +1,6 @@
 """Rutas de autenticación y perfil."""
 
+import os
 from datetime import datetime
 from secrets import token_urlsafe
 from typing import Literal
@@ -12,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
 
 from ..db.sessions import SESSION_LIFETIME_SECONDS, get_login_credentials, issue_session, revoke_session
+from ..db.account_tokens import issue_account_token, verify_email
 from ..db.users import get_current_user, insert_pending_user
 from . import dependencies
 from .dependencies import AuthenticatedConnection, BearerToken, ErrorResponse, InvalidSession
@@ -57,7 +59,7 @@ class RegisteredUser(BaseModel):
     nickname: str
     email: str
     displayName: str
-    status: Literal["pending"] = "pending"
+    status: Literal["pending", "active"] = "pending"
 
 
 class RegisterResponse(BaseModel):
@@ -111,6 +113,12 @@ def register(payload: RegisterRequest) -> RegisterResponse | JSONResponse:
             display_name=payload.displayName,
             password_hash=password_hash,
         )
+        activated = False
+        if created and os.environ.get("DEV_AUTO_VERIFY_REGISTRATION") == "1":
+            token = issue_account_token(connection, payload.email, "verify_email")
+            activated = token is not None and verify_email(connection, token)
+            if not activated:
+                raise RuntimeError("DEV_REGISTRATION_ACTIVATION_FAILED")
     if not created:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -122,6 +130,7 @@ def register(payload: RegisterRequest) -> RegisterResponse | JSONResponse:
             nickname=nickname,
             email=payload.email,
             displayName=payload.displayName,
+            status="active" if activated else "pending",
         )
     )
 

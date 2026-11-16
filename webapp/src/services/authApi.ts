@@ -9,7 +9,8 @@ interface AuthResponse {
       id: string
       email: string
       displayName: string
-      role: string
+      role?: string
+      status?: 'pending' | 'active'
     }
   }
 }
@@ -38,8 +39,40 @@ export async function login(email: string, password: string) {
   }
 
   const result = (await response.json()) as AuthResponse
+  if (result.data.user.status === 'pending') {
+    throw new Error('Verifica tu correo antes de entrar. Usa la opción «Ya tengo un código de verificación».')
+  }
   saveAccessToken(result.data.accessToken)
   return result.data.user
+}
+
+export async function register(displayName: string, email: string, password: string): Promise<'pending' | 'active'> {
+  const response = await fetch('/api/v1/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName, email, password }),
+  })
+  if (!response.ok) throw new Error(await getErrorMessage(response, 'No se pudo crear la cuenta.'))
+  const result = (await response.json()) as { data: { status: 'pending' | 'active' } }
+  return result.data.status
+}
+
+export async function requestEmailVerification(email: string) {
+  const response = await fetch('/api/v1/auth/email-verification/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!response.ok) throw new Error(await getErrorMessage(response, 'No se pudo enviar el código.'))
+}
+
+export async function confirmEmailVerification(token: string) {
+  const response = await fetch('/api/v1/auth/email-verification/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+  if (!response.ok) throw new Error(await getErrorMessage(response, 'No se pudo verificar el correo.'))
 }
 
 export async function authorizedFetch(

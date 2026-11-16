@@ -23,7 +23,6 @@ import type {
   GraphologyExport,
   MaterialDto,
   MaterialFile,
-  MessageDto,
   NewCourse,
   StudentProfile,
 } from '../types'
@@ -66,13 +65,6 @@ const adaptMaterial = (dto: MaterialDto): MaterialFile => ({
 const adaptMessage = (dto: ChatMessageDto): ChatMessage => ({
   ...dto,
   createdAt: new Date(dto.createdAt),
-})
-
-const adaptAssistantMessage = (dto: MessageDto): ChatMessage => ({
-  id: dto.id,
-  role: dto.role,
-  createdAt: new Date(dto.createdAt),
-  parts: [{ type: 'markdown', content: dto.content }],
 })
 
 // Provider
@@ -221,20 +213,19 @@ export function AppDataProvider({
 
       try {
         await uploadPromptFiles(courseId, files)
-        const response = await requestPrompt(courseId, content)
-        const assistantMessages = response.data.messages
-          .filter((message) => message.role === 'assistant')
-          .map(adaptAssistantMessage)
-
-        if (assistantMessages.length === 0) {
-          throw new Error('El tutor no devolvió una respuesta.')
-        }
+        await requestPrompt(courseId, content)
 
         setMessagesByCourse((current) => ({
           ...current,
           [courseId]: [
             ...(current[courseId] ?? []).filter((message) => message.id !== placeholderId),
-            ...assistantMessages,
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              createdAt: new Date(),
+              isError: true,
+              parts: [{ type: 'markdown', content: 'La pregunta se guardó, pero todavía no se puede generar la respuesta.' }],
+            },
           ],
         }))
       } catch (error) {

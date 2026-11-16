@@ -1,5 +1,8 @@
 # Solo para pruebas locales. Incluir este archivo crea una cuenta activa conocida.
 services:
+  backend:
+    environment:
+      DEV_AUTO_VERIFY_REGISTRATION: "1"
   db-init:
     environment:
       DEV_ACCOUNT_EMAIL: ${DEV_ACCOUNT_EMAIL:-dev@example.com}

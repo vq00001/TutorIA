@@ -44,8 +44,9 @@ Comando de docker original: `docker compose --profile dev up --build`.
 ### Entrar a la aplicación
 
 Se necesita una cuenta activa en PostgreSQL: el acceso de demostración
-`usuario@example.com` con cualquier contraseña ya no funciona. El registro crea
-una cuenta pendiente que debe verificar su correo antes de crear una clase.
+`usuario@example.com` con cualquier contraseña ya no funciona. Desde la pantalla
+de acceso se puede registrar una cuenta. En la configuración normal queda
+pendiente hasta verificar el código recibido por correo.
 
 Para probar localmente sin configurar correo, añade `compose.dev-account.yaml` al
 comando de arranque. `db-init` crea o restablece una cuenta activa cada vez que
@@ -58,7 +59,9 @@ WEBAPP_PORT=8082 docker compose -f compose.yaml -f compose.nvidia.yaml \
 
 La cuenta local es `dev@example.com` con contraseña `TutorIA-dev-123`. Para
 cambiarlos, configura `DEV_ACCOUNT_EMAIL` y `DEV_ACCOUNT_PASSWORD` antes de
-arrancar. Este archivo adicional es solo para pruebas en el equipo local.
+arrancar. Este archivo adicional también activa inmediatamente las cuentas
+creadas desde el registro para poder probarlas sin servicio de correo. Es solo
+para pruebas en el equipo local.
 
 En el mapa de un curso sin conceptos, el coordinador puede subir un `.txt` o
 `.md`, revisar la propuesta de nodos y dependencias y guardarla. Subir un

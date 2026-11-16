@@ -16,6 +16,7 @@ PAYLOAD = {
 
 
 def test_register_returns_pending_account_without_credentials(monkeypatch):
+    monkeypatch.delenv("DEV_AUTO_VERIFY_REGISTRATION", raising=False)
     connection = Mock()
     transaction = Mock(return_value=nullcontext(connection))
     insert_user = Mock(return_value=True)
@@ -39,6 +40,24 @@ def test_register_returns_pending_account_without_credentials(monkeypatch):
     stored_hash = insert_user.call_args.kwargs["password_hash"]
     assert stored_hash.startswith("$argon2id$")
     assert auth.password_hasher.verify(stored_hash, PAYLOAD["password"])
+
+
+def test_local_registration_activates_account_when_enabled(monkeypatch):
+    connection = Mock()
+    monkeypatch.setenv("DEV_AUTO_VERIFY_REGISTRATION", "1")
+    monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(connection))
+    monkeypatch.setattr(auth, "insert_pending_user", Mock(return_value=True))
+    issue_token = Mock(return_value="local-token")
+    verify = Mock(return_value=True)
+    monkeypatch.setattr(auth, "issue_account_token", issue_token)
+    monkeypatch.setattr(auth, "verify_email", verify)
+
+    response = TestClient(http_api.app).post(REGISTER, json=PAYLOAD)
+
+    assert response.status_code == 201
+    assert response.json()["data"]["status"] == "active"
+    issue_token.assert_called_once_with(connection, "persona@example.com", "verify_email")
+    verify.assert_called_once_with(connection, "local-token")
 
 
 @pytest.mark.parametrize(

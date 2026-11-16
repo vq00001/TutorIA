@@ -2183,6 +2183,28 @@ label select {
   font-size: 14px;
 }
 
+.login-notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.login-link {
+  border: 0;
+  background: transparent;
+  color: var(--mauve);
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.login-link:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .message-content.message-error { color: #9e3427; }
 
 .logout-button {
