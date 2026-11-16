@@ -18,7 +18,9 @@ Compose habilita pgvector automáticamente.
 El contenedor `backend` ejecuta la API persistente de `backend/http_api.py` y
 espera a que `db-init` prepare PostgreSQL. Esta primera integración conecta
 inicio de sesión, clases y grafo del curso con la base de datos. El servicio
-`document-worker` procesa los documentos de texto y Markdown mediante Ollama.
+`document-worker` genera embeddings mediante el alias `embeddings` del AI
+gateway, que puede enrutar a Ollama. El `chat-worker` usa el mismo gateway para
+las respuestas del modelo.
 El servicio `chat-worker` recupera los chunks vectoriales y publica las
 respuestas del chat con sus referencias documentales. La generación de exámenes
 aún requiere un consumidor aparte.

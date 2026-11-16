@@ -246,8 +246,8 @@ def _send(
             conn, course_id, target, [{"type": "text", "text": payload.question}]
         )
         generation = start_generation(
-            conn, course_id, kind="chat", provider="ollama",
-            model_name=os.getenv("MODEL_LLM", "qwen3:1.7b"),
+            conn, course_id, kind="chat", provider="ai_gateway",
+            model_name=os.getenv("MODEL_LLM", "chat-principal"),
             model_revision=os.getenv("MODEL_LLM_REVISION", "unspecified"),
             prompt_version="v1",
         )

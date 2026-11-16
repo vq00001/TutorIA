@@ -136,8 +136,8 @@ def exams_generate(
         return error_response(404, "COURSE_NOT_FOUND", "Clase no encontrada.")
     try:
         result = submit_generation(
-            connection, courseId, key=key, kind="exam", provider="ollama",
-            model_name=os.getenv("MODEL_LLM", "qwen3:1.7b"),
+            connection, courseId, key=key, kind="exam", provider="ai_gateway",
+            model_name=os.getenv("MODEL_LLM", "chat-principal"),
             model_revision=os.getenv("MODEL_LLM_REVISION", "unspecified"),
             prompt_version="v1",
             deadline_at=datetime.now(timezone.utc) + timedelta(minutes=15),

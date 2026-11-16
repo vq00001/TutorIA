@@ -14,9 +14,11 @@ def chat_completion(
     config: Config,
     prompt: str,
     *,
+    model: str | None = None,
     temperature: float = 0,
     max_tokens: int = 500,
     timeout: int = 180,
+    response_format: dict[str, str] | None = None,
 ) -> str:
     headers = {"Content-Type": "application/json"}
     if config.gateway_api_key:
@@ -26,11 +28,12 @@ def chat_completion(
         f"{config.gateway_url}/v1/chat/completions",
         headers=headers,
         json={
-            "model": config.model_llm,
+            "model": model or config.model_llm,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            **({"response_format": response_format} if response_format else {}),
         },
         timeout=timeout,
     )

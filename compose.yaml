@@ -79,10 +79,14 @@ services:
       WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-tutoria_local_worker}
       MODEL_EMBED: ${MODEL_EMBED:-all-minilm}
       OLLAMA_URL: http://ollama:11434
+      AI_GATEWAY_URL: http://litellm:4000
+      AI_GATEWAY_API_KEY: ${LITELLM_MASTER_KEY:-sk-cambia-esto}
     depends_on:
       db-init:
         condition: service_completed_successfully
       ollama:
+        condition: service_healthy
+      litellm:
         condition: service_healthy
 
   chat-worker:

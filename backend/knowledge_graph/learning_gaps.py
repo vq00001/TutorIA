@@ -4,9 +4,8 @@ import json
 import unicodedata
 from pathlib import Path
 
-import requests
-
 from backend.config import Config
+from backend.llm import chat_completion
 
 
 def normalized(label):
@@ -47,15 +46,14 @@ def load_inputs(nodes_path: Path, scores_path: Path):
 
 def model_json(system, data):
     config = Config.from_env()
-    response = requests.post(
-        config.ollama_url + "/api/chat",
-        json={"model": config.model_llm, "stream": False, "format": "json",
-              "messages": [{"role": "system", "content": system},
-                           {"role": "user", "content": json.dumps(data, ensure_ascii=False)}]},
-        timeout=(5, 180),
+    content = chat_completion(
+        config,
+        f"{system}\n\nDatos:\n{json.dumps(data, ensure_ascii=False)}",
+        max_tokens=2000,
+        timeout=180,
+        response_format={"type": "json_object"},
     )
-    response.raise_for_status()
-    return json.loads(response.json()["message"]["content"])
+    return json.loads(content)
 
 
 def infer_gaps(nodes, scores, threshold=0.4):

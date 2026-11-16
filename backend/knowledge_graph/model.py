@@ -1,25 +1,19 @@
-"""Adaptador mínimo de Ollama para los experimentos del grafo."""
+"""Adaptador JSON del grafo mediante el AI gateway."""
 
 import json
 
-import requests
-
 from backend.config import Config
+from backend.llm import chat_completion
 
 
 def model_json(model, system, data, timeout):
-    response = requests.post(
-        Config.from_env().ollama_url + "/api/chat",
-        json={
-            "model": model,
-            "stream": False,
-            "format": "json",
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": json.dumps(data, ensure_ascii=False, default=str)},
-            ],
-        },
-        timeout=(5, timeout),
+    config = Config.from_env()
+    content = chat_completion(
+        config,
+        f"{system}\n\nDatos:\n{json.dumps(data, ensure_ascii=False, default=str)}",
+        model=model,
+        max_tokens=2000,
+        timeout=timeout,
+        response_format={"type": "json_object"},
     )
-    response.raise_for_status()
-    return json.loads(response.json()["message"]["content"])
+    return json.loads(content)
