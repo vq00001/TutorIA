@@ -10,7 +10,8 @@ compilación generado queda en `instancias/temp/`, que Git ignora.
 Desde la raíz de TutorIA, con Docker Compose y Python 3.11 o posterior:
 
 ```bash
-python3 experimentos/ejecutar.py rnf-r1  # Solo RNF-R-1
+python3 experimentos/ejecutar.py rnf-r1  # Latencia del tutor
+python3 experimentos/ejecutar.py rnf-r3  # Procesamiento de documentos
 python3 experimentos/ejecutar.py todos   # Todos los registrados
 ```
 
@@ -64,6 +65,31 @@ las fases ejecutadas cumplen (o el piloto recupera una fuente), 1 si
 alguna no cumple y 2 si alguna se interrumpe o falla el piloto. Las
 omisiones por falta de GPU no afectan el código de salida. Un error se
 registra y el lanzador continúa con las fases y experimentos restantes.
+
+## RNF-R-3 · Procesamiento de un documento de 30 MB
+
+```bash
+python3 experimentos/ejecutar.py rnf-r3
+```
+
+La configuración `config/rnf-r3.toml` genera un Markdown de **30.000.000
+bytes** a partir de los apuntes de Cálculo III. Puedes indicar un archivo
+propio que pese exactamente `tamano_bytes`. La corrida crea un curso de
+prueba y guarda su informe en `resultados/`.
+
+La medida principal va desde que el cliente recibe la confirmación
+de la carga hasta que observa `ready`, estado que el backend publica
+al dejar los fragmentos y embeddings disponibles. El objetivo se cumple
+en **300 s o menos**. El informe guarda por separado el tiempo de carga,
+el tamaño real, el hash del archivo y los cambios de estado observados.
+Una carga rechazada, un procesamiento fallido o un plazo agotado no
+cumplen el criterio. Un resultado de Markdown representa ese formato
+y ese contenido.
+
+La API admite 30 MB para un solo archivo. Si envías varios archivos en
+una petición, el límite agregado sigue siendo de 20 MiB. Con
+`arrancar_servicios = false`, usa una instancia que ya incluya el límite
+actualizado tanto en la API como en el proxy.
 
 ## Agregar otro experimento
 

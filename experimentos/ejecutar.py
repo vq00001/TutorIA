@@ -8,12 +8,13 @@ import sys
 import tomllib
 
 sys.dont_write_bytecode = True
-from instancias import rnf_r1
+from instancias import rnf_r1, rnf_r3
 from instancias.estado import GpuNoDisponible
 
 DIRECTORY = Path(__file__).resolve().parent
 EXPERIMENTS = {
     "rnf-r1": (rnf_r1.run, rnf_r1.resumir_configuracion, "arrancar-rag.sh"),
+    "rnf-r3": (rnf_r3.run, rnf_r3.resumir_configuracion, "arrancar-rag.sh"),
 }
 
 

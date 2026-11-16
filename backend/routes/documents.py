@@ -19,6 +19,7 @@ from ..file_storage import store_uploaded_document
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response
 
 router = APIRouter(tags=["Documents"])
+_MAX_SINGLE_FILE_BYTES = 30_000_000
 _MAX_BATCH_BYTES = 20 * 1024 * 1024
 _FILE_MIME_TYPES = {
     ".txt": ("text/plain", {"text/plain", "application/octet-stream"}),
@@ -137,7 +138,8 @@ def documents_upload(
         return _not_found()
     if course.status != "active":
         return error_response(403, "COURSE_NOT_ACTIVE", "La clase no admite cargas.")
-    remaining = _MAX_BATCH_BYTES
+    single_file = len(files) == 1
+    remaining = _MAX_SINGLE_FILE_BYTES if single_file else _MAX_BATCH_BYTES
     batch = []
     fingerprint = []
     for upload in files:
@@ -155,7 +157,8 @@ def documents_upload(
         mime = file_type[0]
         data = upload.file.read(remaining + 1)
         if len(data) > remaining:
-            return error_response(413, "UPLOAD_TOO_LARGE", "El lote supera 20 MiB.")
+            message = "El archivo supera 30 MB." if single_file else "El lote supera 20 MiB."
+            return error_response(413, "UPLOAD_TOO_LARGE", message)
         if not data:
             return error_response(422, "EMPTY_DOCUMENT", "El archivo está vacío.")
         if extension == ".pdf" and b"%PDF-" not in data[:1024]:
