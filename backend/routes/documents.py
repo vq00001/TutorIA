@@ -15,11 +15,16 @@ from ..db.courses import get_member_course
 from ..db.documents import delete_document, download_document, get_document_metadata, list_documents
 from ..db.idempotency import run_idempotent
 from ..db.submissions import enqueue_upload
+from ..file_storage import store_uploaded_document
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response
 
 router = APIRouter(tags=["Documents"])
 _MAX_BATCH_BYTES = 20 * 1024 * 1024
-_MIME_TYPES = {"text/plain", "text/markdown"}
+_FILE_MIME_TYPES = {
+    ".txt": ("text/plain", {"text/plain", "application/octet-stream"}),
+    ".md": ("text/markdown", {"text/markdown", "text/plain", "application/octet-stream"}),
+    ".pdf": ("application/pdf", {"application/pdf", "application/octet-stream"}),
+}
 
 ProcessingStatus = Literal["queued", "processing", "ready", "failed"]
 _ERRORS = {code: {"model": ErrorResponse} for code in (401, 404, 422)}
@@ -137,16 +142,24 @@ def documents_upload(
     fingerprint = []
     for upload in files:
         name = upload.filename or ""
-        mime = (upload.content_type or "").split(";", 1)[0].strip().lower()
-        if mime not in _MIME_TYPES:
-            return error_response(415, "UNSUPPORTED_DOCUMENT_TYPE", "Usa texto plano o Markdown.")
         if not name.strip() or len(name) > 255 or "\x00" in name:
             return error_response(422, "INVALID_FILENAME", "Nombre de archivo inválido.")
+        extension = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        extension = f".{extension}"
+        file_type = _FILE_MIME_TYPES.get(extension)
+        mime = (upload.content_type or "").split(";", 1)[0].strip().lower()
+        if file_type is None or mime not in file_type[1]:
+            return error_response(
+                415, "UNSUPPORTED_DOCUMENT_TYPE", "Usa archivos PDF, Markdown o texto."
+            )
+        mime = file_type[0]
         data = upload.file.read(remaining + 1)
         if len(data) > remaining:
             return error_response(413, "UPLOAD_TOO_LARGE", "El lote supera 20 MiB.")
         if not data:
             return error_response(422, "EMPTY_DOCUMENT", "El archivo está vacío.")
+        if extension == ".pdf" and b"%PDF-" not in data[:1024]:
+            return error_response(422, "INVALID_DOCUMENT", "El archivo no contiene un PDF válido.")
         remaining -= len(data)
         batch.append((name, mime, data))
         fingerprint.append([name, mime, sha256(data).hexdigest()])
@@ -176,6 +189,15 @@ def documents_upload(
         if sqlstate == "42501":
             return error_response(403, "UPLOAD_FORBIDDEN", "La cuenta no puede cargar documentos.")
         raise
+    for (name, _mime, data), item in zip(batch, result):
+        if item["document_id"] is not None:
+            store_uploaded_document(
+                course_name=course.name,
+                course_id=courseId,
+                document_id=UUID(item["document_id"]),
+                filename=name,
+                content=data,
+            )
     return UploadResponse(data=[
         UploadResult(documentId=item["document_id"], jobId=item["job_id"],
                      duplicate=item["document_id"] is None)

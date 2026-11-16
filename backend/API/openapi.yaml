@@ -509,7 +509,7 @@ paths:
     post:
       tags: [Documents]
       summary: Sube documentos al curso de forma idempotente
-      description: El lote admite hasta 20 archivos de texto plano o Markdown y 20 MiB en total.
+      description: El lote admite hasta 20 archivos PDF, Markdown o texto plano y 20 MiB en total.
       parameters:
         - name: Idempotency-Key
           in: header
@@ -1785,7 +1785,7 @@ components:
         courseId: { type: string, format: uuid }
         name: { type: string }
         size: { type: integer, minimum: 0 }
-        mimeType: { type: string, enum: [text/plain, text/markdown] }
+        mimeType: { type: string, enum: [text/plain, text/markdown, application/pdf] }
         status: { type: string, enum: [queued, processing, ready, failed] }
         errorMessage: { type: string, nullable: true }
         uploadedBy: { $ref: '#/components/schemas/Member' }

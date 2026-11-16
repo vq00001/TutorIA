@@ -5,7 +5,7 @@ import { MaterialDropzone } from '../components/materials/MaterialDropzone'
 import { MaterialList } from '../components/materials/MaterialList'
 import { PageHeading } from '../components/ui/PageHeading'
 import { useAppData } from '../contexts/AppDataContext'
-import { compatible_file_formats } from '../types'
+import { compatible_file_formats, isSupportedFile } from '../types'
 
 export function MaterialsPage() {
   const {
@@ -39,14 +39,7 @@ export function MaterialsPage() {
       )
     }
 
-    const acceptedExtensions = compatible_file_formats
-      .toLowerCase()
-      .split(",")
-      .filter((ext) => ext.startsWith("."));
-
-    const accepted = files.filter((file) =>
-      acceptedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
-    );
+    const accepted = files.filter(isSupportedFile)
 
     if (!accepted.length) {
       return setNotice(`Por ahora solo se admiten archivos ${compatible_file_formats}.`)
@@ -58,8 +51,8 @@ export function MaterialsPage() {
       setNotice(
         `${result.length} archivo(s) añadido(s) a ${course.name}.`,
       )
-    } catch {
-      setNotice('No se pudieron añadir los archivos.')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudieron añadir los archivos.')
     }
   }
 

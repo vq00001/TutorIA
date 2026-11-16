@@ -4,8 +4,7 @@ import { PageHeading } from '../components/ui/PageHeading'
 import { useAppData } from '../contexts/AppDataContext'
 
 import { MaterialDropzone } from '../components/materials/MaterialDropzone'
-import { compatible_file_formats } from '../types'
-import type { Course, MaterialFile } from '../types'
+import { compatible_file_formats, isSupportedFile } from '../types'
 import { MaterialList } from '../components/materials/MaterialList'
 
 // Temporary representation of a selected file.
@@ -35,17 +34,7 @@ export function CreateCoursePage() {
 
   // Add selected files to temporary state.
   function handleFiles(files: File[]) {
-    const acceptedExtensions = compatible_file_formats
-      .toLowerCase()
-      .split(',')
-      .filter((ext) => ext.trim().startsWith('.'))
-      .map((ext) => ext.trim())
-
-    const accepted = files.filter((file) =>
-      acceptedExtensions.some((ext) =>
-        file.name.toLowerCase().endsWith(ext)
-      )
-    )
+    const accepted = files.filter(isSupportedFile)
 
     if (accepted.length !== files.length) {
       setNotice(

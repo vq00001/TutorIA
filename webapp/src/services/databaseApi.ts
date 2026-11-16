@@ -53,7 +53,7 @@ export interface TutorIADataApi {
   getCourseMaterials(courseId: string): Promise<JsonApiResponse<MaterialDto[]>>
   getCourseMessages(courseId: string): Promise<JsonApiResponse<ChatMessageDto[]>>
   getCourseGraph(courseId: string): Promise<JsonApiResponse<GraphologyExport>>
-  createCourseMaterials(courseId: string, files: Array<{ name: string; size: number }>): Promise<JsonApiResponse<MaterialDto[]>>
+  createCourseMaterials(courseId: string, files: File[]): Promise<JsonApiResponse<MaterialDto[]>>
   deleteCourseMaterial(courseId: string, materialId: string): Promise<JsonApiResponse<{ deleted: boolean }>>
 }
 

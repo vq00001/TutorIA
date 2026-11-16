@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-SUPPORTED_EXTENSIONS = {".md", ".markdown", ".txt"}
+SUPPORTED_EXTENSIONS = {".md", ".markdown", ".txt", ".pdf"}
 
 
 def iter_documents(path: Path) -> list[Path]:
@@ -19,7 +19,12 @@ def iter_documents(path: Path) -> list[Path]:
 
 
 def read_document(path: Path) -> str:
-    """Lee un documento UTF-8 y reemplaza bytes que no puedan decodificarse."""
+    """Lee texto UTF-8 o convierte un PDF a Markdown antes de procesarlo."""
+    if path.suffix.lower() == ".pdf":
+        from .utilities.pdf_to_md.pdf_to_md import pdf_bytes_to_markdown
+
+        return pdf_bytes_to_markdown(path.read_bytes())
+
     return path.read_text(encoding="utf-8", errors="replace")
 
 

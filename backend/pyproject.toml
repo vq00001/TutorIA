@@ -12,6 +12,9 @@ dependencies = [
     "psycopg[binary]>=3.2,<4",
     "sqlalchemy>=2.0.28,<2.1",
     "requests>=2.32,<3",
+    "ftfy",
+    "pymupdf",
+    "pymupdf4llm",
     "uvicorn>=0.34,<1",
 ]
 

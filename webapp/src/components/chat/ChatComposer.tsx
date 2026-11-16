@@ -7,11 +7,12 @@ import {
 
 import { useAppData } from '../../contexts/AppDataContext'
 
-import { compatible_file_formats } from '../../types'
+import { compatible_file_formats, isSupportedFile } from '../../types'
 
 export function ChatComposer({ courseId }: { courseId: string }) {
   const [value, setValue] = useState('')
   const [attached, setAttached] = useState<File[]>([])
+  const [error, setError] = useState('')
   const [isSending, setIsSending] = useState(false)
 
   const input = useRef<HTMLInputElement>(null)
@@ -30,6 +31,7 @@ export function ChatComposer({ courseId }: { courseId: string }) {
       await sendPrompt(courseId, value.trim(), attached)
       setValue('')
       setAttached([])
+      setError('')
     } finally {
       sending.current = false
       setIsSending(false)
@@ -43,9 +45,13 @@ export function ChatComposer({ courseId }: { courseId: string }) {
     }
   }
 
-  async function attach(files: FileList | null) {
-    const accepted = Array.from(files ?? []).filter((file) =>
-      /\.(txt|md)$/i.test(file.name),
+  function attach(files: FileList | null) {
+    const selected = Array.from(files ?? [])
+    const accepted = selected.filter(isSupportedFile)
+    setError(
+      selected.length !== accepted.length
+        ? `Formatos admitidos: ${compatible_file_formats}.`
+        : '',
     )
 
     if (accepted.length) {
@@ -55,6 +61,7 @@ export function ChatComposer({ courseId }: { courseId: string }) {
 
   return (
     <form className="composer" onSubmit={submit}>
+      {error && <p className="upload-notice" role="alert">{error}</p>}
       {attached.length > 0 && (
         <div className="attachment-chips">
           {attached.map((file, index) => (

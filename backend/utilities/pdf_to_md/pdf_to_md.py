@@ -25,15 +25,39 @@ JUNK_CHARS = re.compile(
     "\ue000-\uf8ff]"                                       # área de uso privado
 )
 
+class NotConvertible(Exception):
+    """El archivo no se puede convertir; el mensaje es apto para mostrar al usuario."""
 
-def has_extractable_text(pdf_path: Path, min_chars: int = 50) -> bool:
-    with pymupdf.open(pdf_path) as doc:
-        sum_chars = 0
-        for page in doc:
-            sum_chars += len(page.get_text("text").strip())
-            if sum_chars >= min_chars:
-                return True
-    return False
+
+def open_pdf(data: bytes) -> pymupdf.Document:
+    if b"%PDF-" not in data[:1024]:
+        raise NotConvertible("El archivo no es un PDF válido.")
+    try:
+        doc = pymupdf.open(stream=data, filetype="pdf")
+    except Exception as e:
+        raise NotConvertible(f"PDF corrupto o ilegible: {e}")
+    if doc.needs_pass:
+        doc.close()
+        raise NotConvertible("El PDF está protegido con contraseña.")
+    if doc.page_count == 0:
+        doc.close()
+        raise NotConvertible("El PDF no tiene páginas.")
+    return doc
+
+
+def check_text(doc: pymupdf.Document, min_chars: int = 30, min_ratio: float = 0.5) -> None:
+    ok = sum(len(p.get_text().strip()) >= min_chars for p in doc)
+    if ok / doc.page_count < min_ratio:
+        raise NotConvertible("El PDF no tiene texto extraíble (posible escaneo).")
+
+
+def pdf_bytes_to_markdown(data: bytes) -> str:
+    with open_pdf(data) as doc:
+        check_text(doc)
+        md = pymupdf4llm.to_markdown(doc, header=False, footer=False)
+        if not md.strip():
+            md = "\n\n".join(page.get_text("text") for page in doc)
+    return clean_text(md)
 
 
 def merge_paragraph_lines(text: str) -> str:
@@ -77,33 +101,3 @@ def clean_text(text: str) -> str:
     # 6. Máximo una línea en blanco entre bloques
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip() + "\n"
-
-
-def pdf_to_markdown(pdf_path: Path) -> str:
-    if not has_extractable_text(pdf_path):
-        raise ValueError(
-            f"'{pdf_path}' no contiene texto extraíble (posible PDF escaneado)."
-        )
-
-    # header/footer=False: la librería omite encabezados y pies de página
-    markdown = pymupdf4llm.to_markdown(str(pdf_path), header=False, footer=False)
-    return clean_text(markdown)
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser(description="Convierte un PDF con texto a Markdown limpio.")
-    parser.add_argument("pdf_path", type=Path, help="Archivo PDF de entrada")
-    parser.add_argument(
-        "-o", "--output", type=Path, default=None,
-        help="Archivo de salida (por defecto: <entrada>.md)"
-    )
-    args = parser.parse_args()
-
-    output = args.output or args.pdf_path.with_name(args.pdf_path.stem + ".md")
-    try:
-        output.write_text(pdf_to_markdown(args.pdf_path), encoding="utf-8")
-    except ValueError as e:
-        print(f"Archivo rechazado: {e}")
-        raise SystemExit(1)
-
-    print(f"Listo: {output}")

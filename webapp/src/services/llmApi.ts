@@ -15,7 +15,11 @@ export async function uploadPromptFiles(courseId: string, files: File[]) {
 
   const response = await authorizedFetch(
     `/api/v1/courses/${toApiCourseId(courseId)}/documents`,
-    { method: 'POST', body: form },
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      body: form,
+    },
   )
 
   if (!response.ok) {
