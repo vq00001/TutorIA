@@ -3,8 +3,9 @@
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import requests
 from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
@@ -17,6 +18,8 @@ from ..db.courses import get_member_course
 from ..db.generations import start_generation
 from ..db.idempotency import run_idempotent
 from ..db.jobs import enqueue_job
+from ..config import Config
+from ..llm import chat_completion
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response
 
 router = APIRouter(prefix="/courses/{courseId}/conversations", tags=["Conversations"])
@@ -87,6 +90,28 @@ class SendResponse(BaseModel):
     data: AcceptedMessage
 
 
+class DirectMessage(BaseModel):
+    id: UUID
+    role: Literal["user", "assistant"]
+    content: str
+    createdAt: datetime
+    usedDocuments: bool = False
+    sourceDocuments: list = Field(default_factory=list)
+
+
+class DirectConversation(BaseModel):
+    id: UUID
+    courseId: UUID
+    title: str
+    messages: list[DirectMessage]
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class DirectResponse(BaseModel):
+    data: DirectConversation
+
+
 def _conversation(row) -> Conversation:
     return Conversation(
         id=row.id, courseId=row.course_id, title=row.title, status=row.status,
@@ -108,6 +133,36 @@ def _message(row) -> Message:
 
 def _not_found() -> JSONResponse:
     return error_response(404, "CONVERSATION_NOT_FOUND", "Clase o conversación no encontrada.")
+
+
+@router.post("/direct", response_model=DirectResponse, responses=_SEND_ERRORS)
+def conversations_direct(
+    courseId: UUID, payload: AskRequest, connection: AuthenticatedConnection,
+) -> DirectResponse | JSONResponse:
+    course = get_member_course(connection, courseId)
+    if course is None:
+        return _not_found()
+    if course.status != "active":
+        return error_response(403, "CHAT_NOT_ACTIVE", "La conversación no admite mensajes.")
+
+    try:
+        config = Config.from_env()
+        config.model_llm = "chat-principal"
+        answer = chat_completion(config, payload.question, timeout=180)
+        if not answer:
+            raise ValueError("EMPTY_MODEL_RESPONSE")
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return error_response(503, "TUTOR_UNAVAILABLE", "El servicio del tutor no está disponible en este momento.")
+
+    now = datetime.now(timezone.utc)
+    return DirectResponse(data=DirectConversation(
+        id=uuid4(), courseId=courseId, title=payload.question[:80],
+        messages=[
+            DirectMessage(id=uuid4(), role="user", content=payload.question, createdAt=now),
+            DirectMessage(id=uuid4(), role="assistant", content=answer, createdAt=now),
+        ],
+        createdAt=now, updatedAt=now,
+    ))
 
 
 @router.get("", response_model=ConversationPage, responses=_ERRORS)

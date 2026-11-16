@@ -1,15 +1,35 @@
 from contextlib import nullcontext
-from uuid import UUID
+from types import SimpleNamespace
+from unittest.mock import Mock
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
 from backend import http_api
 from backend.db.sessions import issue_session
-from backend.routes import dependencies
+from backend.routes import conversations, dependencies
 from db.courses import create_course
 from db.jobs import claim_job
 from .test_courses import _as_user, _user
 from .test_exams import _role
+
+
+def test_direct_chat_returns_gateway_answer(monkeypatch):
+    course_id = uuid4()
+    config = SimpleNamespace(model_llm="qwen3:1.7b")
+    completion = Mock(return_value="Respuesta de Qwen")
+    monkeypatch.setattr(conversations, "get_member_course", lambda *_: SimpleNamespace(status="active"))
+    monkeypatch.setattr(conversations.Config, "from_env", lambda: config)
+    monkeypatch.setattr(conversations, "chat_completion", completion)
+
+    response = conversations.conversations_direct(
+        course_id, conversations.AskRequest(question="hola"), Mock()
+    )
+
+    assert response.data.messages[1].content == "Respuesta de Qwen"
+    assert response.data.courseId == course_id
+    assert config.model_llm == "chat-principal"
+    completion.assert_called_once_with(config, "hola", timeout=180)
 
 
 def test_chat_replay_history_and_quota_rollback(postgres, monkeypatch):

@@ -1,17 +1,10 @@
-import type { JsonApiResponse } from '../types'
+import type { ConversationDto, JsonApiResponse } from '../types'
 import { authorizedFetch } from './authApi'
 import { responseError } from './utils'
 
 interface AskRequest {
   question: string
   includeDocuments: boolean
-}
-
-interface AcceptedMessage {
-  conversationId: string
-  messageId: string
-  generationId: string
-  jobId: string
 }
 
 export async function uploadPromptFiles(courseId: string, files: File[]) {
@@ -33,16 +26,13 @@ export async function uploadPromptFiles(courseId: string, files: File[]) {
 export async function sendPrompt(
   courseId: string,
   question: string,
-): Promise<JsonApiResponse<AcceptedMessage>> {
+): Promise<JsonApiResponse<ConversationDto>> {
   const body: AskRequest = { question, includeDocuments: true }
   const response = await authorizedFetch(
-    `/api/v1/courses/${toApiCourseId(courseId)}/conversations`,
+    `/api/v1/courses/${toApiCourseId(courseId)}/conversations/direct`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': crypto.randomUUID(),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     },
   )
@@ -52,24 +42,34 @@ export async function sendPrompt(
   }
 
   const result: unknown = await response.json()
-  if (!isAcceptedMessageResponse(result)) {
+  if (!isConversationResponse(result)) {
     throw new Error('El tutor devolvió una respuesta con formato inválido.')
   }
 
   return result
 }
 
-function isAcceptedMessageResponse(
+function isConversationResponse(
   value: unknown,
-): value is JsonApiResponse<AcceptedMessage> {
+): value is JsonApiResponse<ConversationDto> {
   if (!value || typeof value !== 'object' || !('data' in value)) return false
 
   const data = value.data
-  return Boolean(data && typeof data === 'object' &&
-    'conversationId' in data && typeof data.conversationId === 'string' &&
-    'messageId' in data && typeof data.messageId === 'string' &&
-    'generationId' in data && typeof data.generationId === 'string' &&
-    'jobId' in data && typeof data.jobId === 'string')
+  return Boolean(
+    data &&
+      typeof data === 'object' &&
+      'messages' in data &&
+      Array.isArray(data.messages) &&
+      data.messages.every(
+        (message) =>
+          message &&
+          typeof message === 'object' &&
+          'role' in message &&
+          (message.role === 'user' || message.role === 'assistant') &&
+          'content' in message &&
+          typeof message.content === 'string',
+      ),
+  )
 }
 
 // The current UI's demo courses use slugs, while the API contract requires UUIDs.
