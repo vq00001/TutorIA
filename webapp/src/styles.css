@@ -2112,7 +2112,7 @@ label select {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--page-bg, #f7f4f2);
+  background: var(--base);
 }
 
 .login-card {
@@ -2127,26 +2127,26 @@ label select {
 }
 
 .login-brand {
-  color: var(--text-primary, #302a27);
+  color: var(--text-strong);
   font-size: 20px;
   font-weight: 800;
 }
 
-.login-brand span { color: var(--accent, #9271a8); }
+.login-brand span { color: var(--mauve); }
 
 .login-card h1 {
   margin: 12px 0 0;
-  color: var(--text-primary, #302a27);
+  color: var(--text-strong);
   font-size: 26px;
 }
 
 .login-card p {
   margin: 0 0 12px;
-  color: var(--text-secondary, #77706c);
+  color: var(--text-muted);
 }
 
 .login-card label {
-  color: var(--text-primary, #302a27);
+  color: var(--text);
   font-size: 14px;
   font-weight: 650;
 }
@@ -2156,8 +2156,8 @@ label select {
   padding: 12px 14px;
   border: 1px solid var(--border, #e7e1dd);
   border-radius: 10px;
-  background: var(--surface, #fff);
-  color: var(--text-primary, #302a27);
+  background: var(--surface-soft);
+  color: var(--text-strong);
   font: inherit;
 }
 
