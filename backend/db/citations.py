@@ -6,11 +6,11 @@ from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Connection, RowMapping
 
 from .conversations import messages
-from .generations import generation_sources
 
 citations = sa.Table(
     "citations",
@@ -74,28 +74,10 @@ def append_cited_assistant_message(
 
 def list_message_citations(conn: Connection, message_id: UUID) -> list[RowMapping]:
     """Lee las citas en orden y recupera los offsets desde la fuente validada."""
-    statement = (
-        sa.select(
-            citations,
-            generation_sources.c.document_id,
-            generation_sources.c.run_id,
-            generation_sources.c.parent_id,
-            generation_sources.c.child_id,
-            generation_sources.c.embedding_space_id,
-            generation_sources.c.start_offset,
-            generation_sources.c.end_offset,
-            generation_sources.c.score,
-        )
-        .select_from(
-            citations.outerjoin(
-                generation_sources,
-                (citations.c.request_id == generation_sources.c.request_id)
-                & (citations.c.source_rank == generation_sources.c.rank),
-            )
-        )
-        .where(citations.c.message_id == message_id)
-        .order_by(citations.c.ordinal)
+    result = func.app.list_message_citations(message_id).table_valued(
+        "source_document_id", "source_name", "section_path", "locator", "snippet", "score", "label"
     )
+    statement = sa.select(result)
     return list(conn.execute(statement).mappings())
 
 
@@ -110,6 +92,45 @@ def install_citations(conn: Connection) -> None:
         USING (EXISTS (SELECT FROM app.messages AS m WHERE m.id = citations.message_id))"""
     )
     conn.exec_driver_sql("GRANT SELECT ON app.citations TO tutoria_api")
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.list_message_citations(target_message uuid)
+        RETURNS TABLE (
+            source_document_id uuid, source_name text, section_path text[],
+            locator jsonb, snippet text, score double precision, label text
+        )
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT FROM app.messages
+                WHERE id = target_message AND user_id = app.course_actor()
+            ) THEN
+                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+            END IF;
+            RETURN QUERY
+            SELECT source.document_id, version.original_name::text, parent.section_path,
+                   parent.locator, child.text, source.score, citation.label::text
+            FROM app.citations AS citation
+            JOIN app.generation_sources AS source
+              ON source.request_id = citation.request_id
+             AND source.rank = citation.source_rank
+            JOIN app.document_versions AS version
+              ON version.document_id = source.document_id AND version.version_no = 1
+            JOIN app.parent_chunks AS parent
+              ON parent.id = source.parent_id AND parent.run_id = source.run_id
+            JOIN app.child_chunks AS child
+              ON child.id = source.child_id AND child.run_id = source.run_id
+            WHERE citation.message_id = target_message
+            ORDER BY citation.ordinal;
+        END
+        $$"""
+    )
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.list_message_citations(uuid) FROM PUBLIC"
+    )
+    conn.exec_driver_sql(
+        "GRANT EXECUTE ON FUNCTION app.list_message_citations(uuid) TO tutoria_api"
+    )
 
     conn.exec_driver_sql(
         """CREATE OR REPLACE FUNCTION app.append_cited_assistant_message(

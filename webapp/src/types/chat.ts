@@ -6,6 +6,9 @@ export interface SourceDocumentDto {
   documentId: string
   name: string
   relevance: number | null
+  section?: string
+  locator?: Record<string, unknown>
+  snippet?: string
 }
 
 export interface MessageDto {
@@ -15,6 +18,7 @@ export interface MessageDto {
   createdAt: string
   usedDocuments: boolean | null
   sourceDocuments: SourceDocumentDto[] | null
+  inReplyTo?: string | null
 }
 
 export interface ConversationDto {
@@ -40,6 +44,7 @@ export interface ChatMessage {
   createdAt: Date
   awaitingResponse?: boolean
   isError?: boolean
+  sourceDocuments?: SourceDocumentDto[]
 }
 
 export type ChatMessageDto = Omit<ChatMessage, 'createdAt'> & {

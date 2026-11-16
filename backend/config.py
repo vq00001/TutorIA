@@ -48,11 +48,12 @@ class Config:
     use_context: bool = False
     limit_query: int = 4
     similarity_threshold: float = 0.5
+    retrieval_limit: int = 4
     gateway_url: str = "http://localhost:4000"
     gateway_api_key: str = ""
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Config:
         """Construye la configuración usando `.env` y valores predeterminados."""
 
         ollama_port = os.getenv("OLLAMA_PORT", "11434")
@@ -70,7 +71,8 @@ class Config:
             token_estimate_ratio=float(os.getenv("TOKEN_ESTIMATE_RATIO", "1.3")),
             use_context=_env_bool("USE_CONTEXT"),
             limit_query=int(os.getenv("LIMIT_QUERY", "4")),
-            similarity_threshold=float(os.getenv("SIMILARITY_THRESHOLD", "0.5")),
+            similarity_threshold=float(os.getenv("SIMILARITY_THRESHOLD", "0.3")),
+            retrieval_limit=int(os.getenv("RETRIEVAL_LIMIT", os.getenv("LIMIT_QUERY", "4"))),
             gateway_url=os.getenv(
                 "AI_GATEWAY_URL", f"http://localhost:{litellm_port}"
             ).rstrip("/"),
@@ -89,3 +91,6 @@ class Config:
 
         if not 0 <= self.similarity_threshold <= 1:
             raise ValueError("similarity_threshold debe estar en [0, 1]")
+
+        if not 1 <= self.retrieval_limit <= 12:
+            raise ValueError("retrieval_limit debe estar entre 1 y 12")

@@ -82,6 +82,8 @@ interface ApiMessage {
   role: 'user' | 'assistant'
   content: string
   createdAt: string
+  inReplyTo?: string | null
+  sourceDocuments?: import('../types').SourceDocumentDto[]
 }
 
 interface ApiConversation { id: string }
@@ -134,6 +136,7 @@ function asChatMessage(message: ApiMessage): ChatMessageDto {
     role: message.role,
     createdAt: message.createdAt,
     parts: [{ type: 'markdown', content: message.content }],
+    sourceDocuments: message.sourceDocuments ?? [],
   }
 }
 

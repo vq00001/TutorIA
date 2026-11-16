@@ -36,6 +36,21 @@ export function MessageRenderer({
         ),
       )}
 
+      {message.sourceDocuments && message.sourceDocuments.length > 0 && (
+        <details className="message-sources">
+          <summary>Fuentes utilizadas ({message.sourceDocuments.length})</summary>
+          <ul>
+            {message.sourceDocuments.map((source) => (
+              <li key={`${source.documentId}-${source.section ?? ''}`}>
+                <strong>{source.name}</strong>
+                {source.section && <span> · {source.section}</span>}
+                {source.snippet && <blockquote>{source.snippet}</blockquote>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {message.awaitingResponse && (
         <div className="response-placeholder">
           <span className="typing-dots">•••</span>

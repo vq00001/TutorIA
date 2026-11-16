@@ -266,6 +266,56 @@ def _install_conversation_access(conn: Connection) -> None:
 
 def _install_conversation_writes(conn: Connection) -> None:
     conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.read_chat_context(
+            cid uuid, conversation uuid, reply uuid
+        ) RETURNS jsonb
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+        DECLARE result jsonb;
+        BEGIN
+            IF NOT EXISTS (
+                SELECT FROM app.conversations
+                WHERE id = conversation AND course_id = cid
+                  AND user_id = app.course_actor() AND status = 'active'
+            ) THEN
+                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+            END IF;
+            IF NOT EXISTS (
+                SELECT FROM app.messages
+                WHERE id = reply AND conversation_id = conversation
+                  AND course_id = cid AND user_id = app.course_actor()
+                  AND role = 'user'
+            ) THEN
+                RAISE EXCEPTION 'INVALID_REPLY_TARGET' USING ERRCODE = '23514';
+            END IF;
+            SELECT jsonb_build_object(
+                'question', (
+                    SELECT part.value ->> 'text'
+                    FROM app.messages AS m
+                    CROSS JOIN LATERAL jsonb_array_elements(m.parts) AS part(value)
+                    WHERE m.id = reply AND part.value ->> 'type' = 'text'
+                    LIMIT 1
+                ),
+                'history', coalesce((
+                    SELECT jsonb_agg(
+                        jsonb_build_object('role', m.role, 'content', part.value ->> 'text')
+                        ORDER BY m.sequence_no
+                    )
+                    FROM app.messages AS m
+                    CROSS JOIN LATERAL jsonb_array_elements(m.parts) AS part(value)
+                    WHERE m.conversation_id = conversation AND m.id <> reply
+                      AND part.value ->> 'type' = 'text'
+                ), '[]'::jsonb)
+            ) INTO result;
+            RETURN result;
+        END
+        $$"""
+    )
+    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.read_chat_context(uuid, uuid, uuid) FROM PUBLIC")
+    conn.exec_driver_sql(
+        "GRANT EXECUTE ON FUNCTION app.read_chat_context(uuid, uuid, uuid) TO tutoria_worker"
+    )
+    conn.exec_driver_sql(
         """CREATE OR REPLACE FUNCTION app.lock_history_scope(cid uuid, actor uuid)
         RETURNS boolean
         LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp

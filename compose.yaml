@@ -85,6 +85,30 @@ services:
       ollama:
         condition: service_healthy
 
+  chat-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["python", "-m", "backend.chat_worker"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-tutoria}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-tutoria_local_worker}
+      MODEL_LLM: ${MODEL_LLM:-qwen3:1.7b}
+      MODEL_EMBED: ${MODEL_EMBED:-all-minilm}
+      OLLAMA_URL: http://ollama:11434
+      AI_GATEWAY_URL: http://litellm:4000
+      AI_GATEWAY_API_KEY: ${LITELLM_MASTER_KEY:-sk-cambia-esto}
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+
   ollama:
     build:
       context: ./backend/ollama

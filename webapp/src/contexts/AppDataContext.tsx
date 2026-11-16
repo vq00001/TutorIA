@@ -13,7 +13,7 @@ import {
   databaseApi,
   type TutorIADataApi,
 } from '../services/databaseApi'
-import { sendPrompt as requestPrompt, uploadPromptFiles } from '../services/llmApi'
+import { sendPrompt as requestPrompt, uploadPromptFiles, waitForAssistant } from '../services/llmApi'
 
 import type {
   ChatMessage,
@@ -73,6 +73,7 @@ const adaptAssistantMessage = (dto: MessageDto): ChatMessage => ({
   role: dto.role,
   createdAt: new Date(dto.createdAt),
   parts: [{ type: 'markdown', content: dto.content }],
+  sourceDocuments: dto.sourceDocuments ?? [],
 })
 
 // Provider
@@ -107,6 +108,7 @@ export function AppDataProvider({
   >({})
 
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [conversationByCourse, setConversationByCourse] = useState<Record<string, string>>({})
 
   // Initial data loading
 
@@ -221,20 +223,23 @@ export function AppDataProvider({
 
       try {
         await uploadPromptFiles(courseId, files)
-        const response = await requestPrompt(courseId, content)
-        const assistantMessages = response.data.messages
-          .filter((message) => message.role === 'assistant')
-          .map(adaptAssistantMessage)
-
-        if (assistantMessages.length === 0) {
-          throw new Error('El tutor no devolvió una respuesta.')
-        }
+        const response = await requestPrompt(courseId, content, conversationByCourse[courseId])
+        setConversationByCourse((current) => ({
+          ...current,
+          [courseId]: response.data.conversationId,
+        }))
+        const assistant = await waitForAssistant(
+          courseId,
+          response.data.conversationId,
+          response.data.jobId,
+          response.data.messageId,
+        )
 
         setMessagesByCourse((current) => ({
           ...current,
           [courseId]: [
             ...(current[courseId] ?? []).filter((message) => message.id !== placeholderId),
-            ...assistantMessages,
+            adaptAssistantMessage(assistant),
           ],
         }))
       } catch (error) {
@@ -257,7 +262,7 @@ export function AppDataProvider({
         }))
       }
     },
-    []
+    [conversationByCourse]
   )
 
   // Materials management

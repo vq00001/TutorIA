@@ -11,14 +11,20 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 from sqlalchemy.exc import DBAPIError
 
+from ..config import Config
+from ..db.citations import list_message_citations
 from ..db.conversations import (
-    append_user_message, create_conversation, delete_own_conversation, get_conversation, list_conversations, list_messages,
+    append_user_message,
+    create_conversation,
+    delete_own_conversation,
+    get_conversation,
+    list_conversations,
+    list_messages,
 )
 from ..db.courses import get_member_course
 from ..db.generations import start_generation
 from ..db.idempotency import run_idempotent
 from ..db.jobs import enqueue_job
-from ..config import Config
 from ..llm import chat_completion
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response
 
@@ -71,6 +77,7 @@ class Message(BaseModel):
     inReplyTo: UUID | None
     generationId: UUID | None
     createdAt: datetime
+    sourceDocuments: list[dict] = Field(default_factory=list)
 
 
 class History(BaseModel):
@@ -119,7 +126,7 @@ def _conversation(row) -> Conversation:
     )
 
 
-def _message(row) -> Message:
+def _message(connection, row) -> Message:
     content = "\n".join(
         part["text"] for part in row.parts
         if isinstance(part, dict) and part.get("type") == "text"
@@ -128,6 +135,17 @@ def _message(row) -> Message:
     return Message(
         id=row.id, role=row.role, content=content, sequence=row.sequence_no, status=row.status,
         inReplyTo=row.in_reply_to, generationId=row.generation_id, createdAt=row.created_at,
+        sourceDocuments=[
+            {
+                "documentId": str(citation["source_document_id"]),
+                "name": citation["source_name"],
+                "relevance": citation["score"],
+                "section": " > ".join(citation["section_path"]),
+                "locator": citation["locator"],
+                "snippet": citation["snippet"],
+            }
+            for citation in list_message_citations(connection, row.id)
+        ],
     )
 
 
@@ -198,7 +216,7 @@ def conversations_history(
     )
     page = messages[:limit]
     return History(
-        data=_conversation(row), messages=[_message(message) for message in page],
+        data=_conversation(row), messages=[_message(connection, message) for message in page],
         nextAfterSequence=page[-1].sequence_no if len(messages) > limit else None,
     )
 

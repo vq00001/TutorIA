@@ -19,7 +19,9 @@ El contenedor `backend` ejecuta la API persistente de `backend/http_api.py` y
 espera a que `db-init` prepare PostgreSQL. Esta primera integración conecta
 inicio de sesión, clases y grafo del curso con la base de datos. El servicio
 `document-worker` procesa los documentos de texto y Markdown mediante Ollama.
-La generación de chat y exámenes aún requiere consumidores aparte.
+El servicio `chat-worker` recupera los chunks vectoriales y publica las
+respuestas del chat con sus referencias documentales. La generación de exámenes
+aún requiere un consumidor aparte.
 
 
 El puerto del frontend es configurable en el `.env` en la variable `WEBAPP_PORT`.  El archivo `.env.example` también contiene la configuración del servicio de RAG usado al ejecutarlo directamente en el equipo anfitrión.
