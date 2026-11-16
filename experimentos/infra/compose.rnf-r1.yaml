@@ -1,0 +1,23 @@
+services:
+  webapp:
+    ports: !override ["127.0.0.1:18080:80"]
+  backend:
+    ports: !override []
+    environment:
+      MODEL_LLM: chat-principal
+  chat-worker:
+    environment:
+      MODEL_LLM: chat-principal
+  db:
+    ports: !override []
+  ollama:
+    container_name: tutoria-rnf-r1-ollama
+    ports: !override []
+    healthcheck:
+      test: ["CMD-SHELL", "ollama show qwen3:1.7b >/dev/null && ollama show all-minilm >/dev/null"]
+      interval: 10s
+      start_period: 10m
+      timeout: 5s
+      retries: 3
+  litellm:
+    ports: !override []
