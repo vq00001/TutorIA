@@ -8,3 +8,5 @@ pydantic[email]
 pyjwt[crypto]
 passlib[bcrypt]
 python-multipart
+
+requests>=2.34.2

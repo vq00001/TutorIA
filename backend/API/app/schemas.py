@@ -359,9 +359,7 @@ class Activity(BaseModel):
 class DashboardSummaryData(BaseModel):
     studyHours: float = Field(ge=0)
     studyHoursPeriod: str
-    studyHoursByDay: list[Annotated[float, Field(ge=0)]] = Field(
-        min_length=7, max_length=7
-    )
+    studyHoursByDay: list[Annotated[float, Field(ge=0)]] = Field(min_length=7, max_length=7)
     streakDays: int = Field(ge=0)
     masteredConcepts: int = Field(ge=0)
     masteredConceptsChange: float | None = None

@@ -429,6 +429,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConversationResponse'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
   /courses/{courseId}/conversations/{conversationId}:
     parameters:
@@ -695,6 +699,11 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     ServiceUnavailable:
       description: Servicio no disponible
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    TooManyRequests:
+      description: Ya hay una solicitud del tutor en curso para este usuario
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }

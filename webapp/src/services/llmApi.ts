@@ -41,7 +41,35 @@ export async function sendPrompt(
     throw new Error(await responseError(response, 'No se pudo enviar la pregunta.'))
   }
 
-  return (await response.json()) as JsonApiResponse<ConversationDto>
+  const result: unknown = await response.json()
+  if (!isConversationResponse(result)) {
+    throw new Error('El tutor devolvió una respuesta con formato inválido.')
+  }
+
+  return result
+}
+
+function isConversationResponse(
+  value: unknown,
+): value is JsonApiResponse<ConversationDto> {
+  if (!value || typeof value !== 'object' || !('data' in value)) return false
+
+  const data = value.data
+  return Boolean(
+    data &&
+      typeof data === 'object' &&
+      'messages' in data &&
+      Array.isArray(data.messages) &&
+      data.messages.every(
+        (message) =>
+          message &&
+          typeof message === 'object' &&
+          'role' in message &&
+          (message.role === 'user' || message.role === 'assistant') &&
+          'content' in message &&
+          typeof message.content === 'string',
+      ),
+  )
 }
 
 // The current UI's demo courses use slugs, while the API contract requires UUIDs.
