@@ -1,0 +1,122 @@
+"""Esquema, registro y lectura del perfil del usuario actual."""
+
+from uuid import UUID
+
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    Index,
+    MetaData,
+    String,
+    Table,
+    Text,
+    Uuid,
+    func,
+    select,
+    update,
+)
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import Connection, RowMapping
+
+users = Table(
+    "users",
+    MetaData(schema="app"),
+    Column("id", Uuid, primary_key=True),
+    Column("nickname", String(50), nullable=False),
+    Column("display_name", String(100), nullable=False),
+    Column("email", String(254), nullable=False),
+    Column("password_hash", Text, nullable=False),
+    Column("email_verified_at", DateTime(timezone=True)),
+    Column("status", String(20), nullable=False, server_default="pending"),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("nickname ~ '^[a-zA-Z0-9_]{3,50}$'", name="users_nickname_format"),
+    CheckConstraint("length(btrim(display_name)) > 0", name="users_display_name_present"),
+    CheckConstraint("email = lower(btrim(email)) AND email <> ''", name="users_email_normalized"),
+    CheckConstraint("length(password_hash) > 0", name="users_password_hash_present"),
+    CheckConstraint(
+        "status IN ('pending', 'active', 'suspended', 'deletion_pending')",
+        name="users_valid_status",
+    ),
+)
+Index("users_nickname_ci_key", func.lower(users.c.nickname), unique=True)
+Index("users_email_key", users.c.email, unique=True)
+
+_profile_columns = (
+    users.c.id,
+    users.c.nickname,
+    users.c.display_name,
+    users.c.email,
+    users.c.email_verified_at,
+    users.c.status,
+    users.c.created_at,
+)
+_current_user_id = func.nullif(func.current_setting("app.user_id", True), "").cast(Uuid)
+
+
+def install_users(conn: Connection) -> None:
+    """Instala la tabla y concede a la API registro y lectura del perfil propio."""
+    users.create(conn, checkfirst=True)
+    conn.exec_driver_sql("ALTER TABLE app.users ENABLE ROW LEVEL SECURITY")
+    conn.exec_driver_sql("ALTER TABLE app.users FORCE ROW LEVEL SECURITY")
+    conn.exec_driver_sql("DROP POLICY IF EXISTS own_profile ON app.users")
+    conn.exec_driver_sql(
+        """CREATE POLICY own_profile ON app.users FOR SELECT TO tutoria_api
+        USING (id = NULLIF(current_setting('app.user_id', true), '')::uuid)"""
+    )
+    conn.exec_driver_sql(
+        """GRANT SELECT (id, nickname, display_name, email, email_verified_at, status, created_at)
+        ON app.users TO tutoria_api"""
+    )
+
+    conn.exec_driver_sql("DROP POLICY IF EXISTS register_pending_user ON app.users")
+    conn.exec_driver_sql(
+        """CREATE POLICY register_pending_user ON app.users FOR INSERT TO tutoria_api
+        WITH CHECK (status = 'pending' AND email_verified_at IS NULL)"""
+    )
+    conn.exec_driver_sql(
+        "GRANT INSERT (id, nickname, display_name, email, password_hash) ON app.users TO tutoria_api"
+    )
+
+
+    conn.exec_driver_sql("DROP POLICY IF EXISTS edit_own_profile ON app.users")
+    conn.exec_driver_sql(
+        """CREATE POLICY edit_own_profile ON app.users FOR UPDATE TO tutoria_api
+        USING (id = NULLIF(current_setting('app.user_id', true), '')::uuid
+               AND status IN ('pending', 'active'))
+        WITH CHECK (id = NULLIF(current_setting('app.user_id', true), '')::uuid
+                    AND status IN ('pending', 'active'))"""
+    )
+    conn.exec_driver_sql("GRANT UPDATE (display_name) ON app.users TO tutoria_api")
+
+
+def insert_pending_user(
+    conn: Connection, *, identifier: UUID, nickname: str, email: str,
+    display_name: str, password_hash: str,
+) -> bool:
+    """Inserta una cuenta pendiente. Un conflicto de identidad no modifica la cuenta existente."""
+    statement = (
+        insert(users)
+        .values(
+            id=identifier, nickname=nickname, email=email, display_name=display_name,
+            password_hash=password_hash,
+        )
+        .on_conflict_do_nothing()
+        .execution_options(preserve_rowcount=True)
+    )
+    return conn.execute(statement).rowcount == 1
+
+
+def get_current_user(conn: Connection) -> RowMapping | None:
+    """Lee el perfil asociado a la identidad de la transacción."""
+    statement = select(*_profile_columns).where(users.c.id == _current_user_id).limit(1)
+    return conn.execute(statement).mappings().one_or_none()
+
+def update_current_display_name(conn: Connection, display_name: str) -> RowMapping | None:
+    statement = (
+        update(users)
+        .where(users.c.id == _current_user_id, users.c.status.in_(("pending", "active")))
+        .values(display_name=display_name)
+        .returning(*_profile_columns)
+    )
+    return conn.execute(statement).mappings().one_or_none()
