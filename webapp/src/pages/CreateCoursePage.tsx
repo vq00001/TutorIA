@@ -77,7 +77,7 @@ export function CreateCoursePage() {
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!name.trim() || !description.trim() || !objectives.trim()) {
+    if (!name.trim()) {
       setNotice('Completa todos los campos obligatorios.')
       return
     }

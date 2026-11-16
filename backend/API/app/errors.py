@@ -15,6 +15,7 @@ _ERROR_CODES = {
     409: "conflict",
     415: "unsupported_media_type",
     422: "validation_error",
+    429: "too_many_requests",
     503: "service_unavailable",
 }
 

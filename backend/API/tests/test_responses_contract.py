@@ -10,7 +10,7 @@ IDS = [f"{m.upper()} {p}" for p, m, _ in OPERATIONS]
 
 
 @pytest.mark.parametrize(("path", "method", "op"), OPERATIONS, ids=IDS)
-def test_success_response_matches_contract(client, path, method, op):
+def test_success_response_matches_contract(client, path, method, op, monkeypatch):
     status = contract.success_status(op)
     ctx = (
         # Reemplaza expire_token por una función vacía durante la ejecución del test
@@ -19,6 +19,27 @@ def test_success_response_matches_contract(client, path, method, op):
         if path == "/auth/logout"
         else nullcontext()
     )
+
+    if path == "/courses/{courseId}/conversations" and method == "post":
+        from app.routers import conversations
+
+        class FakeGatewayResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "choices": [
+                        {"message": {"role": "assistant", "content": "Test answer"}}
+                    ]
+                }
+
+        async def fake_run_in_threadpool(_call):
+            return FakeGatewayResponse()
+
+        monkeypatch.setattr(
+            conversations, "run_in_threadpool", fake_run_in_threadpool
+        )
 
     with ctx:
         response = client.request(**contract.build_request(path, method, op))

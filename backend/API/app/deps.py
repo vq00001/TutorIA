@@ -14,6 +14,7 @@ _ERROR_DESCRIPTIONS = {
     409: "El recurso ya existe",
     415: "Tipo de archivo no soportado",
     422: "Datos inválidos",
+    429: "Demasiadas solicitudes simultáneas",
     503: "Servicio no disponible",
 }
 
