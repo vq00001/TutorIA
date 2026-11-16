@@ -26,7 +26,7 @@ class Parent:
 
 @dataclass
 class Child:
-    """Fragmento pequeño que se indexa semánticamente en Qdrant."""
+    """Fragmento pequeño que se indexa semánticamente en el almacén vectorial."""
 
     id: str
     parent_id: str

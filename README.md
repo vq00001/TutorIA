@@ -12,8 +12,9 @@ Desde el directorio raíz para ejecutar el proyecto en  <http://localhost:8080>.
 cp .env.example .env       # crear .env
 make up                    # ejecutar en producción
 ```
+El comando `make up` es para ejecutar el programa en producción e inicia los contenedores para el frontend, backend, Ollama, PostgreSQL, servicio LLM local, y base de datos.
+Compose habilita pgvector automáticamente.
 
-El comando `make up` es para ejecutar el programa en producción e inicia los contenedores para el frontend, backend, servicio LLM local, y base de datos.
 
 El puerto del frontend es configurable en el `.env` en la variable `WEBAPP_PORT`.  El archivo `.env.example` también contiene la configuración del servicio de RAG usado al ejecutarlo directamente en el equipo anfitrión.
 
@@ -141,3 +142,10 @@ Para ingresar en modo desarrollo, usar el correo de usuario <usuario@example.com
     ├── tsconfig.json
     └── vite.config.ts
 ```
+
+- [backend/db](backend/db/) contiene la conexión a PostgreSQL y el instalador de pgvector.
+- [backend](backend/README.md) contiene el procesamiento de documentos, el contrato API y los experimentos.
+- [webapp](webapp/) contiene el frontend.
+
+La primera instalación de la base y los comandos locales están en el [README del backend](backend/README.md).
+

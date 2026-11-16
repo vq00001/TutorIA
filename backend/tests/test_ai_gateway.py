@@ -37,7 +37,6 @@ QUESTION = "¿Cuál es la capital de Chile?"
 def _make_config(**overrides) -> Config:
     params: dict[str, Any] = dict(
         ollama_url="http://ollama.invalid:11434",
-        qdrant_url="http://qdrant.invalid:6333",
         model_embed="all-minilm",
         model_llm="chat-principal",
         gateway_url="http://gateway.test:4000",

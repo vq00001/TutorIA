@@ -1,0 +1,15 @@
+*
+!pyproject.toml
+!/*.py
+!db/
+!db/**
+!routes/
+!routes/**
+!experiments/
+!experiments/**
+!knowledge_graph/
+!knowledge_graph/**
+!tests/
+!tests/**
+**/__pycache__/
+**/*.pyc
