@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { MaterialDropzone } from '../components/materials/MaterialDropzone'
@@ -14,6 +14,7 @@ export function MaterialsPage() {
     materialsByCourse,
     addMaterials,
     removeMaterial,
+    refreshMaterials,
   } = useAppData()
 
   const [params, setParams] = useSearchParams()
@@ -22,6 +23,14 @@ export function MaterialsPage() {
   const requested = params.get('courseId')
   const course = courses.find((item) => item.id === requested) ?? courses[0]
   const materials = course ? materialsByCourse[course.id] ?? [] : []
+
+  useEffect(() => {
+    if (!course || !materials.some((material) => material.status === 'queued' || material.status === 'processing')) return
+    const timer = window.setInterval(() => {
+      void refreshMaterials(course.id).catch(() => {})
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [course, materials, refreshMaterials])
 
   async function upload(files: File[]) {
     if (!course) {

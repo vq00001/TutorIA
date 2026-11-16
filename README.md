@@ -17,8 +17,9 @@ Compose habilita pgvector automáticamente.
 
 El contenedor `backend` ejecuta la API persistente de `backend/http_api.py` y
 espera a que `db-init` prepare PostgreSQL. Esta primera integración conecta
-inicio de sesión, clases y grafo del curso con la base de datos. El chat y el
-procesamiento asíncrono de documentos aún requieren sus servicios de trabajo.
+inicio de sesión, clases y grafo del curso con la base de datos. El servicio
+`document-worker` procesa los documentos de texto y Markdown mediante Ollama.
+La generación de chat y exámenes aún requiere consumidores aparte.
 
 
 El puerto del frontend es configurable en el `.env` en la variable `WEBAPP_PORT`.  El archivo `.env.example` también contiene la configuración del servicio de RAG usado al ejecutarlo directamente en el equipo anfitrión.
@@ -58,6 +59,12 @@ WEBAPP_PORT=8082 docker compose -f compose.yaml -f compose.nvidia.yaml \
 La cuenta local es `dev@example.com` con contraseña `TutorIA-dev-123`. Para
 cambiarlos, configura `DEV_ACCOUNT_EMAIL` y `DEV_ACCOUNT_PASSWORD` antes de
 arrancar. Este archivo adicional es solo para pruebas en el equipo local.
+
+En el mapa de un curso sin conceptos, el coordinador puede subir un `.txt` o
+`.md`, revisar la propuesta de nodos y dependencias y guardarla. Subir un
+material al curso no genera el grafo automáticamente. En **Materiales**, los
+documentos avanzan de «En cola» a «Procesando» y «Listo» cuando el worker
+termina la ingestión; la vista consulta el estado cada cinco segundos.
 
 ## Estructura del proyecto
 

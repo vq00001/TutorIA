@@ -1523,6 +1523,41 @@ label select {
   font-size: 9px;
 }
 
+.material-queued,
+.material-processing {
+  color: var(--text-muted);
+}
+
+.material-failed {
+  color: #c45b52;
+}
+
+.graph-proposal {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.graph-proposal form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.graph-proposal label {
+  display: grid;
+  gap: 6px;
+}
+
+.graph-proposal ol {
+  max-height: 300px;
+  overflow: auto;
+}
+
 /* Empty state */
 
 .empty-materials {

@@ -13,6 +13,37 @@ import { responseError } from './utils'
 
 const API_BASE_URL = '/api/v1'
 
+export interface GraphProposal {
+  schemaVersion: number
+  model: string
+  inputs: { sourceId: string; title: string; fragmentCount: number }[]
+  parameters: { targetConcepts: number | null; includePrerequisites: boolean }
+  stages: { extraction: string; consolidation: string; prerequisites: string }
+  nodes: { ref: string; label: string; description: string; sources: unknown[] }[]
+  edges: { sourceRef: string; targetRef: string; reason: string }[]
+  merges: { fromLabels: string[]; toRef: string; reason: string }[]
+}
+
+export async function previewCourseGraph(courseId: string, text: string, title: string, targetConcepts: number | null): Promise<GraphProposal> {
+  const response = await request<JsonApiResponse<GraphProposal>>(
+    `/courses/${encodeURIComponent(courseId)}/knowledge-graph/preview`,
+    'No se pudo generar la propuesta del grafo.',
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      sources: [{ sourceId: 'uploaded-text', title, text }],
+      targetConcepts, includePrerequisites: true,
+    }) },
+  )
+  return response.data
+}
+
+export async function applyCourseGraph(courseId: string, proposal: GraphProposal): Promise<void> {
+  await request(
+    `/courses/${encodeURIComponent(courseId)}/knowledge-graph/apply`,
+    'No se pudo guardar el grafo.',
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(proposal) },
+  )
+}
+
 /** Adapter boundary between the UI DTOs and the backend API contract. */
 export interface TutorIADataApi {
   getStudentProfile(): Promise<JsonApiResponse<StudentProfile>>
@@ -38,6 +69,12 @@ interface ApiDocument {
   name: string
   size: number
   uploadedAt: string
+  status: 'queued' | 'processing' | 'ready' | 'failed'
+}
+
+interface DocumentPage {
+  data: ApiDocument[]
+  nextCursor: { afterCreatedAt: string; afterId: string } | null
 }
 
 interface ApiMessage {
@@ -87,6 +124,7 @@ function asMaterial(document: ApiDocument): MaterialDto {
     name: document.name,
     size: document.size,
     addedAt: document.uploadedAt,
+    status: document.status,
   }
 }
 
@@ -140,10 +178,22 @@ export const databaseApi: TutorIADataApi = {
   },
 
   async getCourseMaterials(courseId) {
-    const response = await request<JsonApiResponse<ApiDocument[]>>(
-      `/courses/${encodeURIComponent(courseId)}/documents`, 'No se pudieron obtener los materiales.',
-    )
-    return { data: response.data.map(asMaterial) }
+    const documents: ApiDocument[] = []
+    let cursor: DocumentPage['nextCursor'] = null
+    do {
+      const query = new URLSearchParams({ limit: '100' })
+      if (cursor) {
+        query.set('afterCreatedAt', cursor.afterCreatedAt)
+        query.set('afterId', cursor.afterId)
+      }
+      const page: DocumentPage = await request<DocumentPage>(
+        `/courses/${encodeURIComponent(courseId)}/documents?${query}`,
+        'No se pudieron obtener los materiales.',
+      )
+      documents.push(...page.data)
+      cursor = page.nextCursor
+    } while (cursor)
+    return { data: documents.map(asMaterial) }
   },
 
   async getCourseMessages(courseId) {
@@ -173,7 +223,8 @@ export const databaseApi: TutorIADataApi = {
 
     files.forEach((file) => {
       if (!(file instanceof File)) throw new Error('Para subir materiales se necesita el archivo original.')
-      form.append('files', file)
+      const mimeType = file.name.toLowerCase().endsWith('.md') ? 'text/markdown' : 'text/plain'
+      form.append('files', new File([file], file.name, { type: mimeType }))
     })
 
     const uploaded = await request<JsonApiResponse<UploadResult[]>>(
@@ -181,11 +232,15 @@ export const databaseApi: TutorIADataApi = {
       'No se pudieron subir los materiales.',
       { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: form },
     )
-    const listed = await request<JsonApiResponse<ApiDocument[]>>(
-      `/courses/${encodeURIComponent(courseId)}/documents`, 'No se pudieron obtener los materiales.',
-    )
-    const uploadedIds = new Set(uploaded.data.map((item) => item.documentId).filter(Boolean))
-    return { data: listed.data.filter((item) => uploadedIds.has(item.id)).map(asMaterial) }
+    const ids = uploaded.data.map((item) => item.documentId).filter((id): id is string => Boolean(id))
+    const documents = await Promise.all(ids.map(async (id) => {
+      const response = await request<JsonApiResponse<ApiDocument>>(
+        `/courses/${encodeURIComponent(courseId)}/documents/${encodeURIComponent(id)}`,
+        'No se pudo obtener el material subido.',
+      )
+      return asMaterial(response.data)
+    }))
+    return { data: documents }
   },
 
   async deleteCourseMaterial(courseId, materialId) {

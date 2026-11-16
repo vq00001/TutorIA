@@ -25,6 +25,7 @@ export interface DashboardSummary {
 
 export interface Course {
   id: string;
+  myRole?: 'coordinator' | 'student';
   name: string;
   description?: string;
   objectives?: string;
@@ -54,6 +55,7 @@ export interface MaterialFile {
   name: string
   size: number
   addedAt: Date
+  status?: 'queued' | 'processing' | 'ready' | 'failed'
 }
 
 export type MaterialDto = Omit<MaterialFile, 'addedAt'> & {

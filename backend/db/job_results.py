@@ -197,6 +197,9 @@ def _install_job_cleanup(conn: Connection) -> None:
                 )
                 UPDATE app.document_versions SET status = 'failed', error_code = NEW.error_code
                 WHERE id IN (SELECT version_id FROM failed) AND status <> 'ready';
+                UPDATE app.document_versions SET status = 'failed', error_code = NEW.error_code
+                WHERE course_id = NEW.course_id AND document_id = NEW.target_id
+                  AND version_no = 1 AND status = 'uploaded';
             END IF;
             RETURN NULL;
         END

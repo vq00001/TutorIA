@@ -369,6 +369,36 @@ def install_processing(conn: Connection) -> None:
     )
     _install_processing_validation(conn)
     _install_processing_operations(conn)
+    conn.exec_driver_sql("""CREATE OR REPLACE FUNCTION app.register_worker_embedding_space(
+        model text, revision text, dimensions integer
+    ) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+    AS $$
+    DECLARE result uuid;
+    BEGIN
+        IF model IS NULL OR model = '' OR revision IS NULL OR revision = ''
+           OR dimensions NOT BETWEEN 1 AND 2000 THEN
+            RAISE EXCEPTION 'INVALID_EMBEDDING_SPACE' USING ERRCODE = '23514';
+        END IF;
+        INSERT INTO app.embedding_spaces
+            (id, provider, model_name, model_revision, dimension, query_prefix, document_prefix)
+        VALUES (gen_random_uuid(), 'ollama', model, revision, dimensions, '', '')
+        ON CONFLICT ON CONSTRAINT embedding_spaces_identity DO NOTHING
+        RETURNING id INTO result;
+        IF result IS NULL THEN
+            SELECT id INTO result FROM app.embedding_spaces
+            WHERE provider = 'ollama' AND model_name = model AND model_revision = revision
+              AND dimension = dimensions AND query_prefix = '' AND document_prefix = '';
+        END IF;
+        RETURN result;
+    END
+    $$""")
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.register_worker_embedding_space(text, text, integer) FROM PUBLIC"
+    )
+    conn.exec_driver_sql(
+        "GRANT EXECUTE ON FUNCTION app.register_worker_embedding_space(text, text, integer) TO tutoria_worker"
+    )
 
 
 def _install_processing_validation(conn: Connection) -> None:

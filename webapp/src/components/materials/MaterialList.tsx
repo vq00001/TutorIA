@@ -11,7 +11,7 @@ function chooseIcon() {
 }
 
 export function MaterialList({ materials, onRemove, }: {
-  materials: Pick<MaterialFile, 'id' | 'name' | 'size' | 'addedAt'>[]
+  materials: Pick<MaterialFile, 'id' | 'name' | 'size' | 'addedAt' | 'status'>[]
   onRemove: (id: string) => void
 }) {
   if (!materials.length) {
@@ -40,7 +40,9 @@ export function MaterialList({ materials, onRemove, }: {
             </small>
           </div>
 
-          <span className="material-ready">Listo</span>
+          <span className={`material-ready material-${material.status ?? 'ready'}`}>{{
+            queued: 'En cola', processing: 'Procesando', ready: 'Listo', failed: 'Falló',
+          }[material.status ?? 'ready']}</span>
 
           <button
             type="button"

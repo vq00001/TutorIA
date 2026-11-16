@@ -49,6 +49,7 @@ interface AppDataContextValue {
   addCourse: (course: NewCourse) => Promise<Course>
   addMaterials: (courseId: string, files: File[]) => Promise<MaterialFile[]>
   removeMaterial: (courseId: string, materialId: string) => Promise<void>
+  refreshMaterials: (courseId: string) => Promise<void>
 }
 
 // Context
@@ -261,6 +262,14 @@ export function AppDataProvider({
 
   // Materials management
 
+  const refreshMaterials = useCallback(async (courseId: string) => {
+    const response = await api.getCourseMaterials(courseId)
+    setMaterialsByCourse((current) => ({
+      ...current,
+      [courseId]: response.data.map(adaptMaterial),
+    }))
+  }, [api])
+
   const addMaterials = useCallback(
     async (courseId: string, files: File[]) => {
       const response = await api.createCourseMaterials(
@@ -329,6 +338,7 @@ export function AppDataProvider({
       addCourse,
       addMaterials,
       removeMaterial,
+      refreshMaterials,
     }),
     [
       status,
@@ -343,6 +353,7 @@ export function AppDataProvider({
       addCourse,
       addMaterials,
       removeMaterial,
+      refreshMaterials,
     ]
   )
 
