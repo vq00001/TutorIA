@@ -1,13 +1,21 @@
 model_list:
-  # ---------- Alias "chat-principal": 2 proveedores online (se balancean entre sí) ----------
+  # ---------- Alias local predeterminado ----------
   - model_name: chat-principal
+    litellm_params:
+      model: ollama_chat/qwen3:1.7b
+      api_base: http://ollama:11434
+      think: false
+
+  # ---------- Alias opcional para proveedores externos ----------
+  # Requiere configurar las claves correspondientes antes de usarlo.
+  - model_name: chat-online
     litellm_params:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
-      rpm: 60            # límite propio de este deployment (el router lo respeta)
+      rpm: 60
       tpm: 100000
 
-  - model_name: chat-principal
+  - model_name: chat-online
     litellm_params:
       model: gemini/gemini-2.0-flash
       api_key: os.environ/GEMINI_API_KEY
@@ -36,7 +44,7 @@ router_settings:
   cooldown_time: 30                  # segundos fuera de rotación
   retry_after: 1
   fallbacks:
-    - chat-principal: ["local-llama"]        # si caen ambos online -> Ollama
+    - chat-online: ["chat-principal"]
     - chat-premium: ["chat-principal"]
   context_window_fallbacks:
     - local-llama: ["chat-principal"]        # si el prompt no cabe en el modelo local
