@@ -41,9 +41,9 @@ services:
 
   backend:
     build:
-      context: ./backend/API
+      context: ./backend
       dockerfile: Dockerfile
-      target: dev
+      target: runtime
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -54,8 +54,15 @@ services:
       retries: 3
       start_period: 10s
     environment:
-      AI_GATEWAY_URL: http://litellm:4000
-      AI_GATEWAY_API_KEY: ${LITELLM_MASTER_KEY:-sk-cambia-esto}
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-tutoria}
+      API_DB_PASSWORD: ${API_DB_PASSWORD:-tutoria_local_api}
+      MODEL_LLM: ${MODEL_LLM:-qwen3:1.7b}
+      MODEL_EMBED: ${MODEL_EMBED:-all-minilm}
+      OLLAMA_URL: http://ollama:11434
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
 
   ollama:
     build:

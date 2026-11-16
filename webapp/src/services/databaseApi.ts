@@ -29,7 +29,7 @@ export interface TutorIADataApi {
 interface ApiUser {
   id: string
   displayName: string
-  role: string
+  role?: string
 }
 
 interface ApiDocument {
@@ -46,6 +46,16 @@ interface ApiMessage {
   content: string
   createdAt: string
 }
+
+interface ApiConversation { id: string }
+
+interface ApiDashboardSummary {
+  studyHours: number
+  studyHoursPeriod: string
+  studyHoursByDay: number[]
+}
+
+interface UploadResult { documentId: string | null }
 
 function courseDto(course: Course): Course {
   return {
@@ -94,11 +104,23 @@ export const databaseApi: TutorIADataApi = {
     const response = await request<JsonApiResponse<ApiUser>>(
       '/users/me', 'No se pudo obtener la información del usuario.',
     )
-    return { data: { id: response.data.id, displayName: response.data.displayName, role: response.data.role } }
+    return { data: { id: response.data.id, displayName: response.data.displayName, role: response.data.role ?? 'member' } }
   },
 
-  getDashboardSummary() {
-    return request('/dashboard/summary', 'No se pudo obtener el resumen del dashboard.')
+  async getDashboardSummary() {
+    const response = await request<JsonApiResponse<ApiDashboardSummary>>(
+      '/dashboard/summary', 'No se pudo obtener el resumen del dashboard.',
+    )
+    return { data: {
+      ...response.data,
+      streakDays: 0,
+      masteredConcepts: 0,
+      masteredConceptsChange: 0,
+      roadmapStep: 0,
+      roadmapTotal: 0,
+      nextSessionMinutes: 0,
+      nextCourseId: '',
+    } }
   },
 
   async getCourses() {
@@ -125,10 +147,16 @@ export const databaseApi: TutorIADataApi = {
   },
 
   async getCourseMessages(courseId) {
-    const response = await request<JsonApiResponse<Array<{ messages: ApiMessage[] }>>>(
+    const response = await request<JsonApiResponse<ApiConversation[]>>(
       `/courses/${encodeURIComponent(courseId)}/conversations`, 'No se pudieron obtener las conversaciones.',
     )
-    return { data: response.data.flatMap((conversation) => conversation.messages.map(asChatMessage)) }
+    const histories = await Promise.all(response.data.map((conversation) =>
+      request<{ messages: ApiMessage[] }>(
+        `/courses/${encodeURIComponent(courseId)}/conversations/${encodeURIComponent(conversation.id)}`,
+        'No se pudo obtener el historial del curso.',
+      )
+    ))
+    return { data: histories.flatMap((history) => history.messages.map(asChatMessage)) }
   },
 
   async getCourseGraph(courseId) {
@@ -148,12 +176,16 @@ export const databaseApi: TutorIADataApi = {
       form.append('files', file)
     })
 
-    const response = await request<JsonApiResponse<ApiDocument[]>>(
+    const uploaded = await request<JsonApiResponse<UploadResult[]>>(
       `/courses/${encodeURIComponent(courseId)}/documents`,
       'No se pudieron subir los materiales.',
-      { method: 'POST', body: form },
+      { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: form },
     )
-    return { data: response.data.map(asMaterial) }
+    const listed = await request<JsonApiResponse<ApiDocument[]>>(
+      `/courses/${encodeURIComponent(courseId)}/documents`, 'No se pudieron obtener los materiales.',
+    )
+    const uploadedIds = new Set(uploaded.data.map((item) => item.documentId).filter(Boolean))
+    return { data: listed.data.filter((item) => uploadedIds.has(item.id)).map(asMaterial) }
   },
 
   async deleteCourseMaterial(courseId, materialId) {

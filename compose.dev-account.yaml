@@ -1,0 +1,6 @@
+# Solo para pruebas locales. Incluir este archivo crea una cuenta activa conocida.
+services:
+  db-init:
+    environment:
+      DEV_ACCOUNT_EMAIL: ${DEV_ACCOUNT_EMAIL:-dev@example.com}
+      DEV_ACCOUNT_PASSWORD: ${DEV_ACCOUNT_PASSWORD:-TutorIA-dev-123}

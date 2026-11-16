@@ -15,6 +15,11 @@ make up                    # ejecutar en producción
 El comando `make up` es para ejecutar el programa en producción e inicia los contenedores para el frontend, backend, Ollama, PostgreSQL, servicio LLM local, y base de datos.
 Compose habilita pgvector automáticamente.
 
+El contenedor `backend` ejecuta la API persistente de `backend/http_api.py` y
+espera a que `db-init` prepare PostgreSQL. Esta primera integración conecta
+inicio de sesión, clases y grafo del curso con la base de datos. El chat y el
+procesamiento asíncrono de documentos aún requieren sus servicios de trabajo.
+
 
 El puerto del frontend es configurable en el `.env` en la variable `WEBAPP_PORT`.  El archivo `.env.example` también contiene la configuración del servicio de RAG usado al ejecutarlo directamente en el equipo anfitrión.
 
@@ -29,13 +34,30 @@ cp .env.example .env       # crear .env
 make dev                   # ejecutar como desarrollador
 ```
 
-El comando `make dev` es para ejecutar los contenedores para ejecutar el frontend con vite para visualizar las modificaciones de la interfaz rápidamente. Además expone una interfaz para la API a través de SwaggerUI en <http://localhost:8081>.
+El comando `make dev` ejecuta el frontend con Vite. La documentación de la API
+activa está en <http://localhost:8000/docs>. El SwaggerUI separado en
+<http://localhost:8081> todavía muestra el contrato de la API de demostración.
 
 Comando de docker original: `docker compose --profile dev up --build`.
 
 ### Entrar a la aplicación
 
-Para ingresar en modo desarrollo, usar el correo de usuario <usuario@example.com> y cualquier contraseña.
+Se necesita una cuenta activa en PostgreSQL: el acceso de demostración
+`usuario@example.com` con cualquier contraseña ya no funciona. El registro crea
+una cuenta pendiente que debe verificar su correo antes de crear una clase.
+
+Para probar localmente sin configurar correo, añade `compose.dev-account.yaml` al
+comando de arranque. `db-init` crea o restablece una cuenta activa cada vez que
+se ejecuta con ese archivo; no afecta al Compose normal:
+
+```bash
+WEBAPP_PORT=8082 docker compose -f compose.yaml -f compose.nvidia.yaml \
+  -f compose.dev-account.yaml --profile prod up --build --force-recreate
+```
+
+La cuenta local es `dev@example.com` con contraseña `TutorIA-dev-123`. Para
+cambiarlos, configura `DEV_ACCOUNT_EMAIL` y `DEV_ACCOUNT_PASSWORD` antes de
+arrancar. Este archivo adicional es solo para pruebas en el equipo local.
 
 ## Estructura del proyecto
 

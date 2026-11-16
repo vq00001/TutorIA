@@ -21,7 +21,13 @@ def compose_database_url() -> URL:
 @lru_cache
 def engine():
     url = os.environ.get("DATABASE_URL")
-    if not url or not url.startswith("postgresql+psycopg://"):
+    if url is None and all(os.environ.get(key) for key in ("POSTGRES_HOST", "POSTGRES_DB", "API_DB_PASSWORD")):
+        url = URL.create(
+            "postgresql+psycopg", host=os.environ["POSTGRES_HOST"],
+            database=os.environ["POSTGRES_DB"], username="tutoria_api",
+            password=os.environ["API_DB_PASSWORD"],
+        )
+    if url is None or not str(url).startswith("postgresql+psycopg://"):
         raise RuntimeError("DATABASE_URL must specify PostgreSQL with psycopg")
     pool_size = int(os.environ.get("DB_POOL_SIZE", "5"))
     if not 1 <= pool_size <= 20:

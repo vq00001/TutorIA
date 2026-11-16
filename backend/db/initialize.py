@@ -13,6 +13,7 @@ from .citations import install_citations
 from .connection import compose_database_url
 from .conversations import install_conversations
 from .courses import install_courses
+from .dev_account import seed_dev_account
 from .documents import install_documents
 from .exam_attempts import install_exam_attempts
 from .exams import install_exams
@@ -97,6 +98,12 @@ def main() -> None:
     try:
         with engine.begin() as connection:
             initialize(connection, role_passwords=role_passwords)
+            if password := os.environ.get("DEV_ACCOUNT_PASSWORD"):
+                seed_dev_account(
+                    connection,
+                    os.environ.get("DEV_ACCOUNT_EMAIL", "dev@example.com"),
+                    password,
+                )
     finally:
         engine.dispose()
 
