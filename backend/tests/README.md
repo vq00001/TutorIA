@@ -68,3 +68,24 @@ docker compose -p tutoria-rnf-s2-test --profile test run --rm backend-test \
 El cliente ejecuta la API dentro de pytest, con datos sintéticos y
 rollback por caso. No usa la base principal ni levanta la aplicación web.
 La matriz describe este alcance y puede ampliarse a otros recursos.
+
+## RNF-S-3 · Privacidad de perfiles y materiales
+
+`fixtures/rnf_s3.json` cruza ocho acciones de lectura con el titular,
+un compañero de clase y un usuario de otra clase. Son 24 casos HTTP.
+Además, tres casos de base de datos verifican que el rol de API solo
+puede leer su propia fila de usuario y no puede seleccionar el hash de
+contraseña. La prueba distingue campos compartidos en el directorio
+de la clase, documentos de curso y material generado privado.
+
+Desde la raíz, usa el PostgreSQL temporal de un proyecto de pruebas
+independiente:
+
+```bash
+docker compose -p tutoria-rnf-s3-test --profile test build test-db-init backend-test &&
+docker compose -p tutoria-rnf-s3-test --profile test run --rm backend-test \
+  python -m pytest -q -p no:cacheprovider tests/test_rnf_s3.py
+```
+
+FastAPI se ejecuta dentro de pytest y los datos sintéticos se revierten
+por caso. No se usa la base principal ni se levanta la aplicación web.

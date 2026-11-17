@@ -1,0 +1,22 @@
+{
+  "prefijo": "/api/v1",
+  "actores": ["titular", "companero", "externo"],
+  "acciones": [
+    {"id": "perfil_propio", "recurso": "perfil privado", "ruta": "/users/me",
+     "esperado": {"titular": 200, "companero": 200, "externo": 200}},
+    {"id": "campos_de_miembros", "recurso": "directorio de la clase A", "ruta": "/courses/{courseId}/members",
+     "esperado": {"titular": 200, "companero": 200, "externo": 404}},
+    {"id": "listar_documentos_a", "recurso": "documentos de la clase A", "ruta": "/courses/{courseId}/documents",
+     "esperado": {"titular": 200, "companero": 200, "externo": 404}},
+    {"id": "descargar_documento_a", "recurso": "archivo original de la clase A", "ruta": "/courses/{courseId}/documents/{documentId}/download",
+     "esperado": {"titular": 200, "companero": 200, "externo": 404}},
+    {"id": "descargar_documento_b", "recurso": "archivo original de la clase B", "ruta": "/courses/{courseId}/documents/{documentId}/download",
+     "esperado": {"titular": 404, "companero": 404, "externo": 200}},
+    {"id": "documento_a_en_clase_b", "recurso": "archivo de A solicitado dentro de B", "ruta": "/courses/{courseId}/documents/{documentId}/download",
+     "esperado": {"titular": 404, "companero": 404, "externo": 404}},
+    {"id": "listar_materiales_privados", "recurso": "material generado para el titular en A", "ruta": "/courses/{courseId}/materials",
+     "esperado": {"titular": 200, "companero": 200, "externo": 404}},
+    {"id": "leer_material_privado", "recurso": "contenido del material generado para el titular en A", "ruta": "/courses/{courseId}/materials/{materialId}",
+     "esperado": {"titular": 200, "companero": 404, "externo": 404}}
+  ]
+}
