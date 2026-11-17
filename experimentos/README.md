@@ -12,6 +12,7 @@ Desde la raíz de TutorIA, con Docker Compose y Python 3.11 o posterior:
 ```bash
 python3 experimentos/ejecutar.py rnf-r1  # Latencia del tutor
 python3 experimentos/ejecutar.py rnf-r3    # Procesamiento de documentos
+python3 experimentos/ejecutar.py rnf-r4    # Límite de carga por el proxy
 python3 experimentos/ejecutar.py rnf-ci-2 # Compatibilidad de formatos
 python3 experimentos/ejecutar.py rnf-s-5  # Aislamiento del tutor entre clases
 python3 experimentos/ejecutar.py todos   # Todos los registrados
@@ -107,6 +108,24 @@ La API admite 30 MB para un solo archivo. Si envías varios archivos en
 una petición, el límite agregado sigue siendo de 20 MiB. Con
 `arrancar_servicios = false`, usa una instancia que ya incluya el límite
 actualizado tanto en la API como en el proxy.
+
+## RNF-R-4 · Test de integración del tamaño máximo
+
+```bash
+python3 experimentos/ejecutar.py rnf-r4
+```
+
+El test envía por el proxy web tres archivos de texto de **29.990.000**,
+**30.000.000** y **30.010.000 bytes**, cada uno en una petición multipart
+independiente. Los dos primeros deben devolver `202 Accepted` con un
+documento y un trabajo de ingesta nuevos. El tercero debe devolver
+`413` con el código de la API `UPLOAD_TOO_LARGE`. Un `413` genérico de
+Nginx hace fallar el caso porque la petición no llegó a esa validación.
+
+El arranque gestionado solo necesita Nginx, la API y PostgreSQL. El test
+no espera la ingesta. Si usas una instancia existente, pon la URL pública
+del proxy en `config/rnf-r4.toml`. El informe de `resultados/` conserva
+el tamaño y la respuesta observada por caso.
 
 ## RNF-CI-2 · Compatibilidad de formatos
 

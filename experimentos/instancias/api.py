@@ -7,8 +7,9 @@ from uuid import uuid4
 
 
 class ErrorApi(RuntimeError):
-    def __init__(self, path, status):
+    def __init__(self, path, status, code=None):
         self.status = status
+        self.code = code
         super().__init__(f"{path}: HTTP {status}")
 
 
@@ -17,7 +18,7 @@ class Api:
         self.base = base.rstrip("/") + "/api/v1"
         self.token = ""
 
-    def call(self, path, *, payload=None, upload=None, timeout=10):
+    def call(self, path, *, payload=None, upload=None, timeout=10, expected_status=None):
         headers = {"Accept": "application/json"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
@@ -41,6 +42,17 @@ class Api:
         request = Request(self.base + path, data=data, headers=headers)
         try:
             with urlopen(request, timeout=timeout) as response:
+                if expected_status is not None and response.status != expected_status:
+                    raise ErrorApi(path, response.status)
                 return json.load(response)
         except HTTPError as error:
-            raise ErrorApi(path, error.code) from error
+            code = None
+            with error:
+                if error.headers and "application/json" in error.headers.get("Content-Type", "").lower():
+                    try:
+                        body = json.loads(error.read(65_536))
+                    except (ValueError, OSError):
+                        body = None
+                    if isinstance(body, dict):
+                        code = body.get("error")
+            raise ErrorApi(path, error.code, code) from error

@@ -41,7 +41,10 @@ PY
 compose=(docker compose --project-directory "$repo" --env-file /dev/null -p tutoria-rnf-r1
   -f "$repo/compose.yaml" -f "$repo/compose.dev-account.yaml"
   -f "$here/compose.rnf-r1.yaml")
-if [[ "${TUTORIA_GPU:-0}" == 1 ]]; then
+services=()
+if [[ "${TUTORIA_SOLO_CARGA:-0}" == 1 ]]; then
+  services=(webapp backend)
+elif [[ "${TUTORIA_GPU:-0}" == 1 ]]; then
   compose+=(-f "$repo/compose.nvidia.yaml")
 fi
 case "${1:-up}" in
@@ -51,7 +54,7 @@ case "${1:-up}" in
     if [[ "${1:-up}" == config ]]; then
       "${compose[@]}" config --quiet
     else
-      "${compose[@]}" up -d --build --wait --wait-timeout 600
+      "${compose[@]}" up -d --build --wait --wait-timeout 600 "${services[@]}"
     fi
     ;;
   ps) "${compose[@]}" --profile prod ps -a ;;
