@@ -15,7 +15,7 @@ from .rag import consultar
 
 
 REQUIRED = {"txt", "pdf", "docx"}
-CONTROL = "md"
+DEFAULT_CONTROL = "md"
 QUESTION = (
     "Segun la ficha del proyecto Faro Azul, cual es su codigo exacto de registro? "
     "Devuelve el codigo tal como aparece en el material del curso."
@@ -23,11 +23,13 @@ QUESTION = (
 
 
 def resumir_configuracion(config):
+    scenario = config["escenario"]
+    control = scenario.get("control", DEFAULT_CONTROL)
     return {
-        "Formatos obligatorios": "TXT, PDF, DOCX",
-        "Control": "Markdown",
-        "Orden de prueba": ", ".join(config["escenario"]["formatos"]),
-        "URL": config["escenario"]["url"],
+        "Formatos en evaluación": ", ".join(item.upper() for item in scenario["formatos"] if item != control),
+        "Control": control.upper(),
+        "Orden de prueba": ", ".join(scenario["formatos"]),
+        "URL": scenario["url"],
         "Plazo de indexación": f'{config["tiempos"]["ingesta_segundos"]} s',
         "Plazo de consulta": f'{config["tiempos"]["respuesta_segundos"]} s',
     }
@@ -42,22 +44,31 @@ def verificar_formato(api, material, expected, times, result):
     })["data"]["id"]
     result["curso_id"] = course
     base = f"/courses/{course}"
+    result["carga"] = {"estado": "en_curso"}
     try:
-        uploaded, = api.call(f"{base}/documents", upload=(filename, content))["data"]
+        uploaded, = api.call(
+            f"{base}/documents", upload=(filename, content), expected_status=202,
+        )["data"]
     except ErrorApi as error:
-        if error.status not in (413, 415, 422):
-            raise
-        result.update(estado="carga_rechazada", carga={"estado": "rechazada", "http": error.status})
+        rejected = error.status in (413, 415, 422)
+        result.update(
+            estado="carga_rechazada" if rejected else "error_de_carga",
+            carga={"estado": "rechazada" if rejected else "error",
+                   "http": error.status, "codigo": error.code, "detalle": str(error)},
+            cumple=False if rejected else None,
+        )
         return
     document_id = uploaded["documentId"]
     if uploaded["duplicate"] or not document_id:
         raise RuntimeError("La carga no devolvió un documento nuevo.")
-    result["carga"] = {"estado": "aceptada", "documento_id": document_id, "job_id": uploaded["jobId"]}
+    result["carga"] = {"estado": "aceptada", "http": 202, "documento_id": document_id, "job_id": uploaded["jobId"]}
+    result["ingesta"] = {"estado": "en_curso"}
     result["ingesta"] = observar_ingesta(api, base, document_id, times)
     if result["ingesta"]["estado"] != "ready":
         result["estado"] = "ingesta_" + result["ingesta"]["estado"]
         return
 
+    result["consulta"] = {"estado": "en_curso"}
     reply = consultar(
         api, base, document_id, QUESTION,
         timeout=times["respuesta_segundos"], interval=times["sondeo_segundos"],
@@ -78,10 +89,13 @@ def verificar_formato(api, material, expected, times, result):
 
 
 def run(config, repo, results_dir, *, processor, manages_services):
-    formats = config["escenario"]["formatos"]
-    expected_formats = REQUIRED | {CONTROL}
-    if not isinstance(formats, list) or len(formats) != len(expected_formats) or set(formats) != expected_formats:
-        raise ValueError("formatos debe incluir md, txt, pdf y docx una vez cada uno.")
+    scenario = config["escenario"]
+    formats = scenario["formatos"]
+    control = scenario.get("control", DEFAULT_CONTROL)
+    if (not isinstance(formats, list) or len(formats) < 2
+            or any(not isinstance(item, str) or item not in REQUIRED | {DEFAULT_CONTROL} for item in formats)
+            or len(set(formats)) != len(formats) or control not in formats):
+        raise ValueError("Elige formatos distintos entre md, txt, pdf y docx, e incluye el formato de control.")
     times = config["tiempos"]
     for key in ("ingesta_segundos", "respuesta_segundos", "sondeo_segundos"):
         value = times[key]
@@ -98,7 +112,8 @@ def run(config, repo, results_dir, *, processor, manages_services):
     materials = generar_materiales(lines)
     started = datetime.now().astimezone()
     results_dir.mkdir(parents=True, exist_ok=True)
-    output = results_dir / f"rnf-ci-2-{processor}-{started:%Y%m%d-%H%M%S-%f}-{uuid4().hex[:8]}.json"
+    variant = "rnf-ci-2-pdf" if set(formats) == {"pdf", "txt"} and control == "txt" else "rnf-ci-2"
+    output = results_dir / f"{variant}-{processor}-{started:%Y%m%d-%H%M%S-%f}-{uuid4().hex[:8]}.json"
     report = {
         "inicio": started.isoformat(timespec="seconds"),
         "revision_checkout": subprocess.check_output(
@@ -106,6 +121,7 @@ def run(config, repo, results_dir, *, processor, manages_services):
         ).strip(),
         "configuracion": config,
         "procesador_solicitado": processor,
+        "alcance": {"formatos": formats, "control": control, "cubre_todos_los_formatos_del_rnf": REQUIRED <= set(formats)},
         "contenido_base": lines,
         "codigo_esperado": expected,
         "pregunta": QUESTION,
@@ -133,24 +149,35 @@ def run(config, repo, results_dir, *, processor, manages_services):
         content = materials[format_name]
         filename = f"faro-azul.{format_name}"
         row = {
-            "formato": format_name, "control": format_name == CONTROL,
+            "formato": format_name, "control": format_name == control,
             "archivo": filename, "tamano_bytes": len(content), "sha256": sha256(content).hexdigest(),
-            "carga": None, "ingesta": None, "consulta": None, "cumple": False,
+            "carga": {"estado": "no_ejecutada"}, "ingesta": {"estado": "no_ejecutada"},
+            "consulta": {"estado": "no_ejecutada"}, "cumple": False,
         }
         report["resultados"].append(row)
         try:
             verificar_formato(api, (filename, content), expected, times, row)
         except (KeyError, TypeError, ValueError, OSError, RuntimeError) as error:
-            row.update(estado="error", cumple=None, detalle=str(error))
+            stage = next((name for name in ("carga", "ingesta", "consulta")
+                          if row[name]["estado"] == "en_curso"), "preparacion")
+            if stage != "preparacion":
+                row[stage] = {"estado": "error", "detalle": str(error)}
+            row.update(estado="error", cumple=None, fase_error=stage, detalle=str(error))
         save()
-        print(f'{format_name.upper()}: {row["estado"]}', flush=True)
+        print(
+            f'{format_name.upper()}: carga={row["carga"]["estado"]}, '
+            f'indexación={row["ingesta"]["estado"]}, consulta={row["consulta"]["estado"]}',
+            flush=True,
+        )
 
     mandatory = [row["cumple"] for row in report["resultados"] if not row["control"]]
     control_ok = next(row["cumple"] for row in report["resultados"] if row["control"])
     report["resumen"] = {
         "cumple": None if None in mandatory else all(mandatory),
-        "control_markdown_ok": control_ok,
+        "control_ok": control_ok,
     }
+    if control == DEFAULT_CONTROL:
+        report["resumen"]["control_markdown_ok"] = control_ok
     save()
     print(json.dumps(report["resumen"], ensure_ascii=False, indent=2), flush=True)
     if any(row["cumple"] is None for row in report["resultados"]):

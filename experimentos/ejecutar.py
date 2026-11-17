@@ -18,6 +18,7 @@ EXPERIMENTS = {
     "rnf-r3": (rnf_r3.run, rnf_r3.resumir_configuracion, "arrancar-rag.sh"),
     "rnf-r4": (rnf_r4.run, rnf_r4.resumir_configuracion, "arrancar-carga.sh"),
     "rnf-ci-2": (rnf_ci2.run, rnf_ci2.resumir_configuracion, "arrancar-rag.sh"),
+    "rnf-ci-2-pdf": (rnf_ci2.run, rnf_ci2.resumir_configuracion, "arrancar-rag.sh"),
     "rnf-s-5": (rnf_s5.run, rnf_s5.resumir_configuracion, "arrancar-rag.sh"),
     "rnf-ac-2": (rnf_ac2.run, rnf_ac2.resumir_configuracion, "arrancar-rag.sh"),
 }

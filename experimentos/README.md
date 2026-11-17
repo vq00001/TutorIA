@@ -150,6 +150,20 @@ El backend actual admite las cargas TXT, Markdown y PDF. DOCX puede
 quedar rechazado y PDF puede fallar en un worker que solo decodifica UTF-8.
 El experimento registra esas diferencias sin cambiar el soporte de formatos.
 
+### Diagnóstico de PDF textual con TXT como control
+
+```bash
+python3 experimentos/ejecutar.py rnf-ci-2-pdf
+```
+
+`config/rnf-ci-2-pdf.toml` selecciona exactamente dos cursos, uno con PDF de
+texto seleccionable y otro con TXT del mismo contenido. El JSON
+`rnf-ci-2-pdf-*.json` distingue carga (HTTP y código de error), indexación
+(transiciones y error del worker) y consulta (código recuperado y cita al
+documento correspondiente). Una etapa bloqueada se registra como
+`no_ejecutada`. El resultado se refiere a PDF textual con control TXT.
+La corrida completa sigue disponible como `rnf-ci-2`.
+
 ## RNF-S-5 · Aislamiento entre clases en el tutor
 
 ```bash
