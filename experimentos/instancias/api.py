@@ -18,7 +18,7 @@ class Api:
         self.base = base.rstrip("/") + "/api/v1"
         self.token = ""
 
-    def call(self, path, *, payload=None, upload=None, timeout=10, expected_status=None):
+    def call(self, path, *, payload=None, upload=None, timeout=10, expected_status=None, raw=False):
         headers = {"Accept": "application/json"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
@@ -44,7 +44,7 @@ class Api:
             with urlopen(request, timeout=timeout) as response:
                 if expected_status is not None and response.status != expected_status:
                     raise ErrorApi(path, response.status)
-                return json.load(response)
+                return response.read() if raw else json.load(response)
         except HTTPError as error:
             code = None
             with error:

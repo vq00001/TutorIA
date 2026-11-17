@@ -15,6 +15,7 @@ python3 experimentos/ejecutar.py rnf-r3    # Procesamiento de documentos
 python3 experimentos/ejecutar.py rnf-r4    # Límite de carga por el proxy
 python3 experimentos/ejecutar.py rnf-ci-2 # Compatibilidad de formatos
 python3 experimentos/ejecutar.py rnf-s-5  # Aislamiento del tutor entre clases
+python3 experimentos/ejecutar.py rnf-ac-2 # Recuperación desde un respaldo
 python3 experimentos/ejecutar.py todos   # Todos los registrados
 ```
 
@@ -170,6 +171,32 @@ fallar el caso, incluso si no devolvió contenido ajeno.
 El TOML `config/rnf-s-5.toml` permite cambiar el tema y los plazos. El JSON de
 `resultados/` guarda las respuestas, las citas y las incidencias por curso.
 Esta prueba cubre el recorrido del tutor RAG dentro del RNF-S-5.
+
+## RNF-AC-2 · Recuperación de un curso
+
+```bash
+python3 experimentos/ejecutar.py rnf-ac-2
+```
+
+El experimento prepara un curso con una ficha Markdown y comprueba que
+el tutor devuelve y cita su código ficticio antes del respaldo. Hace un
+`pg_dump` de la base de prueba, detiene el origen y restaura en otro
+contenedor PostgreSQL con su propio volumen. Los workers y la API del
+destino se levantan después de que termina `pg_restore`.
+
+Tras restaurar, la prueba abre una sesión nueva y comprueba que conserva
+el curso y el documento indexado, que la descarga coincide byte a byte
+por SHA-256 y que una consulta nueva del tutor devuelve el código y cita
+el documento restaurado. El JSON registra ambas verificaciones, los
+volúmenes y los tiempos de respaldo, restauración y recuperación.
+
+El TOML `config/rnf-ac-2.toml` permite editar el caso y los plazos. Requiere
+el arranque gestionado para aislar el origen y el destino. Los volúmenes y
+el archivo `.dump` se conservan al terminar, junto al informe local en
+`resultados/`. El respaldo contiene los datos de la instancia de prueba.
+
+El veredicto cubre el curso y el material del escenario. La verificación
+del 100 % de los datos respaldados y el RPO son pruebas aparte.
 
 ## Experimentos pendientes
 
