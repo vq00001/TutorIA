@@ -75,7 +75,22 @@ def append_cited_assistant_message(
 def list_message_citations(conn: Connection, message_id: UUID) -> list[RowMapping]:
     """Lee las citas en orden y recupera los offsets desde la fuente validada."""
     result = func.app.list_message_citations(message_id).table_valued(
-        "source_document_id", "source_name", "section_path", "locator", "snippet", "score", "label"
+        "ordinal",
+        "request_id",
+        "source_rank",
+        "document_id",
+        "parent_id",
+        "child_id",
+        "start_offset",
+        "end_offset",
+        "status",
+        "source_document_id",
+        "source_name",
+        "section_path",
+        "locator",
+        "snippet",
+        "score",
+        "label",
     )
     statement = sa.select(result)
     return list(conn.execute(statement).mappings())
@@ -92,33 +107,41 @@ def install_citations(conn: Connection) -> None:
         USING (EXISTS (SELECT FROM app.messages AS m WHERE m.id = citations.message_id))"""
     )
     conn.exec_driver_sql("GRANT SELECT ON app.citations TO tutoria_api")
+    conn.exec_driver_sql("DROP FUNCTION IF EXISTS app.list_message_citations(uuid)")
     conn.exec_driver_sql(
-        """CREATE OR REPLACE FUNCTION app.list_message_citations(target_message uuid)
+        """CREATE FUNCTION app.list_message_citations(target_message uuid)
         RETURNS TABLE (
-            source_document_id uuid, source_name text, section_path text[],
+            ordinal integer, request_id uuid, source_rank integer, document_id uuid,
+            parent_id uuid, child_id uuid, start_offset integer, end_offset integer,
+            status text, source_document_id uuid, source_name text, section_path text[],
             locator jsonb, snippet text, score double precision, label text
         )
-        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        LANGUAGE plpgsql SECURITY DEFINER
+        SET search_path = pg_catalog, pg_temp
+        SET row_security = off
         AS $$
         BEGIN
             IF NOT EXISTS (
                 SELECT FROM app.messages
                 WHERE id = target_message AND user_id = app.course_actor()
             ) THEN
-                RAISE EXCEPTION 'NOT_AUTHORIZED' USING ERRCODE = '42501';
+                RETURN;
             END IF;
             RETURN QUERY
-            SELECT source.document_id, version.original_name::text, parent.section_path,
+            SELECT citation.ordinal, citation.request_id, citation.source_rank,
+                   source.document_id, source.parent_id, source.child_id,
+                   source.start_offset, source.end_offset, citation.status,
+                   source.document_id, version.original_name::text, parent.section_path,
                    parent.locator, child.text, source.score, citation.label::text
             FROM app.citations AS citation
-            JOIN app.generation_sources AS source
+            LEFT JOIN app.generation_sources AS source
               ON source.request_id = citation.request_id
              AND source.rank = citation.source_rank
-            JOIN app.document_versions AS version
+            LEFT JOIN app.document_versions AS version
               ON version.document_id = source.document_id AND version.version_no = 1
-            JOIN app.parent_chunks AS parent
+            LEFT JOIN app.parent_chunks AS parent
               ON parent.id = source.parent_id AND parent.run_id = source.run_id
-            JOIN app.child_chunks AS child
+            LEFT JOIN app.child_chunks AS child
               ON child.id = source.child_id AND child.run_id = source.run_id
             WHERE citation.message_id = target_message
             ORDER BY citation.ordinal;

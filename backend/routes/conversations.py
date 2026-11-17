@@ -145,6 +145,7 @@ def _message(connection, row) -> Message:
                 "snippet": citation["snippet"],
             }
             for citation in list_message_citations(connection, row.id)
+            if citation["status"] == "available"
         ],
     )
 
