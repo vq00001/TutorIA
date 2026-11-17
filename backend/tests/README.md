@@ -89,3 +89,32 @@ docker compose -p tutoria-rnf-s3-test --profile test run --rm backend-test \
 
 FastAPI se ejecuta dentro de pytest y los datos sintéticos se revierten
 por caso. No se usa la base principal ni se levanta la aplicación web.
+
+## RNF-S-4 · Registro de acciones críticas
+
+`fixtures/rnf_s4.json` enumera nueve escenarios de cuentas, clases y
+materiales, incluidos dos borrados denegados. Los códigos de evento del
+catálogo son un contrato propuesto para la integración. Cada caso ejecuta
+una operación de API y comprueba el registro resultante, con actor,
+entidad, clase, resultado, identificador de solicitud, fecha y metadatos.
+Para una denegación a un externo, el registro no debe conservar IDs
+de la clase ni del documento ajeno.
+
+La API actual no llama al registrador desde estas rutas. Los nueve
+casos se marcan como `xfail` estricto **solo si la respuesta HTTP fue la
+esperada y no se emitió ningún evento**. Un código HTTP inesperado o un
+evento incorrecto falla. Cuando una acción ya emita correctamente su
+evento, se retira su ID de `PENDING` en `test_rnf_s4.py`. Los casos
+`xfail` se deben informar como brechas, no como cobertura aprobada.
+
+Desde la raíz, ejecuta el catálogo junto con las pruebas existentes
+del registrador sobre PostgreSQL temporal:
+
+```bash
+docker compose -p tutoria-rnf-s4-test --profile test build test-db-init backend-test &&
+docker compose -p tutoria-rnf-s4-test --profile test run --rm backend-test \
+  python -m pytest -q -rxX -p no:cacheprovider tests/test_audit.py tests/test_rnf_s4.py
+```
+
+Las pruebas usan datos sintéticos, FastAPI dentro de pytest y rollback por
+caso. No levantan la aplicación web ni usan la base principal.

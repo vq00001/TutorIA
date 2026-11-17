@@ -1,0 +1,23 @@
+{
+  "prefijo": "/api/v1",
+  "acciones": [
+    {"id": "editar_perfil", "categoria": "cuentas", "actor": "coordinator", "metodo": "PATCH", "ruta": "/users/me", "http": 200,
+     "evento": {"accion": "account.profile.update", "entidad": "user", "identificador": "actor", "clase": "ninguna", "resultado": "success"}},
+    {"id": "cerrar_sesion", "categoria": "cuentas", "actor": "coordinator", "metodo": "POST", "ruta": "/auth/logout", "http": 204,
+     "evento": {"accion": "auth.logout", "entidad": "user", "identificador": "actor", "clase": "ninguna", "resultado": "success"}},
+    {"id": "crear_clase", "categoria": "clases", "actor": "coordinator", "metodo": "POST", "ruta": "/courses", "http": 201,
+     "evento": {"accion": "course.create", "entidad": "course", "identificador": "respuesta", "clase": "respuesta", "resultado": "success"}},
+    {"id": "editar_clase", "categoria": "clases", "actor": "coordinator", "metodo": "PATCH", "ruta": "/courses/{courseId}", "http": 200,
+     "evento": {"accion": "course.update", "entidad": "course", "identificador": "curso", "clase": "curso", "resultado": "success"}},
+    {"id": "cambiar_rol", "categoria": "clases", "actor": "coordinator", "metodo": "PATCH", "ruta": "/courses/{courseId}/members/{userId}", "http": 204,
+     "evento": {"accion": "membership.update", "entidad": "membership", "identificador": "estudiante", "clase": "curso", "resultado": "success"}},
+    {"id": "cargar_documento", "categoria": "materiales", "actor": "student", "metodo": "POST", "ruta": "/courses/{courseId}/documents", "http": 202,
+     "evento": {"accion": "document.upload", "entidad": "document", "identificador": "documento_nuevo", "clase": "curso", "resultado": "success"}},
+    {"id": "borrar_documento", "categoria": "materiales", "actor": "coordinator", "metodo": "DELETE", "ruta": "/courses/{courseId}/documents/{documentId}", "http": 204,
+     "evento": {"accion": "document.delete", "entidad": "document", "identificador": "documento", "clase": "curso", "resultado": "success"}},
+    {"id": "borrado_denegado_a_estudiante", "categoria": "materiales", "actor": "student", "metodo": "DELETE", "ruta": "/courses/{courseId}/documents/{documentId}", "http": 403,
+     "evento": {"accion": "document.delete", "entidad": "document", "identificador": "documento", "clase": "curso", "resultado": "denied", "motivo": "not_authorized"}},
+    {"id": "borrado_denegado_a_externo", "categoria": "materiales", "actor": "outsider", "metodo": "DELETE", "ruta": "/courses/{courseId}/documents/{documentId}", "http": 404,
+     "evento": {"accion": "document.delete", "entidad": "document", "identificador": "ninguna", "clase": "ninguna", "resultado": "denied", "motivo": "not_authorized"}}
+  ]
+}
