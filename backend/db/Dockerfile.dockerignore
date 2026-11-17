@@ -9,6 +9,8 @@
 !experiments/**
 !knowledge_graph/
 !knowledge_graph/**
+!utilities/
+!utilities/**
 !tests/
 !tests/**
 **/__pycache__/

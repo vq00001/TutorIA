@@ -72,6 +72,11 @@ En el mapa de un curso sin conceptos, el coordinador puede subir un `.txt` o
 material al curso no genera el grafo automáticamente. En **Materiales**, los
 documentos avanzan de «En cola» a «Procesando» y «Listo» cuando el worker
 termina la ingestión; la vista consulta el estado cada cinco segundos.
+Los archivos se pueden revisar en `archivos/<curso>-<id>/`: se conserva el
+original y, para cada PDF válido, el worker guarda también un `.md` convertido
+con el mismo nombre base. En Docker, `archivos/` se comparte entre la API y el
+worker y queda visible en la raíz del proyecto. Los PDF con imágenes, tablas o
+sin texto extraíble se rechazan durante la carga.
 
 ## Estructura del proyecto
 

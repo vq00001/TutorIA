@@ -314,6 +314,11 @@ def get_processing_source(conn: Connection, run_id: UUID) -> RowMapping | None:
     return conn.execute(sa.select(source)).mappings().one_or_none()
 
 
+def get_processing_course_name(conn: Connection, run_id: UUID) -> str | None:
+    """Lee el nombre de la clase de una ejecución accesible al worker."""
+    return conn.scalar(sa.select(sa.func.app.document_processing_course_name(run_id)))
+
+
 def publish_processing(
     conn: Connection,
     run_id: UUID,
@@ -537,6 +542,21 @@ def _install_processing_operations(conn: Connection) -> None:
               AND app.has_course_role(r.course_id, ARRAY['student', 'coordinator'])
         $$"""
     )
+    conn.exec_driver_sql(
+        """CREATE OR REPLACE FUNCTION app.document_processing_course_name(rid uuid)
+        RETURNS text
+        LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+        AS $$
+            SELECT c.name
+            FROM app.processing_runs AS r
+            JOIN app.documents AS d ON d.course_id = r.course_id AND d.id = r.document_id
+            JOIN app.document_versions AS v ON v.id = r.version_id
+            JOIN app.courses AS c ON c.id = r.course_id
+            WHERE r.id = rid AND r.state = 'running' AND d.status = 'active'
+              AND c.status = 'active' AND v.status <> 'purged'
+              AND app.has_course_role(r.course_id, ARRAY['student', 'coordinator'])
+        $$"""
+    )
     _install_processing_publication(conn)
     conn.exec_driver_sql(
         """CREATE OR REPLACE FUNCTION app.publish_document_processing(
@@ -590,6 +610,7 @@ def _install_processing_operations(conn: Connection) -> None:
     entrypoints = (
         "app.start_document_processing(uuid, uuid, uuid, bytea, text, text, jsonb), "
         "app.document_processing_source(uuid), "
+        "app.document_processing_course_name(uuid), "
         "app.publish_document_processing(uuid, text, jsonb, jsonb), "
         "app.fail_document_processing(uuid, text)"
     )

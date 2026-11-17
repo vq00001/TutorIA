@@ -25,6 +25,15 @@ def _safe_filename(value: str) -> str:
     return name[:180]
 
 
+def _document_path(
+    *, course_name: str, course_id: UUID, document_id: UUID, filename: str
+) -> Path:
+    course_folder = f"{_folder_name(course_name)}-{course_id.hex}"
+    directory = FILES_DIR / course_folder
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory / f"{document_id.hex}_{_safe_filename(filename)}"
+
+
 def store_uploaded_document(
     *,
     course_name: str,
@@ -34,15 +43,34 @@ def store_uploaded_document(
     content: bytes,
 ) -> Path:
     """Guarda el original en `archivos/<ramo-id>/<id>_<nombre>`."""
-    course_folder = f"{_folder_name(course_name)}-{course_id.hex}"
-    directory = FILES_DIR / course_folder
-    directory.mkdir(parents=True, exist_ok=True)
-
-    target = directory / f"{document_id.hex}_{_safe_filename(filename)}"
+    target = _document_path(
+        course_name=course_name, course_id=course_id, document_id=document_id, filename=filename
+    )
     try:
         with target.open("xb") as output:
             output.write(content)
     except FileExistsError:
         if target.read_bytes() != content:
             raise OSError(f"El archivo guardado no coincide con el documento {document_id}.")
+    return target
+
+
+def store_converted_markdown(
+    *,
+    course_name: str,
+    course_id: UUID,
+    document_id: UUID,
+    original_filename: str,
+    content: bytes,
+) -> Path:
+    """Guarda o actualiza el Markdown convertido junto al archivo original."""
+    safe_name = _safe_filename(original_filename)
+    markdown_name = f"{Path(safe_name).stem}.md"
+    target = _document_path(
+        course_name=course_name,
+        course_id=course_id,
+        document_id=document_id,
+        filename=markdown_name,
+    )
+    target.write_bytes(content)
     return target

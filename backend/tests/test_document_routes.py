@@ -1,14 +1,42 @@
 import warnings
 from contextlib import nullcontext
 
+import pymupdf
+from fastapi.testclient import TestClient
+from sqlalchemy import insert
+
 from backend import file_storage, http_api
 from backend.db.sessions import issue_session
 from backend.routes import dependencies
-from fastapi.testclient import TestClient
-from sqlalchemy import insert
 from db.courses import create_course, memberships
 from db.documents import DuplicateDocumentWarning
+
 from .test_courses import _as_user, _user
+
+
+def _pdf_bytes(*, with_table=False, with_image=False):
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text(
+        (72, 72),
+        "Este documento contiene suficiente texto extraible para validar el PDF.",
+    )
+    if with_table:
+        for x in (72, 220, 360):
+            page.draw_line((x, 200), (x, 280))
+        for y in (200, 240, 280):
+            page.draw_line((72, y), (360, y))
+        page.insert_text((90, 225), "Columna A")
+        page.insert_text((240, 225), "Columna B")
+        page.insert_text((90, 265), "Uno")
+        page.insert_text((240, 265), "Dos")
+    if with_image:
+        pixmap = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 5, 5), 0)
+        pixmap.clear_with(255)
+        page.insert_image(pymupdf.Rect(72, 300, 120, 348), pixmap=pixmap)
+    data = doc.tobytes()
+    doc.close()
+    return data
 
 
 def test_document_upload_replay_listing_and_status(postgres, monkeypatch):
@@ -57,12 +85,13 @@ def test_document_upload_accepts_pdf_markdown_and_text_files(postgres, monkeypat
 
     client = TestClient(http_api.app)
     path = f"/api/v1/courses/{course}/documents"
+    pdf = _pdf_bytes()
     response = client.post(
         path,
         files=[
             ("files", ("guia.md", b"# Apuntes", "text/markdown")),
             ("files", ("resumen.txt", "Apuntes de cálculo".encode(), "text/plain")),
-            ("files", ("clase.pdf", b"%PDF-1.7\ncontenido", "application/pdf")),
+            ("files", ("clase.pdf", pdf, "application/pdf")),
         ],
         headers={
             "Authorization": f"Bearer {owner_token}",
@@ -79,8 +108,22 @@ def test_document_upload_accepts_pdf_markdown_and_text_files(postgres, monkeypat
     assert saved_files == {
         "guia.md": b"# Apuntes",
         "resumen.txt": "Apuntes de cálculo".encode(),
-        "clase.pdf": b"%PDF-1.7\ncontenido",
+        "clase.pdf": pdf,
     }
+    for filename, pdf, message in (
+        ("con-tabla.pdf", _pdf_bytes(with_table=True), "tablas"),
+        ("con-imagen.pdf", _pdf_bytes(with_image=True), "imágenes"),
+    ):
+        rejected = client.post(
+            path,
+            files=[("files", (filename, pdf, "application/pdf"))],
+            headers={
+                "Authorization": f"Bearer {owner_token}",
+                "Idempotency-Key": f"reject-{filename}",
+            },
+        )
+        assert rejected.status_code == 422
+        assert message in rejected.json()["message"]
 
 
 def test_document_detail_download_and_delete_follow_membership(postgres, monkeypatch):

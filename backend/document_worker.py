@@ -16,8 +16,11 @@ from .chunking import chunk_text, count_tokens
 from .config import Config
 from .db.connection import set_user_context
 from .db.jobs import claim_job, fail_job, recover_jobs, renew_job_lease
-from .db.processing import get_processing_source, vector_text
+from .db.processing import get_processing_course_name, get_processing_source, vector_text
 from .embeddings import embed
+from .file_storage import store_converted_markdown
+
+_PARSER_VERSION = "utf8-pdf-md-v1"
 
 
 def worker_engine():
@@ -80,6 +83,17 @@ def chunks_for_publication(text: str, title: str, config: Config):
     return text, parent_payload, child_payload
 
 
+def extract_document_text(filename: str, data: bytes) -> str:
+    if filename.lower().endswith(".pdf"):
+        from .utilities.pdf_to_md.pdf_to_md import pdf_bytes_to_markdown
+
+        return pdf_bytes_to_markdown(data)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("INVALID_DOCUMENT_ENCODING") from exc
+
+
 def renew_while_processing(engine, job_id: UUID, token: UUID, stop: Event) -> None:
     while not stop.wait(30):
         try:
@@ -94,25 +108,33 @@ def process_job(engine, job, config: Config, space_id: UUID) -> None:
     parameters = {"child_target_tokens": config.child_target_tokens,
                   "parent_max_tokens": config.parent_max_tokens}
     digest = sha256(json.dumps(
-        [str(space_id), "utf8-v1", "chunk-v1", parameters],
+        [str(space_id), _PARSER_VERSION, "chunk-v1", parameters],
         sort_keys=True, separators=(",", ":"), allow_nan=False,
     ).encode()).digest()
     with engine.begin() as connection:
         run_id = connection.scalar(select(func.app.start_ingestion_job(
-            job.id, job.lease_token, space_id, digest, "utf8-v1", "chunk-v1",
+            job.id, job.lease_token, space_id, digest, _PARSER_VERSION, "chunk-v1",
             cast(parameters, JSONB),
         )))
     if run_id is None:
         return
     with engine.begin() as connection:
         set_user_context(connection, job.requested_by)
+        course_name = get_processing_course_name(connection, run_id)
         source = get_processing_source(connection, run_id)
     if source is None or source.bytes is None:
         raise ValueError("DOCUMENT_SOURCE_MISSING")
-    try:
-        text = bytes(source.bytes).decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise ValueError("INVALID_DOCUMENT_ENCODING") from exc
+    if course_name is None:
+        raise ValueError("COURSE_NOT_FOUND")
+    text = extract_document_text(source.original_name, bytes(source.bytes))
+    if source.original_name.lower().endswith(".pdf"):
+        store_converted_markdown(
+            course_name=course_name,
+            course_id=job.course_id,
+            document_id=job.target_id,
+            original_filename=source.original_name,
+            content=text.encode("utf-8"),
+        )
     extracted_text, parents, children = chunks_for_publication(text, source.original_name, config)
     with engine.begin() as connection:
         result = connection.scalar(select(func.app.publish_ingestion_job(

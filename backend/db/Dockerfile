@@ -17,5 +17,6 @@ COPY pyproject.toml *.py ./
 COPY routes/ ./routes/
 COPY experiments/ ./experiments/
 COPY knowledge_graph/ ./knowledge_graph/
+COPY utilities/ ./utilities/
 COPY tests/ ./tests/
 CMD ["python", "-m", "pytest"]

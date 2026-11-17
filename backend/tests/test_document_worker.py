@@ -1,7 +1,11 @@
 """El worker conserva texto y offsets antes de publicar en PostgreSQL."""
 
-from backend.config import Config
+import pymupdf
+import pytest
+
 from backend import document_worker
+from backend.config import Config
+from backend.utilities.pdf_to_md.pdf_to_md import NotConvertible
 
 
 def test_chunks_for_publication_keep_source_offsets(monkeypatch):
@@ -14,6 +18,24 @@ def test_chunks_for_publication_keep_source_offsets(monkeypatch):
         assert extracted_text[child["start_offset"]:child["end_offset"]] == child["text"]
         assert child["embedding"] == "[1.0,0.0]"
         assert 0 <= child["parent_index"] < len(parents)
+
+
+def test_extract_document_text_converts_and_validates_pdf():
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Este documento PDF contiene texto suficiente para su validacion.")
+    pdf_bytes = doc.tobytes()
+    doc.close()
+
+    text = document_worker.extract_document_text("GUIA.PDF", pdf_bytes)
+
+    assert "Este documento PDF contiene texto suficiente para su validacion." in text
+    with pytest.raises(NotConvertible, match="PDF"):
+        document_worker.extract_document_text("guia.pdf", b"%PDF-archivo incompleto")
+
+
+def test_extract_document_text_decodes_utf8_documents():
+    assert document_worker.extract_document_text("guia.md", b"Apuntes") == "Apuntes"
 
 
 def test_model_revision_accepts_ollama_latest_tag(monkeypatch):

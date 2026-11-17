@@ -20,6 +20,7 @@ from db.processing import (
     child_chunks,
     chunk_embeddings,
     fail_processing,
+    get_processing_course_name,
     get_processing_source,
     parent_chunks,
     processing_runs,
@@ -105,6 +106,7 @@ def test_worker_publishes_exact_unicode_offsets_and_pgvector(postgres, processin
     course, document, _, owner, _ = processing_context
     run = _start(postgres, processing_context)
     assert run is not None
+    assert get_processing_course_name(postgres, run) == "Procesamiento"
     assert _start(postgres, processing_context) is None
     source = get_processing_source(postgres, run)
     assert source["bytes"] == SOURCE.encode()

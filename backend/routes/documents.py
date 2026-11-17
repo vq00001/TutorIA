@@ -160,6 +160,13 @@ def documents_upload(
             return error_response(422, "EMPTY_DOCUMENT", "El archivo está vacío.")
         if extension == ".pdf" and b"%PDF-" not in data[:1024]:
             return error_response(422, "INVALID_DOCUMENT", "El archivo no contiene un PDF válido.")
+        if extension == ".pdf":
+            from ..utilities.pdf_to_md.pdf_to_md import NotConvertible, validate_pdf_bytes
+
+            try:
+                validate_pdf_bytes(data)
+            except NotConvertible as exc:
+                return error_response(422, "INVALID_DOCUMENT", str(exc))
         remaining -= len(data)
         batch.append((name, mime, data))
         fingerprint.append([name, mime, sha256(data).hexdigest()])

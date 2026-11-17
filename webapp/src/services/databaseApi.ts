@@ -226,7 +226,12 @@ export const databaseApi: TutorIADataApi = {
 
     files.forEach((file) => {
       if (!(file instanceof File)) throw new Error('Para subir materiales se necesita el archivo original.')
-      const mimeType = file.name.toLowerCase().endsWith('.md') ? 'text/markdown' : 'text/plain'
+      const name = file.name.toLowerCase()
+      const mimeType = name.endsWith('.pdf')
+        ? 'application/pdf'
+        : name.endsWith('.md')
+          ? 'text/markdown'
+          : 'text/plain'
       form.append('files', new File([file], file.name, { type: mimeType }))
     })
 
