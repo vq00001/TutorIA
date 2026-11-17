@@ -293,3 +293,32 @@ TutorIA tenga un worker que consuma `generate_exam`.
    Ejecuta solo la nueva prueba con
    `python3 experimentos/ejecutar.py rnf-ejemplo`. El comando con `todos`
    la incluirá en el orden del registro.
+
+## RNF-S-1 a S-4 · Informe de integración
+
+Desde la raíz del repositorio:
+
+```bash
+bash experimentos/infra/ejecutar-seguridad.sh
+```
+
+Ejecuta los cuatro módulos RNF de pytest y las pruebas del registrador
+(`test_audit.py`). Cada corrida crea un proyecto Compose nuevo con PostgreSQL
+temporal del perfil `test`. FastAPI se ejecuta dentro de pytest. Al terminar,
+el script retira los recursos de ese proyecto, incluso si pytest falla.
+
+Cada corrida guarda su evidencia local en `resultados/rnf-seguridad-*/`.
+Usa `resumen.json` para el conteo por estado y el detalle por caso,
+`junit.xml` para consumir el informe con herramientas de CI y `pytest.log`
+para los motivos y trazas. El JSON conserva la versión de Python y las
+dependencias instaladas. `entorno.txt` registra el commit, el estado del
+checkout y la huella de sus cambios versionados. Para repetir la medición
+sobre la misma revisión, usa un checkout limpio y compara las dependencias.
+
+Reporta por separado `passed`, `failed`, `error`, `xfailed`, `xpassed`,
+`skipped` y `not_run`. Los fallos esperados de S-4 son brechas del alcance
+evaluado. Un código de pytest 0 puede incluir `xfailed`. El denominador
+corresponde a la selección de pruebas, incluidos los controles del
+registrador. Si falla la construcción o el arranque y falta el resumen,
+consulta `ejecucion.txt` y los logs para distinguir un problema de entorno
+de un resultado de las pruebas.
