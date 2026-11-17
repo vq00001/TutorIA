@@ -44,14 +44,19 @@ def measure(api, base, document_id, question, *, timeout, interval, threshold):
 def summarize(records, threshold):
     valid_times = sorted(row["segundos"] for row in records if row["estado"] == "ok")
     valid_count = len(valid_times)
-    rank = math.ceil(0.90 * len(records))
+    total = len(records)
+    on_time = sum(row["a_tiempo"] for row in records)
+    rank = math.ceil(0.90 * total)
     p90 = valid_times[rank - 1] if 0 < rank <= valid_count else None
     valid_rank = math.ceil(0.90 * valid_count)
     return {
-        "consultas": len(records),
-        "a_tiempo": sum(row["a_tiempo"] for row in records),
+        "consultas": total,
+        "exitos_con_fuente": valid_count,
+        "tasa_exito_pct": 100 * valid_count / total if total else None,
+        "a_tiempo": on_time,
+        "tasa_a_tiempo_pct": 100 * on_time / total if total else None,
         "tardias_con_fuente": sum(row["estado"] == "ok" and not row["a_tiempo"] for row in records),
-        "fallidas_o_sin_fuente": sum(row["estado"] != "ok" for row in records),
+        "fallidas_o_sin_fuente": total - valid_count,
         "rango_p90": rank,
         "p90_segundos": p90,
         "p90_respuestas_con_fuente_segundos": valid_times[valid_rank - 1] if valid_rank else None,

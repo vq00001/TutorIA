@@ -77,7 +77,11 @@ el envío hasta recibir la respuesta por la API. Una respuesta cuenta si
 incluye una fuente del documento cargado. El p90 se calcula por rango más
 próximo y los fallos y las respuestas sin fuente se colocan al final. Si
 el rango cae en un fallo, el p90 global se guarda como `null`. El p90 de las
-respuestas con fuente se incluye como dato de diagnóstico.
+respuestas con fuente se incluye como dato de diagnóstico. El resumen
+registra `tasa_exito_pct` (respuestas con fuente del documento / consultas
+medidas) y `tasa_a_tiempo_pct` (respuestas con esa fuente dentro del umbral /
+consultas medidas). El piloto queda fuera de ambos porcentajes. El resumen
+se publica al completar las consultas de la fase.
 
 Cada corrida escribe un JSON nuevo en `resultados/` y lo actualiza después
 de cada medición. Los JSON quedan fuera de Git. Código de salida 0 si
@@ -102,6 +106,17 @@ de la carga hasta que observa `ready`, estado que el backend publica
 al dejar los fragmentos y embeddings disponibles. El objetivo se cumple
 en **300 s o menos**. El informe guarda por separado el tiempo de carga,
 el tamaño real, el hash del archivo y los cambios de estado observados.
+El tiempo total usado para el veredicto queda en `total_hasta_ready_segundos`.
+
+Los campos `cola_segundos` y `procesamiento_segundos` contienen límites
+estimados a partir de las ventanas de sondeo que se guardan en
+`sondeos_desglose`. La cola se mide desde la confirmación de carga. Si el
+primer sondeo ya muestra `processing`, su mínimo es cero. Si el documento
+sigue en cola o en procesamiento al vencer el plazo, el máximo del tramo
+abierto queda en `null`. Un salto directo a estado terminal o un retorno
+observado a cola impide atribuir el tiempo a etapas separadas. El sondeo
+mide estados visibles del documento y puede omitir transiciones o reintentos
+entre consultas.
 Una carga rechazada, un procesamiento fallido o un plazo agotado no
 cumplen el criterio. Un resultado de Markdown representa ese formato
 y ese contenido.

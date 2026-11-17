@@ -42,6 +42,32 @@ def cargar_material(repo, document, size):
     return "calculo-iii-rnf-r3.md", seed * copies + tail.ljust(remainder, b" ")
 
 
+def medir_etapas(first_processing, last_queued, last_processing, terminal, requeued):
+    """Acota las transiciones observables usando el inicio y fin de cada sondeo."""
+    timings = {"cola_segundos": None, "procesamiento_segundos": None}
+    if requeued:
+        return timings | {"estado_desglose": "retorno_a_cola_observado"}
+    if first_processing is None:
+        if last_queued and terminal is None:
+            timings["cola_segundos"] = {
+                "minimo": last_queued["inicio_sondeo_segundos"], "maximo": None,
+            }
+        return timings | {
+            "estado_desglose": "cola_sin_fin_observado" if timings["cola_segundos"]
+            else "inicio_procesamiento_no_observado",
+        }
+
+    start_min = last_queued["inicio_sondeo_segundos"] if last_queued else 0.0
+    start_max = first_processing["segundos"]
+    timings["cola_segundos"] = {"minimo": start_min, "maximo": start_max}
+    end_min = last_processing["inicio_sondeo_segundos"]
+    timings["procesamiento_segundos"] = {
+        "minimo": max(0.0, end_min - start_max),
+        "maximo": terminal["segundos"] - start_min if terminal else None,
+    }
+    return timings | {"estado_desglose": "acotado" if terminal else "procesamiento_sin_fin_observado"}
+
+
 def medir_procesamiento(api, course, material, threshold, times):
     endpoint = f"/courses/{course}/documents"
     upload_started = time.monotonic()
@@ -62,7 +88,7 @@ def medir_procesamiento(api, course, material, threshold, times):
         "documento_id": document_id,
         "job_id": uploaded["jobId"],
         "carga_segundos": started - upload_started,
-        "procesamiento_segundos": None,
+        "total_hasta_ready_segundos": None,
         "estados": [],
         "cumple": False,
     }
@@ -70,7 +96,10 @@ def medir_procesamiento(api, course, material, threshold, times):
     deadline = started + times["observacion_segundos"]
     status_path = f"{endpoint}/{document_id}/status"
     previous = None
+    first_processing = last_queued = last_processing = terminal = None
+    requeued = False
     while (remaining := deadline - time.monotonic()) > 0:
+        poll_started = time.monotonic() - started
         try:
             response = api.call(status_path, timeout=min(remaining, 10))["data"]
         except ErrorApi as error:
@@ -84,18 +113,37 @@ def medir_procesamiento(api, course, material, threshold, times):
         else:
             elapsed = time.monotonic() - started
             status = response["status"]
+            sample = {
+                "estado": status, "inicio_sondeo_segundos": poll_started, "segundos": elapsed,
+            }
+            if status == "queued":
+                last_queued = sample
+                requeued |= first_processing is not None
+            if status == "processing":
+                first_processing = first_processing or sample
+                last_processing = sample
             if status != previous:
-                result["estados"].append({"estado": status, "segundos": elapsed})
+                result["estados"].append(sample)
                 print(f"  {elapsed:.2f} s · {status}", flush=True)
                 previous = status
             if status == "ready":
-                result.update(estado="ready", procesamiento_segundos=elapsed, cumple=elapsed <= threshold)
-                return result
+                result.update(estado="ready", total_hasta_ready_segundos=elapsed, cumple=elapsed <= threshold)
+                terminal = sample
+                break
             if status == "failed":
                 result.update(estado="failed", error_procesamiento=response["errorCode"])
-                return result
+                terminal = sample
+                break
         time.sleep(max(0, min(times["sondeo_segundos"], deadline - time.monotonic())))
-    result.update(estado="plazo_agotado", observacion_segundos=time.monotonic() - started)
+    if terminal is None:
+        result.update(estado="plazo_agotado", observacion_segundos=time.monotonic() - started)
+    result["sondeos_desglose"] = {
+        "ultima_cola": last_queued,
+        "primer_procesamiento": first_processing,
+        "ultimo_procesamiento": last_processing,
+        "terminal": terminal,
+    }
+    result.update(medir_etapas(first_processing, last_queued, last_processing, terminal, requeued))
     return result
 
 
@@ -127,6 +175,7 @@ def run(config, repo, results_dir, *, processor, manages_services):
             "nombre": filename, "tamano_bytes": size, "sha256": sha256(material).hexdigest(),
         },
         "medicion": "Recepción de la confirmación de carga hasta observar ready por la API.",
+        "medicion_etapas": "Intervalos por sondeo de estados del documento después de confirmar la carga.",
     }
 
     def save():
