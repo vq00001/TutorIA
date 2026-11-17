@@ -6,11 +6,11 @@ import math
 import os
 import re
 import subprocess
-import time
 from uuid import uuid4
 
 from .api import Api, ErrorApi
 from .formatos_ci2 import generar_materiales
+from .ingesta import observar_ingesta
 from .rag import consultar
 
 
@@ -31,32 +31,6 @@ def resumir_configuracion(config):
         "Plazo de indexación": f'{config["tiempos"]["ingesta_segundos"]} s',
         "Plazo de consulta": f'{config["tiempos"]["respuesta_segundos"]} s',
     }
-
-
-def observar_ingesta(api, base, document_id, times):
-    started = time.monotonic()
-    deadline = started + times["ingesta_segundos"]
-    last_state = None
-    changes = []
-    while (remaining := deadline - time.monotonic()) > 0:
-        try:
-            status = api.call(f"{base}/documents/{document_id}/status", timeout=min(10, remaining))["data"]
-        except ErrorApi as error:
-            if error.status != 404 or last_state or time.monotonic() - started >= 5:
-                raise
-        except TimeoutError:
-            if time.monotonic() < deadline:
-                raise
-            break
-        else:
-            state = status["status"]
-            if state != last_state:
-                changes.append({"estado": state, "segundos": time.monotonic() - started})
-                last_state = state
-            if state in ("ready", "failed"):
-                return {"estado": state, "transiciones": changes, "error": status.get("errorCode")}
-        time.sleep(max(0, min(times["sondeo_segundos"], deadline - time.monotonic())))
-    return {"estado": "plazo_agotado", "transiciones": changes}
 
 
 def verificar_formato(api, material, expected, times, result):

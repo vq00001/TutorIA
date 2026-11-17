@@ -1,0 +1,15 @@
+# RNF-S-5 · Aislamiento de material entre clases en el tutor RAG
+
+[ejecucion]
+arrancar_servicios = true     # Con Compose se activa el registro local de cuentas.
+reiniciar_servicios = true    # Detiene los contenedores al terminar y conserva los datos.
+procesador = "cpu"            # "cpu", "gpu" o "both".
+
+[escenario]
+url = "http://127.0.0.1:18080"
+proyecto = "Faro Azul"         # Mismo tema en A, B y C. Los códigos de A y B se generan al correr.
+
+[tiempos]
+ingesta_segundos = 120
+respuesta_segundos = 180      # Plazo de observación, sin criterio de latencia.
+sondeo_segundos = 1

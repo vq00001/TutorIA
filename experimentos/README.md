@@ -13,6 +13,7 @@ Desde la raíz de TutorIA, con Docker Compose y Python 3.11 o posterior:
 python3 experimentos/ejecutar.py rnf-r1  # Latencia del tutor
 python3 experimentos/ejecutar.py rnf-r3    # Procesamiento de documentos
 python3 experimentos/ejecutar.py rnf-ci-2 # Compatibilidad de formatos
+python3 experimentos/ejecutar.py rnf-s-5  # Aislamiento del tutor entre clases
 python3 experimentos/ejecutar.py todos   # Todos los registrados
 ```
 
@@ -128,6 +129,28 @@ Puedes cambiar el orden y los plazos en `config/rnf-ci-2.toml`.
 El backend actual admite las cargas TXT, Markdown y PDF. DOCX puede
 quedar rechazado y PDF puede fallar en un worker que solo decodifica UTF-8.
 El experimento registra esas diferencias sin cambiar el soporte de formatos.
+
+## RNF-S-5 · Aislamiento entre clases en el tutor
+
+```bash
+python3 experimentos/ejecutar.py rnf-s-5
+```
+
+El experimento crea tres cuentas de prueba, cada una con un curso propio.
+A y B reciben una ficha sobre el mismo proyecto con códigos ficticios
+distintos. C queda sin material. El arranque local habilita el registro
+de cuentas de prueba. Si usas una instancia existente, debe tener activada
+la verificación automática de registros de desarrollo.
+
+Se espera a que ambas fichas estén indexadas y se envía exactamente la
+misma pregunta en los tres cursos. A y B deben recuperar y citar su propio
+material sin devolver códigos ni citas ajenos. C debe entregar una respuesta
+válida, sin ninguno de los códigos y sin citas. Un error del tutor hace
+fallar el caso, incluso si no devolvió contenido ajeno.
+
+El TOML `config/rnf-s-5.toml` permite cambiar el tema y los plazos. El JSON de
+`resultados/` guarda las respuestas, las citas y las incidencias por curso.
+Esta prueba cubre el recorrido del tutor RAG dentro del RNF-S-5.
 
 ## Experimentos pendientes
 
