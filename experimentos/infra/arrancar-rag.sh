@@ -38,7 +38,11 @@ override.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 }
 
-compose=(docker compose --project-directory "$repo" --env-file /dev/null -p tutoria-rnf-r1
+project=tutoria-rnf-r1
+if [[ "${TUTORIA_DB_VOLUME:-}" =~ ^tutoria-exp-rnf-ac-3-cpu-[0-9a-f]{32}-restaurado$ ]]; then
+  project="$TUTORIA_DB_VOLUME"
+fi
+compose=(docker compose --project-directory "$repo" --env-file /dev/null -p "$project"
   -f "$repo/compose.yaml" -f "$repo/compose.dev-account.yaml"
   -f "$here/compose.rnf-r1.yaml")
 services=()
@@ -47,10 +51,10 @@ if [[ "${TUTORIA_SOLO_CARGA:-0}" == 1 ]]; then
 elif [[ "${TUTORIA_GPU:-0}" == 1 ]]; then
   compose+=(-f "$repo/compose.nvidia.yaml")
 fi
-# El respaldo y la restauración solo pueden operar sobre volúmenes de RNF-AC-2.
+# Limita el respaldo y la restauración a los volúmenes de los experimentos AC-2 y AC-3.
 require_backup_volume() {
-  if [[ ! "${TUTORIA_DB_VOLUME:-}" =~ ^tutoria-exp-rnf-ac-2-(cpu|gpu)-[0-9a-f]{32}(-restaurado)?$ ]]; then
-    echo 'RNF-AC-2 requiere un volumen aislado generado por el lanzador.' >&2
+  if [[ ! "${TUTORIA_DB_VOLUME:-}" =~ ^tutoria-exp-rnf-ac-(2-(cpu|gpu)-[0-9a-f]{32}(-restaurado)?|3-cpu-[0-9a-f]{32}-restaurado)$ ]]; then
+    echo 'Se requiere un volumen aislado de RNF-AC-2 o RNF-AC-3.' >&2
     return 1
   fi
   if [[ "$1" == origin && "$TUTORIA_DB_VOLUME" == *-restaurado ]] ||
@@ -81,6 +85,9 @@ case "${1:-up}" in
       "${compose[@]}" config --quiet
     else
       "${compose[@]}" up -d --build --wait --wait-timeout 600 "${services[@]}"
+      if [[ "$project" == tutoria-exp-rnf-ac-3-* ]]; then
+        require_live_backup_volume target >/dev/null
+      fi
     fi
     ;;
   up-db)

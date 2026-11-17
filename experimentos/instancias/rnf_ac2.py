@@ -1,5 +1,5 @@
 """Respalda y restaura un curso aislado y verifica su uso desde TutorIA."""
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import file_digest, sha256
 import json
 import math
@@ -28,7 +28,7 @@ def resumir_configuracion(config):
     }
 
 
-def operacion(repo, volume, processor, action, timeout, **streams):
+def operacion(repo, volume, processor, action, timeout, *, solo_carga=False, **streams):
     script = repo / "experimentos" / "infra" / "arrancar-rag.sh"
     subprocess.run(
         ["bash", str(script), action],
@@ -36,7 +36,7 @@ def operacion(repo, volume, processor, action, timeout, **streams):
             **os.environ,
             "TUTORIA_DB_VOLUME": volume,
             "TUTORIA_GPU": "1" if processor == "gpu" else "0",
-            "TUTORIA_SOLO_CARGA": "0",
+            "TUTORIA_SOLO_CARGA": "1" if solo_carga else "0",
         },
         check=True, timeout=timeout, **streams,
     )
@@ -48,7 +48,7 @@ def iniciar_sesion(url, credentials):
     return api
 
 
-def verificar_curso(api, fixture, times):
+def verificar_material(api, fixture):
     base = f'/courses/{fixture["curso_id"]}'
     document_id = fixture["documento_id"]
     course = api.call(base)["data"]
@@ -56,6 +56,18 @@ def verificar_curso(api, fixture, times):
     state = api.call(f"{doc_base}/status")["data"]
     physical = api.call(f"{doc_base}/download", expected_status=200, raw=True)
     digest = sha256(physical).hexdigest()
+    checks = {
+        "curso_recuperado": course["id"] == fixture["curso_id"] and course["name"] == fixture["curso"],
+        "documento_listo": state["documentId"] == document_id and state["status"] == "ready",
+        "archivo_identico": digest == fixture["sha256"],
+    }
+    return checks, digest
+
+
+def verificar_curso(api, fixture, times):
+    checks, digest = verificar_material(api, fixture)
+    base = f'/courses/{fixture["curso_id"]}'
+    document_id = fixture["documento_id"]
     reply = consultar(
         api, base, document_id, fixture["pregunta"],
         timeout=times["respuesta_segundos"], interval=times["sondeo_segundos"],
@@ -67,13 +79,10 @@ def verificar_curso(api, fixture, times):
         rf"(?<![A-Za-z0-9-]){re.escape(code)}(?![A-Za-z0-9-])", answer, re.IGNORECASE,
     ) is not None
     source_ids = {source["documentId"] for source in reply.get("fuentes", [])}
-    checks = {
-        "curso_recuperado": course["id"] == fixture["curso_id"] and course["name"] == fixture["curso"],
-        "documento_listo": state["documentId"] == document_id and state["status"] == "ready",
-        "archivo_identico": digest == fixture["sha256"],
+    checks.update({
         "codigo_recuperado": recovered,
         "documento_citado": reply["estado"] == "ok" and source_ids == {document_id},
-    }
+    })
     return {"comprobaciones": checks, "descarga_sha256": digest, "consulta": reply, "cumple": all(checks.values())}
 
 
@@ -159,7 +168,9 @@ def run(config, repo, results_dir, *, processor, manages_services):
         print("Generando respaldo del volumen de origen…", flush=True)
         before_backup = time.monotonic()
         with backup_temp.open("wb") as stream:
+            capture_start = datetime.now(timezone.utc)
             operacion(repo, source, processor, "respaldo", times["infra_segundos"], stdout=stream)
+            capture_end = datetime.now(timezone.utc)
         with backup_temp.open("rb") as stream:
             if stream.read(5) != b"PGDMP":
                 raise RuntimeError("El respaldo no tiene la cabecera del formato personalizado de PostgreSQL.")
@@ -167,6 +178,9 @@ def run(config, repo, results_dir, *, processor, manages_services):
             backup_hash = file_digest(stream, "sha256").hexdigest()
         backup_temp.replace(backup)
         report["respaldo"] = {
+            "captura_inicio": capture_start.isoformat(),
+            "captura_fin": capture_end.isoformat(),
+            "disponible_desde": datetime.now(timezone.utc).isoformat(),
             "archivo": backup.name, "tamano_bytes": backup.stat().st_size,
             "sha256": backup_hash, "segundos": time.monotonic() - before_backup,
         }

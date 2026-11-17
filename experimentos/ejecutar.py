@@ -9,7 +9,7 @@ import tomllib
 from uuid import uuid4
 
 sys.dont_write_bytecode = True
-from instancias import rnf_ac2, rnf_ci2, rnf_r1, rnf_r3, rnf_r4, rnf_s5
+from instancias import rnf_ac2, rnf_ac3, rnf_ci2, rnf_r1, rnf_r3, rnf_r4, rnf_s5
 from instancias.estado import GpuNoDisponible
 
 DIRECTORY = Path(__file__).resolve().parent
@@ -21,6 +21,7 @@ EXPERIMENTS = {
     "rnf-ci-2-pdf": (rnf_ci2.run, rnf_ci2.resumir_configuracion, "arrancar-rag.sh"),
     "rnf-s-5": (rnf_s5.run, rnf_s5.resumir_configuracion, "arrancar-rag.sh"),
     "rnf-ac-2": (rnf_ac2.run, rnf_ac2.resumir_configuracion, "arrancar-rag.sh"),
+    "rnf-ac-3": (rnf_ac3.run, rnf_ac3.resumir_configuracion, None),
 }
 
 

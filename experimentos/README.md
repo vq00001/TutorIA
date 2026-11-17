@@ -16,6 +16,7 @@ python3 experimentos/ejecutar.py rnf-r4    # Límite de carga por el proxy
 python3 experimentos/ejecutar.py rnf-ci-2 # Compatibilidad de formatos
 python3 experimentos/ejecutar.py rnf-s-5  # Aislamiento del tutor entre clases
 python3 experimentos/ejecutar.py rnf-ac-2 # Recuperación desde un respaldo
+python3 experimentos/ejecutar.py rnf-ac-3 # RPO de respaldos existentes
 python3 experimentos/ejecutar.py todos   # Todos los registrados
 ```
 
@@ -211,6 +212,43 @@ el archivo `.dump` se conservan al terminar, junto al informe local en
 
 El veredicto cubre el curso y el material del escenario. La verificación
 del 100 % de los datos respaldados y el RPO son pruebas aparte.
+
+## RNF-AC-3 · RPO de 24 horas
+
+```bash
+python3 experimentos/ejecutar.py rnf-ac-3
+```
+
+En `config/rnf-ac-3.toml` indica el directorio con pares de informe
+`rnf-ac-2-*.json` y archivo `.dump`. Por defecto la referencia es el
+inicio de AC-3 en UTC. Para simular un incidente, fija una fecha y hora
+con zona. La prueba solo considera archivos que ya estaban disponibles
+en la referencia y evalúa respaldos existentes.
+
+Comprueba el SHA-256 del archivo, restaura los candidatos en orden de
+captura aproximado y verifica mediante el proxy que el curso y el
+documento indexado son legibles y que la descarga coincide con el
+original. Usa un proyecto Compose y un volumen PostgreSQL nuevos por
+intento. Detiene los contenedores al terminar y conserva el volumen.
+El puerto local 18080 debe estar libre.
+
+AC-2 registra el intervalo de captura de `pg_dump` y cuándo quedó
+disponible el archivo. AC-3 calcula los límites de antigüedad del último
+punto recuperado. El JSON de salida queda en `resultados/rnf-ac-3-*.json`.
+
+- `cumple` (0) si hay un punto restaurado con una antigüedad máxima de 24 h.
+- `no_cumple` (1) si el punto restaurado supera 24 h incluso en el mejor
+  extremo del intervalo y ningún candidato pendiente de verificar podría
+  cambiar ese resultado.
+- `indeterminado` (2) si falta evidencia suficiente, por ejemplo, si las
+  fechas faltan, el intervalo cruza el umbral o falla la restauración por
+  una causa sin determinar.
+
+Los informes anteriores de AC-2 carecen de esas marcas. Para generar
+un par compatible para el ensayo, corre AC-2 y luego AC-3 con los
+archivos de ese ensayo. Un respaldo sintético recién generado aporta
+evidencia sobre ese escenario. Evaluar el RPO operativo requiere los
+respaldos históricos del entorno correspondiente.
 
 ## Experimentos pendientes
 
