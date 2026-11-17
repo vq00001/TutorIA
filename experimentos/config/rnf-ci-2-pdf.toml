@@ -1,0 +1,16 @@
+# RNF-CI-2 · Diagnóstico de PDF con texto seleccionable
+
+[ejecucion]
+arrancar_servicios = true     # false para probar otra instancia ya levantada.
+reiniciar_servicios = true
+procesador = "cpu"
+
+[escenario]
+url = "http://127.0.0.1:18080"
+formatos = ["txt", "pdf"]      # Una copia del mismo contenido por curso.
+control = "txt"               # Debe indexarse y responder con cita.
+
+[tiempos]
+ingesta_segundos = 120
+respuesta_segundos = 180
+sondeo_segundos = 1

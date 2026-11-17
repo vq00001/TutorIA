@@ -1,0 +1,16 @@
+# RNF-AC-2 · Recuperación de un curso después de restaurar un respaldo
+
+[ejecucion]
+arrancar_servicios = true     # Requerido para separar el origen y el destino.
+reiniciar_servicios = true    # Detiene los contenedores al terminar, conserva los datos.
+procesador = "cpu"            # "cpu", "gpu" o "both".
+
+[escenario]
+url = "http://127.0.0.1:18080" # Proxy del stack aislado.
+proyecto = "Faro Azul"         # Se genera una ficha Markdown con un código ficticio.
+
+[tiempos]
+ingesta_segundos = 120
+respuesta_segundos = 180
+sondeo_segundos = 1
+infra_segundos = 1200         # Plazo máximo por operación de Docker o PostgreSQL.

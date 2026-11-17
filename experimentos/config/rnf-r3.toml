@@ -1,0 +1,20 @@
+# RNF-R-3 · Tiempo de procesamiento de un documento de 30 MB
+
+[ejecucion]
+arrancar_servicios = true      # false para usar una instancia ya levantada.
+procesador = "cpu"             # "cpu", "gpu" o "both".
+
+[criterio]
+tamano_bytes = 30_000_000      # 30 MB decimales, igual que el tope del backend.
+umbral_segundos = 300          # Máximo desde la confirmación de carga hasta ready.
+
+[escenario]
+url = "http://127.0.0.1:18080"
+documento = ""                 # Vacío genera Markdown a partir de los apuntes de Cálculo III.
+                               # Para usar un archivo propio, indica una ruta relativa al repo o absoluta.
+                               # El archivo debe pesar exactamente tamano_bytes.
+
+[tiempos]
+observacion_segundos = 360     # Permite distinguir una respuesta tardía de un vencimiento.
+sondeo_segundos = 2
+carga_segundos = 120           # La carga tiene su propio plazo y queda fuera del umbral.

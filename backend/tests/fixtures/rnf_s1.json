@@ -1,0 +1,92 @@
+{
+  "prefijo": "/api/v1",
+  "publicas": {
+    "GET": [
+      "/health"
+    ],
+    "POST": [
+      "/auth/register",
+      "/auth/login",
+      "/auth/email-verification/request",
+      "/auth/email-verification/confirm",
+      "/auth/password-reset/request",
+      "/auth/password-reset/confirm"
+    ]
+  },
+  "protegidas": {
+    "GET": [
+      "/users/me",
+      "/dashboard/summary",
+      "/activity",
+      "/notifications",
+      "/invitations",
+      "/courses",
+      "/courses/{courseId}",
+      "/courses/{courseId}/members",
+      "/courses/{courseId}/notifications",
+      "/courses/{courseId}/conversations",
+      "/courses/{courseId}/conversations/{conversationId}",
+      "/courses/{courseId}/documents",
+      "/courses/{courseId}/documents/{documentId}",
+      "/courses/{courseId}/documents/{documentId}/status",
+      "/courses/{courseId}/documents/{documentId}/download",
+      "/courses/{courseId}/exams",
+      "/courses/{courseId}/exams/{examId}",
+      "/courses/{courseId}/exams/{examId}/attempts/{attemptId}",
+      "/courses/{courseId}/jobs/{jobId}",
+      "/courses/{courseId}/knowledge-graph",
+      "/courses/{courseId}/knowledge-graph/learning-gaps/accepted",
+      "/courses/{courseId}/knowledge-graph/personalized",
+      "/courses/{courseId}/progress",
+      "/courses/{courseId}/concepts/{conceptId}/aliases",
+      "/courses/{courseId}/learning-goals",
+      "/courses/{courseId}/learning-goals/{goalId}/roadmaps",
+      "/courses/{courseId}/learning-goals/{goalId}/roadmaps/{roadmapId}",
+      "/courses/{courseId}/materials",
+      "/courses/{courseId}/materials/{materialId}",
+      "/courses/{courseId}/study-sessions",
+      "/courses/{courseId}/study-sessions/{sessionId}"
+    ],
+    "POST": [
+      "/auth/logout",
+      "/courses",
+      "/courses/{courseId}/leave",
+      "/courses/{courseId}/invitations",
+      "/courses/{courseId}/conversations/direct",
+      "/courses/{courseId}/conversations",
+      "/courses/{courseId}/conversations/{conversationId}/messages",
+      "/courses/{courseId}/documents",
+      "/courses/{courseId}/exams",
+      "/courses/{courseId}/exams/{examId}/attempts",
+      "/courses/{courseId}/exams/{examId}/attempts/{attemptId}/submissions",
+      "/courses/{courseId}/knowledge-graph/apply",
+      "/courses/{courseId}/knowledge-graph/preview",
+      "/courses/{courseId}/knowledge-graph/learning-gaps/preview",
+      "/courses/{courseId}/knowledge-graph/learning-gaps/accept",
+      "/courses/{courseId}/concepts",
+      "/courses/{courseId}/concepts/{conceptId}/aliases",
+      "/courses/{courseId}/concepts/{conceptId}/prerequisites",
+      "/courses/{courseId}/learning-goals",
+      "/courses/{courseId}/learning-goals/{goalId}/roadmaps",
+      "/courses/{courseId}/study-sessions",
+      "/courses/{courseId}/study-sessions/{sessionId}/heartbeat",
+      "/courses/{courseId}/study-sessions/{sessionId}/finish"
+    ],
+    "PATCH": [
+      "/users/me",
+      "/invitations/{invitationId}",
+      "/courses/{courseId}",
+      "/courses/{courseId}/members/{userId}",
+      "/courses/{courseId}/learning-goals/{goalId}"
+    ],
+    "PUT": [
+      "/courses/{courseId}/exams/{examId}/attempts/{attemptId}/answers/{answerId}/review"
+    ],
+    "DELETE": [
+      "/users/me",
+      "/courses/{courseId}",
+      "/courses/{courseId}/conversations/{conversationId}",
+      "/courses/{courseId}/documents/{documentId}"
+    ]
+  }
+}

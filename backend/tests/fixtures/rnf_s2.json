@@ -1,0 +1,24 @@
+{
+  "prefijo": "/api/v1",
+  "roles": ["coordinator", "student", "outsider"],
+  "acciones": [
+    {"id": "ver_curso", "recurso": "curso", "metodo": "GET", "ruta": "/courses/{courseId}",
+     "esperado": {"coordinator": 200, "student": 200, "outsider": 404}},
+    {"id": "editar_curso", "recurso": "curso", "metodo": "PATCH", "ruta": "/courses/{courseId}",
+     "esperado": {"coordinator": 200, "student": 403, "outsider": 404}},
+    {"id": "listar_miembros", "recurso": "membresías", "metodo": "GET", "ruta": "/courses/{courseId}/members",
+     "esperado": {"coordinator": 200, "student": 200, "outsider": 404}},
+    {"id": "cambiar_rol", "recurso": "membresía de estudiante", "metodo": "PATCH", "ruta": "/courses/{courseId}/members/{userId}",
+     "esperado": {"coordinator": 204, "student": 403, "outsider": 404}},
+    {"id": "listar_documentos", "recurso": "documentos", "metodo": "GET", "ruta": "/courses/{courseId}/documents",
+     "esperado": {"coordinator": 200, "student": 200, "outsider": 404}},
+    {"id": "descargar_documento", "recurso": "documento de coordinación", "metodo": "GET", "ruta": "/courses/{courseId}/documents/{documentId}/download",
+     "esperado": {"coordinator": 200, "student": 200, "outsider": 404}},
+    {"id": "subir_documento", "recurso": "documentos", "metodo": "POST", "ruta": "/courses/{courseId}/documents",
+     "esperado": {"coordinator": 202, "student": 202, "outsider": 404}},
+    {"id": "borrar_documento_coordinador", "recurso": "documento de coordinación", "metodo": "DELETE", "ruta": "/courses/{courseId}/documents/{documentId}",
+     "esperado": {"coordinator": 204, "student": 403, "outsider": 404}},
+    {"id": "borrar_documento_estudiante", "recurso": "documento del estudiante de prueba", "metodo": "DELETE", "ruta": "/courses/{courseId}/documents/{documentId}",
+     "esperado": {"coordinator": 204, "student": 204, "outsider": 404}}
+  ]
+}

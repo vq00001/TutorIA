@@ -1,0 +1,25 @@
+# RNF-R-4 · Test de integración del tamaño máximo de archivo
+
+[ejecucion]
+arrancar_servicios = true    # Usa Nginx, API y PostgreSQL; la prueba no necesita workers.
+reiniciar_servicios = true   # Conserva la base y el informe al detener los contenedores.
+
+[escenario]
+url_proxy = "http://127.0.0.1:18080"  # Puerto público de Nginx, no el de la API directa.
+
+# Tamaño del archivo en bytes decimales, sin encabezados multipart.
+[[casos]]
+tamano_bytes = 29_990_000
+http_esperado = 202
+
+[[casos]]
+tamano_bytes = 30_000_000
+http_esperado = 202
+
+[[casos]]
+tamano_bytes = 30_010_000
+http_esperado = 413
+codigo_esperado = "UPLOAD_TOO_LARGE"
+
+[tiempos]
+carga_segundos = 120         # Plazo de la petición, sin criterio de latencia.

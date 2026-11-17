@@ -1,0 +1,15 @@
+# RNF-AC-3 · Antigüedad del último punto de recuperación verificable
+
+[respaldo]
+directorio = "experimentos/resultados"  # Desde la raíz del repositorio, o ruta absoluta.
+referencia = ""                        # Vacío usa el inicio de la corrida en UTC.
+                                       # Para simular un incidente pasado, indicar ISO 8601 con zona.
+                                       # Ejemplo: "2026-11-17T12:00:00-03:00"
+
+[ejecucion]
+arrancar_servicios = false # La prueba gestiona un volumen por candidato y detiene el stack al terminar.
+procesador = "cpu"         # La restauración y la descarga no requieren modelos.
+
+[infra]
+url = "http://127.0.0.1:18080" # Proxy local del stack aislado.
+operacion_segundos = 1200      # Plazo por operación de Docker o PostgreSQL.

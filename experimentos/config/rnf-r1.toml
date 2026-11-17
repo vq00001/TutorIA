@@ -1,0 +1,43 @@
+# RNF-R-1 · Latencia del tutor con RAG
+
+[ejecucion]
+modo = "completo"            # "completo" o "piloto"
+procesador = "both"           # "cpu", "gpu" o "both" (CPU y luego GPU)
+arrancar_servicios = true    # false para usar una instancia ya levantada
+
+[criterio]
+umbral_segundos = 60         # El p90 debe ser menor o igual a este valor.
+
+[escenario]
+url = "http://127.0.0.1:18080"
+documento = "recursos/integracion_multivariable_calculo_iii.md"  # Ruta desde la raíz del repo.
+
+[preguntas]
+piloto = "En los apuntes, ¿desde qué eje se mide el ángulo polar φ en coordenadas esféricas? Nombra la sección."
+consultas = [
+  "Según los apuntes, ¿qué interpreta la integral doble de 1 sobre D?",
+  "¿Cómo se obtiene el promedio de f(x,y) en el ejemplo del rectángulo de 2 por 3?",
+  "¿Por qué la continuidad permite aplicar Fubini en el rectángulo del ejemplo?",
+  "En el ejercicio de xy sobre [0,1] por [0,2], ¿qué resultado obtengo al integrar primero en x?",
+  "¿Cómo cambian los límites al invertir el orden en el triángulo entre y=0, y=x y x=1?",
+  "¿Qué límites horizontales describen la región entre y=x² e y=x de los apuntes?",
+  "Explica el factor r del elemento de área polar usando el argumento del sector pequeño.",
+  "¿Por qué la integral de x²+y² sobre el disco unitario del ejemplo vale π/2?",
+  "¿Cómo elegirías límites polares para la corona entre radios a y b?",
+  "¿Qué mide el valor absoluto del determinante jacobiano al cambiar variables?",
+  "¿Qué relación hay entre el jacobiano del cambio de variables y el factor r en polares?",
+  "¿Cuáles son los límites en z y la proyección xy del tetraedro x+y+z=1 del ejemplo?",
+  "¿Cómo se calcula la temperatura promedio en un sólido según la sección de integrales triples?",
+  "¿Qué límites cilíndricos ponen los apuntes para el sólido bajo z=4−x²−y²?",
+  "¿Por qué las expresiones cilíndricas del cilindro y de la esfera de radio 2 difieren en z?",
+  "¿Cómo describirías el hemisferio superior usando la convención esférica de los apuntes?",
+  "¿Qué dos factores aparecen en el jacobiano esférico y qué pasa si se omite uno?",
+  "¿Cuándo elegirías cilíndricas o esféricas a partir de las fronteras del sólido?",
+  "En el ejemplo de densidad 1+x, ¿por qué el centroide se desplaza hacia la derecha?",
+  "¿Cómo se distingue el promedio de f sobre D del centro de masa en los apuntes?",
+]
+
+[tiempos]
+observacion_segundos = 180   # Plazo por consulta. Debe cubrir el umbral.
+ingesta_segundos = 600       # Espera máxima a que el documento quede listo.
+sondeo_segundos = 1          # Intervalo para consultar el estado del trabajo.
