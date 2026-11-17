@@ -51,23 +51,13 @@ def check_text(doc: pymupdf.Document, min_chars: int = 30, min_ratio: float = 0.
         raise NotConvertible("El PDF no tiene texto extraíble (posible escaneo).")
 
 
-def check_no_tables_or_images(doc: pymupdf.Document) -> None:
-    for page in doc:
-        if page.get_image_info():
-            raise NotConvertible("El PDF contiene imágenes.")
-        if page.find_tables().tables:
-            raise NotConvertible("El PDF contiene tablas.")
-
-
 def validate_pdf_bytes(data: bytes) -> None:
     with open_pdf(data) as doc:
-        check_no_tables_or_images(doc)
         check_text(doc)
 
 
 def pdf_bytes_to_markdown(data: bytes) -> str:
     with open_pdf(data) as doc:
-        check_no_tables_or_images(doc)
         check_text(doc)
         md = pymupdf4llm.to_markdown(doc, header=False, footer=False)
         if not md.strip():

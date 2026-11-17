@@ -75,8 +75,8 @@ termina la ingestión; la vista consulta el estado cada cinco segundos.
 Los archivos se pueden revisar en `archivos/<curso>-<id>/`: se conserva el
 original y, para cada PDF válido, el worker guarda también un `.md` convertido
 con el mismo nombre base. En Docker, `archivos/` se comparte entre la API y el
-worker y queda visible en la raíz del proyecto. Los PDF con imágenes, tablas o
-sin texto extraíble se rechazan durante la carga.
+worker y queda visible en la raíz del proyecto. Los PDF con tablas o imágenes
+siguen admitidos; se rechazan los PDF corruptos, protegidos o sin texto extraíble.
 
 ## Estructura del proyecto
 

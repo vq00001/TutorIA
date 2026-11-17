@@ -75,7 +75,7 @@ def test_document_upload_replay_listing_and_status(postgres, monkeypatch):
     assert client.get(path, headers=outsider_headers).status_code == 404
 
 
-def test_document_upload_accepts_pdf_markdown_and_text_files(postgres, monkeypatch, tmp_path):
+def test_document_upload_accepts_text_and_pdfs_with_tables_or_images(postgres, monkeypatch, tmp_path):
     owner = _user(postgres)
     owner_token = issue_session(postgres, owner)
     _as_user(postgres, owner)
@@ -110,20 +110,22 @@ def test_document_upload_accepts_pdf_markdown_and_text_files(postgres, monkeypat
         "resumen.txt": "Apuntes de cálculo".encode(),
         "clase.pdf": pdf,
     }
-    for filename, pdf, message in (
-        ("con-tabla.pdf", _pdf_bytes(with_table=True), "tablas"),
-        ("con-imagen.pdf", _pdf_bytes(with_image=True), "imágenes"),
+    for filename, pdf in (
+        ("con-tabla.pdf", _pdf_bytes(with_table=True)),
+        ("con-imagen.pdf", _pdf_bytes(with_image=True)),
     ):
-        rejected = client.post(
+        accepted = client.post(
             path,
             files=[("files", (filename, pdf, "application/pdf"))],
             headers={
                 "Authorization": f"Bearer {owner_token}",
-                "Idempotency-Key": f"reject-{filename}",
+                "Idempotency-Key": f"allow-{filename}",
             },
         )
-        assert rejected.status_code == 422
-        assert message in rejected.json()["message"]
+        assert accepted.status_code == 202
+        document_id = accepted.json()["data"][0]["documentId"].replace("-", "")
+        saved = course_folder / f"{document_id}_{filename}"
+        assert saved.read_bytes() == pdf
 
 
 def test_document_detail_download_and_delete_follow_membership(postgres, monkeypatch):

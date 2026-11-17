@@ -29,17 +29,19 @@ def _pdf_bytes(*, with_table=False, with_image=False):
     return data
 
 
-def test_validate_pdf_bytes_accepts_text_only_pdf():
-    validate_pdf_bytes(_pdf_bytes())
-
-
 @pytest.mark.parametrize(
-    ("options", "message"),
-    [
-        ({"with_table": True}, "tablas"),
-        ({"with_image": True}, "imágenes"),
-    ],
+    "options",
+    [{}, {"with_table": True}, {"with_image": True}],
 )
-def test_validate_pdf_bytes_rejects_tables_and_images(options, message):
-    with pytest.raises(NotConvertible, match=message):
-        validate_pdf_bytes(_pdf_bytes(**options))
+def test_validate_pdf_bytes_accepts_text_pdf_with_optional_tables_or_images(options):
+    validate_pdf_bytes(_pdf_bytes(**options))
+
+
+def test_validate_pdf_bytes_still_rejects_pdf_without_extractable_text():
+    doc = pymupdf.open()
+    doc.new_page()
+    data = doc.tobytes()
+    doc.close()
+
+    with pytest.raises(NotConvertible, match="texto extraíble"):
+        validate_pdf_bytes(data)
