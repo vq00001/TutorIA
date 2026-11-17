@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from .api import Api
 from .estado import GpuNoDisponible
+from .rag import consultar
 
 def prepare(api, material, ingestion_timeout):
     print("Creando curso de prueba y cargando los apuntes…", flush=True)
@@ -35,44 +36,7 @@ def prepare(api, material, ingestion_timeout):
 
 
 def measure(api, base, document_id, question, *, timeout, interval, threshold):
-    result = {"pregunta": question, "estado": "error"}
-    started = time.monotonic()
-
-    def call(path, **kwargs):
-        left = timeout - (time.monotonic() - started)
-        if left <= 0:
-            raise TimeoutError("Se agotó el plazo de observación.")
-        return api.call(path, timeout=min(left, 10), **kwargs)
-
-    try:
-        sent = call(f"{base}/conversations", payload={
-            "question": question, "includeDocuments": True,
-        })["data"]
-        result["job_id"] = sent["jobId"]
-        while True:
-            job = call(f'{base}/jobs/{sent["jobId"]}')["data"]
-            if job["state"] == "failed":
-                raise RuntimeError(job.get("errorCode") or "Falló la generación.")
-            if job["state"] == "succeeded":
-                break
-            time.sleep(min(interval, max(0, timeout - (time.monotonic() - started))))
-        history = call(f'{base}/conversations/{sent["conversationId"]}')
-        elapsed = time.monotonic() - started
-        reply = next((message for message in history["messages"]
-                      if message["role"] == "assistant"
-                      and message["inReplyTo"] == sent["messageId"]), None)
-        if not reply or not reply["content"].strip():
-            raise RuntimeError("La conversación no contiene una respuesta válida.")
-        sources = reply["sourceDocuments"]
-        result.update(
-            segundos=elapsed,
-            respuesta=reply["content"],
-            fuentes=sources,
-            estado="ok" if any(source["documentId"] == document_id for source in sources)
-            else "sin_fuente_del_curso",
-        )
-    except (KeyError, ValueError, OSError, RuntimeError) as error:
-        result.update(segundos=time.monotonic() - started, detalle=str(error))
+    result = consultar(api, base, document_id, question, timeout=timeout, interval=interval)
     result["a_tiempo"] = result["estado"] == "ok" and result["segundos"] <= threshold
     return result
 

@@ -11,7 +11,8 @@ Desde la raíz de TutorIA, con Docker Compose y Python 3.11 o posterior:
 
 ```bash
 python3 experimentos/ejecutar.py rnf-r1  # Latencia del tutor
-python3 experimentos/ejecutar.py rnf-r3  # Procesamiento de documentos
+python3 experimentos/ejecutar.py rnf-r3    # Procesamiento de documentos
+python3 experimentos/ejecutar.py rnf-ci-2 # Compatibilidad de formatos
 python3 experimentos/ejecutar.py todos   # Todos los registrados
 ```
 
@@ -105,6 +106,28 @@ La API admite 30 MB para un solo archivo. Si envías varios archivos en
 una petición, el límite agregado sigue siendo de 20 MiB. Con
 `arrancar_servicios = false`, usa una instancia que ya incluya el límite
 actualizado tanto en la API como en el proxy.
+
+## RNF-CI-2 · Compatibilidad de formatos
+
+```bash
+python3 experimentos/ejecutar.py rnf-ci-2
+```
+
+El experimento genera el mismo contenido en TXT, PDF y DOCX, con
+Markdown como control, y usa un curso nuevo por formato. El código de
+registro ficticio se genera en cada corrida y aparece en los documentos.
+La pregunta no incluye el código. El PDF lleva un flujo de texto comprimido
+para que leer sus bytes como texto no permita recuperar el dato.
+
+El informe indica si cada archivo se aceptó, si llegó a `ready`, si el
+tutor devolvió el código y si citó el documento cargado en ese curso.
+TXT, PDF y DOCX deben pasar las cuatro comprobaciones. El control se
+informa por separado y su fallo deja un código de salida distinto de cero.
+Puedes cambiar el orden y los plazos en `config/rnf-ci-2.toml`.
+
+El backend actual admite las cargas TXT, Markdown y PDF. DOCX puede
+quedar rechazado y PDF puede fallar en un worker que solo decodifica UTF-8.
+El experimento registra esas diferencias sin cambiar el soporte de formatos.
 
 ## Experimentos pendientes
 
