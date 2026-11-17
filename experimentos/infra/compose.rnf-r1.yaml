@@ -21,3 +21,7 @@ services:
       retries: 3
   litellm:
     ports: !override []
+
+volumes:
+  postgres_data:
+    name: "${TUTORIA_DB_VOLUME:-tutoria-rnf-r1_postgres_data}"

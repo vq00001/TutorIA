@@ -15,9 +15,24 @@ python3 experimentos/ejecutar.py rnf-r3  # Procesamiento de documentos
 python3 experimentos/ejecutar.py todos   # Todos los registrados
 ```
 
-El lanzador lee el TOML de cada experimento y prepara sus servicios si
-`arrancar_servicios = true`. Si varios experimentos consecutivos comparten
-un arranque con el mismo procesador, se prepara una sola vez.
+El lanzador lee el TOML de cada experimento. Con
+`arrancar_servicios = true`, detiene los contenedores anteriores del
+proyecto de prueba y arranca PostgreSQL con un volumen nuevo por fase.
+Así se empieza con una cola vacía, incluso en corridas consecutivas de
+un mismo experimento o entre las fases CPU y GPU.
+
+El nombre del volumen aparece en consola y en el JSON del experimento.
+Los volúmenes de corridas anteriores se conservan, incluido el volumen
+compartido anterior. También se conservan los modelos y los informes.
+Con el reinicio habilitado, el lanzador detiene los contenedores al terminar,
+incluso si la corrida falla, y la siguiente fase vuelve a levantarlos.
+
+Puedes usar `reiniciar_servicios = false` en `[ejecucion]` para dejar los
+contenedores activos al terminar. El próximo experimento gestionado
+igualmente arrancará con un volumen nuevo. Con `arrancar_servicios = false`,
+se usa la instancia externa tal como está y su cola queda bajo tu control.
+El comando que solo prepara servicios usa el volumen compartido.
+
 Al inicio de cada fase, el lanzador muestra el procesador, cómo se
 obtendrán los servicios y los parámetros principales del experimento.
 Con `both`, muestra CPU en la fase 1/2 y GPU en la fase 2/2.
@@ -91,6 +106,11 @@ una petición, el límite agregado sigue siendo de 20 MiB. Con
 `arrancar_servicios = false`, usa una instancia que ya incluya el límite
 actualizado tanto en la API como en el proxy.
 
+## Experimentos pendientes
+
+[RNF-R-2](pendientes/rnf-r2/README.md) queda fuera del lanzador hasta que
+TutorIA tenga un worker que consuma `generate_exam`.
+
 ## Agregar otro experimento
 
 1. **Implementación.** Crea `instancias/rnf_ejemplo.py` con una función
@@ -110,8 +130,10 @@ actualizado tanto en la API como en el proxy.
    junto con el procesador y el arranque de cada fase. Omite credenciales
    y otros datos sensibles del diccionario.
 4. **Arranque.** Si necesitas servicios, reutiliza un script de `infra/`
-   o agrega uno que acepte `up` y termine cuando estén listos. Guarda
-   cualquier YAML generado en `instancias/temp/`. Usa `None` en el
+   o agrega uno que acepte `up` y termine cuando estén listos. También
+   debe aceptar `down` para detener los servicios de prueba y conservar
+   sus volúmenes. Si el stack usa PostgreSQL, debe usar `TUTORIA_DB_VOLUME`
+   como nombre del volumen de datos para aislar la cola. Guarda cualquier YAML generado en `instancias/temp/`. Usa `None` en el
    registro si la prueba no tiene script de arranque.
 5. **Registro.** Importa el módulo en `ejecutar.py` y agrega al diccionario
    `EXPERIMENTS` el ID que coincide con el nombre del TOML:

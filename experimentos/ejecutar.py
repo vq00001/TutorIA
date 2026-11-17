@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tomllib
+from uuid import uuid4
 
 sys.dont_write_bytecode = True
 from instancias import rnf_r1, rnf_r3
@@ -30,9 +31,13 @@ def mostrar_configuracion(name, processor, configured_processor, services, detai
     print("\n".join(lines), flush=True)
 
 
-def preparar_servicios(script, processor):
-    command = ["bash", str(DIRECTORY / "infra" / script), "up"]
-    environment = {**os.environ, "TUTORIA_GPU": "1" if processor == "gpu" else "0"}
+def gestionar_servicios(script, processor, action, *, volume=None):
+    command = ["bash", str(DIRECTORY / "infra" / script), action]
+    environment = {
+        **os.environ,
+        "TUTORIA_GPU": "1" if processor == "gpu" else "0",
+        "TUTORIA_DB_VOLUME": volume or "",
+    }
     gpu_error = None
     with subprocess.Popen(
         command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -41,7 +46,7 @@ def preparar_servicios(script, processor):
         for line in process.stdout:
             print(line, end="", flush=True)
             message = line.lower()
-            if processor == "gpu" and (
+            if action == "up" and processor == "gpu" and (
                 "failed to discover gpu vendor from cdi" in message
                 or ("unresolvable cdi devices" in message and "nvidia.com/gpu" in message)
                 or ("could not select device driver" in message and "gpu" in message)
@@ -84,10 +89,14 @@ def main():
             start_services = execution["arrancar_servicios"]
             if not isinstance(start_services, bool):
                 raise ValueError("ejecucion.arrancar_servicios debe ser true o false.")
+            reset_services = execution.get("reiniciar_servicios", True)
+            if not isinstance(reset_services, bool):
+                raise ValueError("ejecucion.reiniciar_servicios debe ser true o false.")
             processor = execution.get("procesador", "cpu")
             if processor not in ("cpu", "gpu", "both"):
                 raise ValueError('ejecucion.procesador debe ser "cpu", "gpu" o "both".')
             manages_services = bool(setup_script and start_services)
+            reset_after_run = manages_services and reset_services and not prepare_only
             if processor == "both" and not manages_services:
                 raise ValueError('"both" requiere arrancar_servicios = true para cambiar de modo.')
             processors = ("cpu", "gpu") if processor == "both" else (processor,)
@@ -100,29 +109,54 @@ def main():
             continue
 
         for device in processors:
-            needs_setup = manages_services and started.get(setup_script) != device
+            volume = (
+                f"tutoria-exp-{name}-{device}-{uuid4().hex}"
+                if manages_services and not prepare_only else None
+            )
+            needs_setup = manages_services and (
+                volume is not None or started.get(setup_script) != device
+            )
             services = "sin script de arranque"
             if setup_script:
                 services = f"arrancar con {setup_script}" if needs_setup else "usar instancia existente"
-            mostrar_configuracion(name, device, processor, services, details)
+            phase_details = details | {
+                "Detener servicios al terminar": "sí" if reset_after_run else "no",
+            }
+            phase_config = config
+            if volume:
+                phase_details["Volumen PostgreSQL de la fase"] = volume
+                phase_config = config | {"entorno_ejecucion": {"volumen_postgres": volume}}
+            mostrar_configuracion(name, device, processor, services, phase_details)
+            code = 0
             try:
                 if needs_setup:
                     started.pop(setup_script, None)
+                    if volume:
+                        # Detén los workers anteriores antes de cambiar la base.
+                        gestionar_servicios(setup_script, device, "down", volume=volume)
                     print(f"Preparando {setup_script}", flush=True)
-                    preparar_servicios(setup_script, device)
+                    gestionar_servicios(setup_script, device, "up", volume=volume)
                     started[setup_script] = device
                     print(f"Servicios listos para {device.upper()}.", flush=True)
                 code = 0 if prepare_only else run(
-                    config, DIRECTORY.parent, DIRECTORY / "resultados",
+                    phase_config, DIRECTORY.parent, DIRECTORY / "resultados",
                     processor=device, manages_services=manages_services,
                 )
             except GpuNoDisponible as error:
                 mostrar_omision(name, error)
                 skipped += 1
-                continue
             except Exception as error:
                 print(f"{name} ({device}): corrida interrumpida: {type(error).__name__}: {error}", file=sys.stderr)
                 code = 2
+            finally:
+                if reset_after_run:
+                    started.pop(setup_script, None)
+                    print(f"Deteniendo servicios de {name} ({device.upper()}).", flush=True)
+                    try:
+                        gestionar_servicios(setup_script, device, "down", volume=volume)
+                    except (OSError, subprocess.CalledProcessError) as error:
+                        print(f"{name} ({device}): error al detener servicios: {error}", file=sys.stderr)
+                        code = 2
             status = max(status, code)
     if skipped:
         print(f"Fases GPU omitidas: {skipped}", flush=True)
