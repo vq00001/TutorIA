@@ -1,6 +1,8 @@
 # Contrato de datos de TutorIA
 
-Este contrato describe la frontera entre React y la API que en el futuro consultará la base de datos. `src/services/databaseApi.ts` implementa hoy esos métodos con datos simulados y respuestas serializadas como JSON.
+Este contrato describe la frontera entre React y la API persistente.
+`src/services/databaseApi.ts` traduce las respuestas HTTP al modelo usado por
+la interfaz y conserva datos locales solo para superficies aún no integradas.
 
 ## Formato común
 

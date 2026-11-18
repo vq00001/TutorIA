@@ -1,11 +1,12 @@
 # TutorIA · interfaz base
 
-Aplicación web React + TypeScript para un tutor de aprendizaje. Incluye inicio, chat de curso, biblioteca de materiales y un grafo de conceptos. El servicio actual simula respuestas JSON en memoria; no conecta a una base de datos ni implementa la lógica del LLM.
+Aplicación web React + TypeScript para un tutor de aprendizaje. Incluye inicio,
+chat de curso, biblioteca de materiales y un grafo de conceptos. Los servicios
+se conectan al backend mediante HTTP y conservan adaptadores locales para datos
+que todavía no tienen una integración completa.
 
 La carga de materiales envía los archivos originales (`.txt`, `.md` y `.pdf`) como
-`multipart/form-data` a `POST /api/courses/{courseId}/documents`. El endpoint del
-backend aún no está implementado, por lo que la carga real no estará disponible
-hasta conectar esa ruta.
+`multipart/form-data` a `POST /api/v1/courses/{courseId}/documents`.
 
 ## Ejecutar
 

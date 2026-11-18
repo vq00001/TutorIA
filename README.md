@@ -83,8 +83,7 @@ siguen admitidos; se rechazan los PDF corruptos, protegidos o sin texto extraíb
 ```
 /TutorIA
 ├── backend
-│   ├── API
-│   │   └── openapi.yaml
+│   ├── openapi.yaml
 │   ├── chunking.py
 │   ├── config.py
 │   ├── context.py

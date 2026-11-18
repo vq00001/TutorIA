@@ -1,4 +1,4 @@
-"""Preparación de documentos para el futuro flujo de ingestión."""
+"""Preparación de documentos para el flujo de ingestión."""
 
 from pathlib import Path
 

@@ -8,7 +8,7 @@ backend/
 │   ├── connection.py        # Transacciones y contexto del usuario
 │   ├── initialize.py        # Prepara la extensión y los módulos
 │   └── users.py             # Tabla y consulta del perfil propio
-├── API/                     # Contrato OpenAPI
+├── openapi.yaml             # Contrato OpenAPI utilizado por Swagger
 └── experiments/             # Calibración y datos de evaluación
 ```
 
@@ -18,10 +18,9 @@ Compose incluye PostgreSQL con pgvector, Ollama para embeddings y LiteLLM para
 chat. Configura los modelos y las credenciales con las variables de
 `.env.example`.
 
-El servicio Compose `backend` ejecuta la API de simulación de `backend/API`
-y usa su contrato `backend/API/contract/openapi.yaml`. Para ejecutar la API
-que usa PostgreSQL, sigue los pasos de registro de usuarios de este
-documento. Su contrato está en `backend/API/openapi.yaml`.
+El servicio Compose `backend` ejecuta la API persistente de
+`backend/http_api.py`. El contrato disponible para Swagger está en
+`backend/openapi.yaml`.
 
 ## Base de datos local
 
@@ -500,7 +499,7 @@ responsabilidades del entorno de despliegue.
 
 `db/submissions.py` ofrece `submit_upload` y `submit_generation` para una transacción
 autenticada. Cada llamada crea el recurso y su trabajo en la misma transacción. El
-consumidor futuro de HTTP debe pasar una clave estable por solicitud y traducir
+consumidor HTTP debe pasar una clave estable por solicitud y traducir
 `SubmissionConflict` a 409. La clave se acota al usuario, clase y operación durante
 24 horas. Un reenvío equivalente devuelve los mismos IDs y conserva el plazo original.
 Una carga duplicada por bytes devuelve IDs nulos y no encola un trabajo. El objetivo

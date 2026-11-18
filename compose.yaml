@@ -227,18 +227,13 @@ services:
     ports:        
       - "${SWAGGER_PORT:-8081}:8080"
     volumes:
-      - ./backend/API/contract/openapi.yaml:/openapi.yaml:ro
+      - ./backend/openapi.yaml:/openapi.yaml:ro
     environment:
       SWAGGER_JSON: /openapi.yaml
 
 volumes:
   ollama_data:
   qdrant_data:
-
-    # Future backend integration:
-    # Add a `backend` service here and expose its API on container port 8000.
-    # and AI_GATEWAY_API_KEY=${LITELLM_MASTER_KEY} in its environment.
-    # Nginx in Webapp proxies /api/* to http://backend:8000/api/* over Compose DNS.
   redis_data:
   postgres_data:
 
