@@ -3,7 +3,6 @@
 from uuid import UUID
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError

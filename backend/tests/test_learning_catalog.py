@@ -1,12 +1,8 @@
 from uuid import uuid4
 
 import pytest
-from . import test_exams
-from . import test_vector_search
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from .test_exams import _role
-from .test_vector_search import _as_role, _publish, _start, _upload
 
 from db.courses import courses, create_course
 from db.documents import delete_document
@@ -25,6 +21,10 @@ from db.learning_catalog import (
     list_prerequisites,
 )
 from db.processing import parent_chunks
+
+from . import test_exams, test_vector_search
+from .test_exams import _role
+from .test_vector_search import _as_role, _publish, _start, _upload
 
 catalog_context = test_exams.exam_context
 source_context = test_vector_search.search_context

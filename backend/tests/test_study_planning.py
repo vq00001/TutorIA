@@ -2,12 +2,8 @@ from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
-from . import test_exams
 from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from .test_exam_attempts import ALTERNATIVES, _exam
-from .test_exams import _role
-from .test_learning_progress import _submit_choice
 
 from db.courses import courses
 from db.learning_catalog import add_prerequisite, create_concept
@@ -28,6 +24,11 @@ from db.study_sessions import (
     start_study_session,
     study_sessions,
 )
+
+from . import test_exams
+from .test_exam_attempts import ALTERNATIVES, _exam
+from .test_exams import _role
+from .test_learning_progress import _submit_choice
 
 planning_context = test_exams.exam_context
 

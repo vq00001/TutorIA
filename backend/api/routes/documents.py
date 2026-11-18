@@ -12,7 +12,12 @@ from pydantic import AwareDatetime, BaseModel
 from sqlalchemy.exc import DBAPIError
 
 from ...db.courses import get_member_course
-from ...db.documents import delete_document, download_document, get_document_metadata, list_documents
+from ...db.documents import (
+    delete_document,
+    download_document,
+    get_document_metadata,
+    list_documents,
+)
 from ...db.idempotency import run_idempotent
 from ...db.submissions import enqueue_upload
 from ...storage.file_storage import store_uploaded_document

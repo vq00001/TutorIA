@@ -11,18 +11,39 @@ from ...db.connection import set_user_context, transaction
 from ...db.courses import get_member_course
 from ...db.learning_catalog import list_concepts, list_course_edges
 from ...db.personal_graph import (
-    create_personal_node, create_personal_recommendation,
-    list_personal_nodes, list_personal_recommendations,
+    create_personal_node,
+    create_personal_recommendation,
+    list_personal_nodes,
+    list_personal_recommendations,
 )
 from ...db.sessions import get_session_user
 from ...knowledge_graph.learning_gaps import infer_gaps, normalized
-from .dependencies import AuthenticatedConnection, BearerToken, ErrorResponse, InvalidSession, error_response
+from .dependencies import (
+    AuthenticatedConnection,
+    BearerToken,
+    ErrorResponse,
+    InvalidSession,
+    error_response,
+)
 from .learning_gap_schemas import (
-    AcceptGapRequest, AcceptedGapResponse, AcceptedGapResult, GapRecommendation,
-    GapRequest, GapResponse, GapResult, NewGapNode, PersonalizedGraph,
-    PersonalizedGraphEdge, PersonalizedGraphNode,
-    PersonalizedGraphRecommendation, PersonalizedGraphResponse, SavedGapResponse,
-    SavedGapResult, SavedPersonalNode, SavedRecommendation, WeakConcept,
+    AcceptedGapResponse,
+    AcceptedGapResult,
+    AcceptGapRequest,
+    GapRecommendation,
+    GapRequest,
+    GapResponse,
+    GapResult,
+    NewGapNode,
+    PersonalizedGraph,
+    PersonalizedGraphEdge,
+    PersonalizedGraphNode,
+    PersonalizedGraphRecommendation,
+    PersonalizedGraphResponse,
+    SavedGapResponse,
+    SavedGapResult,
+    SavedPersonalNode,
+    SavedRecommendation,
+    WeakConcept,
 )
 
 router = APIRouter(prefix="/courses/{courseId}", tags=["Learning"])

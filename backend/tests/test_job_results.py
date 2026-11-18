@@ -11,6 +11,7 @@ from db.documents import delete_document
 from db.generations import stop_generation
 from db.jobs import claim_job, get_job
 from db.purge import pending_receipts
+
 from .test_courses import _user
 from .test_exams import _role
 from .test_job_integration import _generation, _upload

@@ -6,9 +6,9 @@ import pytest
 from argon2 import PasswordHasher
 from sqlalchemy import select
 
+from backend.api.routes.auth import LoginRequest
 from backend.db.dev_account import seed_dev_account
 from backend.db.users import users
-from backend.api.routes.auth import LoginRequest
 
 
 def test_default_dev_credentials_pass_login_validation():

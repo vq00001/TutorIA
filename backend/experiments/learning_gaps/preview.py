@@ -5,7 +5,6 @@ from pathlib import Path
 
 from backend.knowledge_graph.learning_gaps import infer_gaps, load_inputs
 
-
 DEFAULT_NODES = Path(__file__).resolve().parents[1] / "fixtures" / "integracion_multivariable_nodes.json"
 DEFAULT_SCORES = Path(__file__).with_name("scores.json")
 

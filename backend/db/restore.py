@@ -1,10 +1,10 @@
 """Barrera y reproducción de un manifiesto externo de purgas."""
 
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
-import json
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -13,7 +13,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
 from .connection import RESTORE_LOCK
-from .purge import _purge, acknowledge_receipt, deletion_requests, _request_purge
+from .purge import _purge, _request_purge, acknowledge_receipt, deletion_requests
 
 gate = sa.Table(
     "gate", sa.MetaData(schema="restore_control"),

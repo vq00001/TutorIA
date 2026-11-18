@@ -6,8 +6,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
-from backend.rag.chunking import chunk_text, count_tokens
 from backend.core.config import Config
+from backend.rag.chunking import chunk_text, count_tokens
 
 from .concepts import extract_candidates
 from .consolidation import consolidate_candidates

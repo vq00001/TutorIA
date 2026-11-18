@@ -4,12 +4,13 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from backend.api import app as http_api
-from backend.db.sessions import issue_session
 from backend.api.routes import dependencies
+from backend.db.sessions import issue_session
 from db.courses import create_course
 from db.exams import publish_exam
 from db.generations import record_generation_request
 from db.jobs import claim_job
+
 from .test_courses import _as_user, _user
 from .test_exams import MULTIPLE, REQUEST, _role
 

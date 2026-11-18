@@ -2,8 +2,8 @@ import argparse
 from pathlib import Path
 
 from backend.core.config import Config
-from backend.rag.documents import SUPPORTED_EXTENSIONS, read_document
 from backend.knowledge_graph.preview import TextSource, generate_graph_preview
+from backend.rag.documents import SUPPORTED_EXTENSIONS, read_document
 
 
 def main():

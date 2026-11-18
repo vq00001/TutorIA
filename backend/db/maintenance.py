@@ -1,7 +1,7 @@
 """Punto de entrada de PostgreSQL para el planificador externo."""
 
-from dataclasses import asdict, dataclass
 import json
+from dataclasses import asdict, dataclass
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Connection

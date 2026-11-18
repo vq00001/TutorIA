@@ -7,10 +7,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import insert
 
 from backend.api import app as http_api
+from backend.api.routes import learning_gaps
 from backend.db.learning_catalog import create_concept
 from backend.db.sessions import issue_session
-from backend.api.routes import learning_gaps
 from db.courses import create_course, memberships
+
 from .test_courses import _as_user, _user
 
 

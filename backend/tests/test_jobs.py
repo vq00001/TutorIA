@@ -2,10 +2,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from . import test_exams
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from .test_exams import _generation, _role
 
 from db.documents import register_upload
 from db.generations import generation_runs
@@ -19,6 +17,9 @@ from db.jobs import (
     recover_jobs,
     renew_job_lease,
 )
+
+from . import test_exams
+from .test_exams import _generation, _role
 
 job_context = test_exams.exam_context
 

@@ -6,8 +6,6 @@ Uso:
     python pdf_to_md.py documento.pdf -o salida.md
 """
 import re
-from argparse import ArgumentParser
-from pathlib import Path
 
 import ftfy
 import pymupdf

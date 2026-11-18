@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from ..core.config import Config
-
 import requests
-import re
+
+from ..core.config import Config
 
 
 def chat_completion(

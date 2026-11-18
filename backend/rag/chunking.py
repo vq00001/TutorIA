@@ -22,7 +22,7 @@ def _uid(*parts: str) -> str:
 MD_HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 CHAPTER = re.compile(
     r"^(?:cap[ií]tulo|chapter|secci[oó]n|section)\s+[\dIVXLC]+\b[\s\.:\-–]*(.*)$",
-    re.I,
+    re.IGNORECASE,
 )
 NUMBERED = re.compile(r"^(\d+(?:\.\d+){0,3})[\.\)]?\s+(\S.{0,90})$")
 

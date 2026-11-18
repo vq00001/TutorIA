@@ -4,10 +4,8 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from . import test_exams
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from .test_exams import DEVELOPMENT, MULTIPLE, _generation, _publish, _role
 
 from db.exam_attempts import (
     ExamAnswer,
@@ -23,6 +21,9 @@ from db.exam_attempts import (
 )
 from db.exams import list_exam_questions
 from db.generations import generation_runs
+
+from . import test_exams
+from .test_exams import DEVELOPMENT, MULTIPLE, _generation, _publish, _role
 
 attempt_context = test_exams.exam_context
 

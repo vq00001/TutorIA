@@ -3,9 +3,9 @@
 import pymupdf
 import pytest
 
-from backend.workers import document_worker
 from backend.core.config import Config
 from backend.utilities.pdf_to_md.pdf_to_md import NotConvertible
+from backend.workers import document_worker
 
 
 def test_chunks_for_publication_keep_source_offsets(monkeypatch):

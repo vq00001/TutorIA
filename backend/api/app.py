@@ -5,7 +5,26 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .routes import account, auth, community, conversations, courses, dashboard, deletion, documents, exam_attempts, exams, graph_apply, graph_preview, health, jobs, learning, learning_gaps, materials, study_sessions
+from .routes import (
+    account,
+    auth,
+    community,
+    conversations,
+    courses,
+    dashboard,
+    deletion,
+    documents,
+    exam_attempts,
+    exams,
+    graph_apply,
+    graph_preview,
+    health,
+    jobs,
+    learning,
+    learning_gaps,
+    materials,
+    study_sessions,
+)
 from .routes.dependencies import InvalidSession, error_response
 
 load_dotenv()

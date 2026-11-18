@@ -53,8 +53,9 @@ def test_nickname_is_unique_regardless_of_case(postgres):
 def test_register_persists_pending_account_through_the_api_role(postgres, monkeypatch):
     from contextlib import nullcontext
 
-    from backend.api import app as http_api
     from fastapi.testclient import TestClient
+
+    from backend.api import app as http_api
 
     client = TestClient(http_api.app)
     monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
@@ -90,9 +91,10 @@ def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, 
     from datetime import timedelta
     from hashlib import sha256
 
+    from fastapi.testclient import TestClient
+
     from backend.api import app as http_api
     from backend.db.sessions import sessions
-    from fastapi.testclient import TestClient
 
     client = TestClient(http_api.app)
     monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
@@ -128,9 +130,10 @@ def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, 
 def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
     from contextlib import nullcontext
 
-    from backend.api import app as http_api
     from fastapi.testclient import TestClient
     from sqlalchemy import update
+
+    from backend.api import app as http_api
 
     password = "registration-password"
     identifier = _seed_user(postgres)
@@ -152,9 +155,10 @@ def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
 def test_session_isolates_profiles_and_revokes_only_the_presented_token(postgres, monkeypatch):
     from contextlib import nullcontext
 
+    from fastapi.testclient import TestClient
+
     from backend.api import app as http_api
     from backend.db.sessions import issue_session
-    from fastapi.testclient import TestClient
 
     first, second = _seed_user(postgres), _seed_user(postgres)
     postgres.exec_driver_sql("SET LOCAL ROLE tutoria_api")
@@ -191,10 +195,11 @@ def test_profile_rejects_sessions_that_are_no_longer_valid(postgres, monkeypatch
     from contextlib import nullcontext
     from datetime import timedelta
 
-    from backend.api import app as http_api
-    from backend.db.sessions import issue_session, sessions
     from fastapi.testclient import TestClient
     from sqlalchemy import update
+
+    from backend.api import app as http_api
+    from backend.db.sessions import issue_session, sessions
 
     identifier = _seed_user(postgres)
     token = issue_session(postgres, identifier)

@@ -22,13 +22,13 @@ from __future__ import annotations
 
 import os
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import requests
 
 from backend.core.config import Config
 from backend.integrations.llm import generate_answer
-from typing import Any
 
 DOCUMENTS = [{"filename": "notas.md", "text": "La capital de Chile es Santiago."}]
 QUESTION = "¿Cuál es la capital de Chile?"

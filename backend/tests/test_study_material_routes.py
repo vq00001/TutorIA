@@ -4,10 +4,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import insert
 
 from backend.api import app as http_api
-from backend.db.sessions import issue_session
 from backend.api.routes import dependencies
+from backend.db.sessions import issue_session
 from db.courses import create_course, memberships
 from db.generated_materials import GeneratedMaterial, store_generated_materials
+
 from .test_courses import _as_user, _user
 from .test_exams import _generation
 

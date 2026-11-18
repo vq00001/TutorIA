@@ -1,14 +1,15 @@
 from datetime import timedelta
 
 import pytest
-from . import test_exams
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from .test_exams import _generation, _role
 
 from db.documents import DuplicateDocumentWarning, delete_document, list_documents, register_upload
 from db.generations import generation_runs, stop_generation
 from db.quotas import quota_limits, upload_usage
+
+from . import test_exams
+from .test_exams import _generation, _role
 
 quota_context = test_exams.exam_context
 

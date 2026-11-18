@@ -10,7 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
 
-from ...db.courses import create_course, get_member_course, list_course_members, page_member_courses, update_course
+from ...db.courses import (
+    create_course,
+    get_member_course,
+    list_course_members,
+    page_member_courses,
+    update_course,
+)
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response
 
 router = APIRouter(tags=["Courses"])

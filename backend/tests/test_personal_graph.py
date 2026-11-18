@@ -7,12 +7,13 @@ from sqlalchemy import insert
 from sqlalchemy.exc import DBAPIError
 
 from backend.api import app as http_api
+from backend.api.routes import dependencies
 from backend.db.connection import set_user_context
 from backend.db.learning_catalog import add_prerequisite, create_concept
 from backend.db.personal_graph import create_personal_node
 from backend.db.sessions import issue_session
-from backend.api.routes import dependencies
 from db.courses import create_course, memberships
+
 from .test_courses import _as_user, _user
 
 

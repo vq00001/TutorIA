@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from backend.api import app as http_api
 from backend.api.routes import dependencies
 from backend.db.sessions import issue_session
+
 from .test_courses import _user
 from .test_job_integration import _upload
 

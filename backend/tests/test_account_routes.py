@@ -7,6 +7,7 @@ from backend.api import app as http_api
 from backend.api.routes import account, dependencies
 from db.sessions import issue_session
 from db.users import users
+
 from .test_courses import _user
 
 

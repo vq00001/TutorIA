@@ -1,7 +1,8 @@
 """Catálogo, grafo, progreso y planificación del aprendizaje."""
 
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Callable, Generic, Literal, TypeVar
+from typing import Generic, Literal, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter
@@ -12,13 +13,23 @@ from sqlalchemy.exc import DBAPIError
 
 from ...db.courses import get_member_course
 from ...db.learning_catalog import (
-    add_concept_alias, add_prerequisite, create_concept, has_concept, list_concept_aliases,
-    list_concepts, list_course_edges,
+    add_concept_alias,
+    add_prerequisite,
+    create_concept,
+    has_concept,
+    list_concept_aliases,
+    list_concepts,
+    list_course_edges,
 )
 from ...db.learning_plans import (
-    build_roadmap, create_learning_goal, get_roadmap, has_learning_goal, list_learning_goals,
+    build_roadmap,
+    create_learning_goal,
+    get_roadmap,
+    has_learning_goal,
+    list_learning_goals,
     list_roadmap_steps,
-    list_roadmaps, set_learning_goal_status,
+    list_roadmaps,
+    set_learning_goal_status,
 )
 from ...db.learning_progress import list_concept_mastery
 from .dependencies import AuthenticatedConnection, ErrorResponse, error_response

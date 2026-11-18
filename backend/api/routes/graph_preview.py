@@ -5,7 +5,6 @@ from uuid import UUID
 
 import requests
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 
 from ...core.config import Config

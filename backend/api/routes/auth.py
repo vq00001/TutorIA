@@ -12,8 +12,13 @@ from fastapi import APIRouter, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
 
-from ...db.sessions import SESSION_LIFETIME_SECONDS, get_login_credentials, issue_session, revoke_session
 from ...db.account_tokens import issue_account_token, verify_email
+from ...db.sessions import (
+    SESSION_LIFETIME_SECONDS,
+    get_login_credentials,
+    issue_session,
+    revoke_session,
+)
 from ...db.users import get_current_user, insert_pending_user
 from . import dependencies
 from .dependencies import AuthenticatedConnection, BearerToken, ErrorResponse, InvalidSession

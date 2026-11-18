@@ -3,11 +3,8 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from . import test_exams
 from sqlalchemy import insert, update
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from .test_exam_attempts import ALTERNATIVES, _exam
-from .test_exams import DEVELOPMENT, _generation, _publish, _role
 
 from db.exam_attempts import (
     ExamAnswer,
@@ -19,6 +16,10 @@ from db.exam_attempts import (
 from db.generations import generation_runs
 from db.learning_catalog import create_concept
 from db.learning_progress import list_concept_mastery, list_mastery_evidence, mastery_events
+
+from . import test_exams
+from .test_exam_attempts import ALTERNATIVES, _exam
+from .test_exams import DEVELOPMENT, _generation, _publish, _role
 
 progress_context = test_exams.exam_context
 
