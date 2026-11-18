@@ -7,12 +7,11 @@ ENV OLLAMA_HOST=0.0.0.0:11434
 
 EXPOSE 11434
 
-# Este HEALTHCHECK no valida que los modelos estén cargados y funcionando correctamente, solo que el servicio de Ollama está activo y puede responder a comandos.
 HEALTHCHECK \
-  --start-period=30s \
+  --start-period=60s \
   --interval=10s \
   --timeout=5s \
   --retries=3 \
-  CMD ollama list || exit 1
+  CMD ollama list | grep -q "qwen3:1.7b" && ollama list | grep -q "all-minilm" || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

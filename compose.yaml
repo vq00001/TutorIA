@@ -33,6 +33,12 @@ services:
     restart: unless-stopped
     ports:
       - "${WEBAPP_DEV_PORT:-5173}:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     volumes:
       - ./webapp:/app
       - /app/node_modules
@@ -76,6 +82,12 @@ services:
       target: runtime
     command: ["python", "-m", "backend.workers.document_worker"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "backend.healthcheck", "document-worker"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
     environment:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-tutoria}
@@ -102,6 +114,12 @@ services:
       target: runtime
     command: ["python", "-m", "backend.workers.chat_worker"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "backend.healthcheck", "chat-worker"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+      start_period: 45s
     environment:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-tutoria}
@@ -219,17 +237,6 @@ services:
       test-db-init:
         condition: service_completed_successfully
 
-  swagger-ui:
-    image: swaggerapi/swagger-ui:latest
-    container_name: swagger-ui
-    profiles:
-      - dev
-    ports:        
-      - "${SWAGGER_PORT:-8081}:8080"
-    volumes:
-      - ./backend/openapi.yaml:/openapi.yaml:ro
-    environment:
-      SWAGGER_JSON: /openapi.yaml
 
 volumes:
   ollama_data:

@@ -1,6 +1,12 @@
 node_modules
 dist
 .git
+.gitignore
 .env
 .env.*
 npm-debug.log*
+coverage
+.vite
+.cache
+*.log
+README.md
