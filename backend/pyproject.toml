@@ -21,8 +21,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx>=0.28,<1",
+    "jsonschema>=4.21,<5",
     "pytest>=8,<9",
     "ruff>=0.9,<1",
+    "PyYAML>=6,<7",
 ]
 
 [tool.uv]
