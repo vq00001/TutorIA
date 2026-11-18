@@ -217,13 +217,12 @@ def split_children(
         current_tokens += unit_tokens
     if current:
         chunks.append("\n\n".join(current))
-    if len(chunks) > 1 and count_tokens(chunks[-1], token_ratio) < target * 0.25:
-        if (
-            count_tokens(chunks[-2], token_ratio)
-            + count_tokens(chunks[-1], token_ratio)
-            <= target * 1.3
-        ):
-            chunks[-2] = f"{chunks[-2]}\n\n{chunks.pop()}"
+    if len(chunks) > 1 and count_tokens(chunks[-1], token_ratio) < target * 0.25 and (
+        count_tokens(chunks[-2], token_ratio)
+        + count_tokens(chunks[-1], token_ratio)
+        <= target * 1.3
+    ):
+        chunks[-2] = f"{chunks[-2]}\n\n{chunks.pop()}"
     return chunks
 
 

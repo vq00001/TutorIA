@@ -32,7 +32,7 @@ def propose_prerequisites(candidates, model, remaining):
 
     keys_by_ref = {f"C{index}": key for index, key in enumerate(candidates, 1)}
     nodes = [
-        dict(ref=ref, label=candidates[key]["label"], description=candidates[key]["description"])
+        {"ref": ref, "label": candidates[key]["label"], "description": candidates[key]["description"]}
         for ref, key in keys_by_ref.items()
     ]
     result = model_json(
@@ -75,6 +75,6 @@ def propose_prerequisites(candidates, model, remaining):
             raise ValueError("PREREQUISITE_CYCLE")
         seen_pairs.add((source, target))
         adjacency.setdefault(source, set()).add(target)
-        proposals.append(dict(source_key=source, target_key=target, reason=proposal.reason.strip()))
+        proposals.append({"source_key": source, "target_key": target, "reason": proposal.reason.strip()})
 
     return proposals

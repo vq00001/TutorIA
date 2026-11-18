@@ -35,13 +35,13 @@ QUESTION = "¿Cuál es la capital de Chile?"
 
 
 def _make_config(**overrides) -> Config:
-    params: dict[str, Any] = dict(
-        ollama_url="http://ollama.invalid:11434",
-        model_embed="all-minilm",
-        model_llm="chat-principal",
-        gateway_url="http://gateway.test:4000",
-        gateway_api_key="sk-test",
-    )
+    params: dict[str, Any] = {
+        "ollama_url": "http://ollama.invalid:11434",
+        "model_embed": "all-minilm",
+        "model_llm": "chat-principal",
+        "gateway_url": "http://gateway.test:4000",
+        "gateway_api_key": "sk-test",
+    }
     params.update(overrides)
     return Config(**params)
 

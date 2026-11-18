@@ -53,7 +53,7 @@ def extract_candidates(sources, model, remaining):
             f"estas referencias exactas: {', '.join(source_ids)}. No inventes referencias. "
             "Si no hay conceptos, devuelve una lista vacía. No propongas relaciones.",
             [
-                dict(ref=ref, text=source["text"], locator=source["locator"])
+                {"ref": ref, "text": source["text"], "locator": source["locator"]}
                 for ref, source in zip(source_ids, batch)
             ],
             remaining(),
@@ -71,11 +71,11 @@ def extract_candidates(sources, model, remaining):
             if not key:
                 raise ValueError("INVALID_CONCEPT_LABEL")
             if key not in candidates:
-                candidates[key] = dict(
-                    label=label,
-                    description=concept.description.strip(),
-                    source_ids=set(),
-                )
+                candidates[key] = {
+                    "label": label,
+                    "description": concept.description.strip(),
+                    "source_ids": set(),
+                }
             candidates[key]["source_ids"].update(
                 source_ids[ref] for ref in concept.sourceRefs
             )

@@ -6,12 +6,12 @@ from backend.knowledge_graph import concepts
 
 
 def source(ordinal, tokens=1200):
-    return dict(
-        id=uuid4(),
-        text=f"Contenido del fragmento {ordinal}",
-        locator={"section": ordinal},
-        token_estimate=tokens,
-    )
+    return {
+        "id": uuid4(),
+        "text": f"Contenido del fragmento {ordinal}",
+        "locator": {"section": ordinal},
+        "token_estimate": tokens,
+    }
 
 
 def test_extract_candidates_rejects_source_outside_its_batch(monkeypatch):

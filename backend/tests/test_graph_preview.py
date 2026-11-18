@@ -7,15 +7,15 @@ from backend.rag.chunking import chunk_text
 
 
 def config(**changes):
-    values = dict(
-        ollama_url="http://ollama:11434",
-        model_embed="unused",
-        model_llm="test-model",
-        min_section_tokens=1,
-        child_target_tokens=10,
-        parent_max_tokens=50,
-        token_estimate_ratio=1,
-    )
+    values = {
+        "ollama_url": "http://ollama:11434",
+        "model_embed": "unused",
+        "model_llm": "test-model",
+        "min_section_tokens": 1,
+        "child_target_tokens": 10,
+        "parent_max_tokens": 50,
+        "token_estimate_ratio": 1,
+    }
     values.update(changes)
     return Config(**values)
 
