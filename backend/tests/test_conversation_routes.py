@@ -28,7 +28,7 @@ def test_direct_chat_returns_gateway_answer(monkeypatch):
 
     assert response.data.messages[1].content == "Respuesta de Qwen"
     assert response.data.courseId == course_id
-    assert config.model_llm == "chat-principal"
+    assert config.model_llm == "qwen3:1.7b"
     completion.assert_called_once_with(config, "hola", timeout=180)
 
 

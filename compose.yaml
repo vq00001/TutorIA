@@ -63,7 +63,7 @@ services:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-tutoria}
       API_DB_PASSWORD: ${API_DB_PASSWORD:-tutoria_local_api}
-      MODEL_LLM: ${MODEL_LLM:-qwen3:1.7b}
+      MODEL_LLM: ${MODEL_LLM:-chat-principal}
       MODEL_EMBED: ${MODEL_EMBED:-all-minilm}
       TUTORIA_FILES_DIR: /app/archivos
       OLLAMA_URL: http://ollama:11434
@@ -124,7 +124,7 @@ services:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-tutoria}
       WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-tutoria_local_worker}
-      MODEL_LLM: ${MODEL_LLM:-qwen3:1.7b}
+      MODEL_LLM: ${MODEL_LLM:-chat-principal}
       MODEL_EMBED: ${MODEL_EMBED:-all-minilm}
       OLLAMA_URL: http://ollama:11434
       AI_GATEWAY_URL: http://litellm:4000
