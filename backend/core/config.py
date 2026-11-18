@@ -51,6 +51,7 @@ class Config:
     retrieval_limit: int = 4
     gateway_url: str = "http://localhost:4000"
     gateway_api_key: str = ""
+    model_llm_revision: str = "unspecified"
 
     @classmethod
     def from_env(cls) -> Config:
@@ -77,6 +78,7 @@ class Config:
                 "AI_GATEWAY_URL", f"http://localhost:{litellm_port}"
             ).rstrip("/"),
             gateway_api_key=os.getenv("AI_GATEWAY_API_KEY", ""),
+            model_llm_revision=os.getenv("MODEL_LLM_REVISION", "unspecified"),
         )
 
     def __post_init__(self) -> None:

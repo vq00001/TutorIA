@@ -1,6 +1,5 @@
 """Consulta de exámenes propios y solicitudes de generación."""
 
-import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated, Literal
@@ -11,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import DBAPIError
 
+from ...core.config import Config
 from ...db.courses import get_member_course
 from ...db.exams import get_exam, list_exam_questions, list_exams
 from ...db.submissions import CourseUnavailable, SubmissionConflict, submit_generation
@@ -135,10 +135,11 @@ def exams_generate(
     if get_member_course(connection, courseId) is None:
         return error_response(404, "COURSE_NOT_FOUND", "Clase no encontrada.")
     try:
+        config = Config.from_env()
         result = submit_generation(
             connection, courseId, key=key, kind="exam", provider="ai_gateway",
-            model_name=os.getenv("MODEL_LLM", "chat-principal"),
-            model_revision=os.getenv("MODEL_LLM_REVISION", "unspecified"),
+            model_name=config.model_llm,
+            model_revision=config.model_llm_revision,
             prompt_version="v1",
             deadline_at=datetime.now(timezone.utc) + timedelta(minutes=15),
             payload={

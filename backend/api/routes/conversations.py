@@ -1,6 +1,5 @@
 """Conversaciones privadas y envío de mensajes a la cola."""
 
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 from uuid import UUID, uuid4
@@ -166,7 +165,6 @@ def conversations_direct(
 
     try:
         config = Config.from_env()
-        config.model_llm = "chat-principal"
         answer = chat_completion(config, payload.question, timeout=180)
         if not answer:
             raise ValueError("EMPTY_MODEL_RESPONSE")
@@ -237,6 +235,7 @@ def _send(
         return _not_found()
     if course.status != "active" or (conversation is not None and conversation.status != "active"):
         return error_response(403, "CHAT_NOT_ACTIVE", "La conversación no admite mensajes.")
+    config = Config.from_env()
 
     def enqueue(conn):
         target = conversation_id
@@ -248,8 +247,8 @@ def _send(
         )
         generation = start_generation(
             conn, course_id, kind="chat", provider="ai_gateway",
-            model_name=os.getenv("MODEL_LLM", "chat-principal"),
-            model_revision=os.getenv("MODEL_LLM_REVISION", "unspecified"),
+            model_name=config.model_llm,
+            model_revision=config.model_llm_revision,
             prompt_version="v1",
         )
         job = enqueue_job(
