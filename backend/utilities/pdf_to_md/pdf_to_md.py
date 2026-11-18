@@ -34,7 +34,7 @@ def open_pdf(data: bytes) -> pymupdf.Document:
         raise NotConvertible("El archivo no es un PDF válido.")
     try:
         doc = pymupdf.open(stream=data, filetype="pdf")
-    except Exception as e:
+    except (pymupdf.FileDataError, RuntimeError, ValueError, TypeError, OSError) as e:
         raise NotConvertible(f"PDF corrupto o ilegible: {e}")
     if doc.needs_pass:
         doc.close()

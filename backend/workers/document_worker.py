@@ -11,6 +11,7 @@ from uuid import UUID
 import requests
 from sqlalchemy import URL, cast, create_engine, func, select
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.config import Config
 from ..db.connection import set_user_context
@@ -100,7 +101,7 @@ def renew_while_processing(engine, job_id: UUID, token: UUID, stop: Event) -> No
             with engine.begin() as connection:
                 if not renew_job_lease(connection, job_id, token):
                     return
-        except Exception:
+        except (SQLAlchemyError, RuntimeError, OSError):
             return
 
 
@@ -174,7 +175,7 @@ def main() -> None:
             try:
                 process_job(engine, job, config, space_id)
                 print(f"Documento procesado: {job.target_id}", flush=True)
-            except Exception as exc:
+            except (KeyError, TypeError, ValueError, SQLAlchemyError, requests.RequestException) as exc:
                 print(f"Error al procesar {job.target_id}: {type(exc).__name__}: {exc}", flush=True)
                 with engine.begin() as connection:
                     fail_job(connection, job.id, job.lease_token,
