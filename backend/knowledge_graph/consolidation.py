@@ -41,7 +41,7 @@ def consolidate_candidates(candidates, target_count, model, remaining):
         remaining(),
     )
     if not isinstance(result, dict) or not isinstance(result.get("merges"), list):
-        raise ValueError("INVALID_CONSOLIDATION_RESPONSE")
+        raise TypeError("INVALID_CONSOLIDATION_RESPONSE")
 
     proposals = []
     for item in result["merges"]:

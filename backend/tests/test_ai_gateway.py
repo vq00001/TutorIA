@@ -96,9 +96,8 @@ class TestGatewayRouting(unittest.TestCase):
 
     def test_invalid_response_raises_value_error(self):
         for bad_body in ({}, {"choices": []}, {"message": {"content": "x"}}):
-            with patch("requests.post", return_value=_fake_response(bad_body)):
-                with self.assertRaises(ValueError):
-                    generate_answer(_make_config(), QUESTION, DOCUMENTS)
+            with patch("requests.post", return_value=_fake_response(bad_body)), self.assertRaises(ValueError):
+                generate_answer(_make_config(), QUESTION, DOCUMENTS)
 
     def test_no_documents_makes_no_request(self):
         with patch("requests.post") as post:

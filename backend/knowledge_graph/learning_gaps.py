@@ -21,18 +21,18 @@ def load_inputs(nodes_path: Path, scores_path: Path):
     by_label = {}
     for index, node in enumerate(nodes, 1):
         if not isinstance(node, dict) or not isinstance(node.get("label"), str) or not isinstance(node.get("description"), str):
-            raise ValueError("INVALID_LEARNING_GAP_NODE")
+            raise TypeError("INVALID_LEARNING_GAP_NODE")
         key = normalized(node["label"])
         if not key or key in by_label:
             raise ValueError("DUPLICATE_OR_EMPTY_NODE")
         by_label[key] = f"C{index}"
     results = case.get("results")
     if not isinstance(results, list):
-        raise ValueError("INVALID_LEARNING_GAP_RESULTS")
+        raise TypeError("INVALID_LEARNING_GAP_RESULTS")
     scores = {}
     for result in results:
         if not isinstance(result, dict) or not isinstance(result.get("label"), str):
-            raise ValueError("INVALID_LEARNING_GAP_SCORE")
+            raise TypeError("INVALID_LEARNING_GAP_SCORE")
         correct, total = result.get("correct"), result.get("total")
         if (type(correct) is not int or type(total) is not int or total < 1
                 or not 0 <= correct <= total):

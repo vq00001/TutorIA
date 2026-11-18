@@ -103,7 +103,7 @@ def test_preview_maps_model_failures_without_exposing_text(monkeypatch):
         (requests.exceptions.Timeout("material privado"), 504),
         (ValueError("material privado"), 502),
     ]:
-        def fail(*_args, **_kwargs):
+        def fail(*_args, error=error, **_kwargs):
             raise error
 
         monkeypatch.setattr(graph_preview, "generate_graph_preview", fail)

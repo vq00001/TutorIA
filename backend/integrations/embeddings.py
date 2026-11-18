@@ -38,7 +38,7 @@ def embed(config: Config, texts: list[str], batch_size: int = 32) -> list[list[f
         body: Any = response.json()
         batch = body.get("data") if isinstance(body, dict) else None
         if not isinstance(batch, list):
-            raise ValueError(f"El AI gateway retornó embeddings inválidos: {body}")
+            raise TypeError(f"El AI gateway retornó embeddings inválidos: {body}")
         ordered = sorted(
             batch,
             key=lambda item: item.get("index", -1)
@@ -48,7 +48,7 @@ def embed(config: Config, texts: list[str], batch_size: int = 32) -> list[list[f
             isinstance(item, dict) and isinstance(item.get("embedding"), list)
             for item in ordered
         ):
-            raise ValueError(f"El AI gateway retornó embeddings inválidos: {body}")
+            raise TypeError(f"El AI gateway retornó embeddings inválidos: {body}")
         vectors.extend([[float(value) for value in item["embedding"]] for item in ordered])
     if len(vectors) != len(texts) or any(not vector for vector in vectors):
         raise ValueError("Ollama no retornó un embedding por cada texto")

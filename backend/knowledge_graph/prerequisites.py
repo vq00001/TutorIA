@@ -53,7 +53,7 @@ def propose_prerequisites(candidates, model, remaining):
         received = repr(result)
         if len(received) > 2000:
             received = received[:2000] + "... [truncated]"
-        raise ValueError(
+        raise TypeError(
             "INVALID_PREREQUISITE_RESPONSE: se esperaba un objeto con una lista "
             f"'prerequisites'; Ollama devolvió: {received}"
         )

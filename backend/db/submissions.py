@@ -107,7 +107,7 @@ def submit_generation(
     if kind not in ("chat", "exam"):
         raise ValueError("INVALID_GENERATION_KIND")
     if not isinstance(payload, dict):
-        raise ValueError("INVALID_JOB_PAYLOAD")
+        raise TypeError("INVALID_JOB_PAYLOAD")
     job_kind = "generate_chat" if kind == "chat" else "generate_exam"
     model = {
         "provider": provider, "model_name": model_name,
