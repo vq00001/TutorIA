@@ -148,7 +148,9 @@ class GoalStatusInput(BaseModel):
 
 
 def _missing() -> JSONResponse:
-    return error_response(404, "LEARNING_RESOURCE_NOT_FOUND", "Recurso de aprendizaje no encontrado.")
+    return error_response(
+        404, "LEARNING_RESOURCE_NOT_FOUND", "Recurso de aprendizaje no encontrado."
+    )
 
 
 def _write(connection, operation: Callable, *args, **kwargs):
@@ -159,9 +161,17 @@ def _write(connection, operation: Callable, *args, **kwargs):
         code = getattr(exc.orig, "sqlstate", None)
         primary = getattr(getattr(exc.orig, "diag", None), "message_primary", None)
         if code == "42501":
-            return error_response(403, "LEARNING_FORBIDDEN", "La cuenta no puede realizar la operación.")
-        if code == "23505" or primary in ("PREREQUISITE_CYCLE", "GOAL_INACTIVE", "INVALID_GOAL_TRANSITION"):
-            return error_response(409, "LEARNING_CONFLICT", "La operación entra en conflicto con el estado actual.")
+            return error_response(
+                403, "LEARNING_FORBIDDEN", "La cuenta no puede realizar la operación."
+            )
+        if code == "23505" or primary in (
+            "PREREQUISITE_CYCLE",
+            "GOAL_INACTIVE",
+            "INVALID_GOAL_TRANSITION",
+        ):
+            return error_response(
+                409, "LEARNING_CONFLICT", "La operación entra en conflicto con el estado actual."
+            )
         if code in ("23514", "23503", "22001"):
             return error_response(422, "INVALID_LEARNING_DATA", "Revisa los datos de aprendizaje.")
         raise
@@ -188,12 +198,16 @@ def knowledge_graph(courseId: UUID, connection: AuthenticatedConnection):
 def progress(courseId: UUID, connection: AuthenticatedConnection):
     if get_member_course(connection, courseId) is None:
         return _missing()
-    return Result(data=[
-        Mastery.model_validate(dict(row)) for row in list_concept_mastery(connection, courseId)
-    ])
+    return Result(
+        data=[
+            Mastery.model_validate(dict(row)) for row in list_concept_mastery(connection, courseId)
+        ]
+    )
 
 
-@router.post("/concepts", status_code=201, response_model=Result[Identifier], responses=_WRITE_ERRORS)
+@router.post(
+    "/concepts", status_code=201, response_model=Result[Identifier], responses=_WRITE_ERRORS
+)
 def concepts_create(courseId: UUID, payload: ConceptInput, connection: AuthenticatedConnection):
     if get_member_course(connection, courseId) is None:
         return _missing()
@@ -204,13 +218,20 @@ def concepts_create(courseId: UUID, payload: ConceptInput, connection: Authentic
 def concept_aliases(courseId: UUID, conceptId: UUID, connection: AuthenticatedConnection):
     if not has_concept(connection, courseId, conceptId):
         return _missing()
-    return Result(data=[
-        Alias.model_validate(dict(row)) for row in list_concept_aliases(connection, courseId, conceptId)
-    ])
+    return Result(
+        data=[
+            Alias.model_validate(dict(row))
+            for row in list_concept_aliases(connection, courseId, conceptId)
+        ]
+    )
 
 
-@router.post("/concepts/{conceptId}/aliases", status_code=201,
-             response_model=Result[Alias], responses=_WRITE_ERRORS)
+@router.post(
+    "/concepts/{conceptId}/aliases",
+    status_code=201,
+    response_model=Result[Alias],
+    responses=_WRITE_ERRORS,
+)
 def concept_alias_create(
     courseId: UUID, conceptId: UUID, payload: AliasInput, connection: AuthenticatedConnection
 ):
@@ -222,61 +243,97 @@ def concept_alias_create(
     return Result(data=Alias(alias=payload.alias, normalized_alias=result))
 
 
-@router.post("/concepts/{conceptId}/prerequisites", status_code=201,
-             response_model=Result[Identifier], responses=_WRITE_ERRORS)
+@router.post(
+    "/concepts/{conceptId}/prerequisites",
+    status_code=201,
+    response_model=Result[Identifier],
+    responses=_WRITE_ERRORS,
+)
 def prerequisite_create(
     courseId: UUID, conceptId: UUID, payload: PrerequisiteInput, connection: AuthenticatedConnection
 ):
     if not has_concept(connection, courseId, conceptId):
         return _missing()
-    return _identifier(_write(connection, add_prerequisite, courseId, payload.prerequisiteId, conceptId))
+    return _identifier(
+        _write(connection, add_prerequisite, courseId, payload.prerequisiteId, conceptId)
+    )
 
 
 @router.get("/learning-goals", response_model=Result[list[Goal]], responses=_ERRORS)
 def goals_index(courseId: UUID, connection: AuthenticatedConnection):
     if get_member_course(connection, courseId) is None:
         return _missing()
-    return Result(data=[Goal.model_validate(dict(row)) for row in list_learning_goals(connection, courseId)])
+    return Result(
+        data=[Goal.model_validate(dict(row)) for row in list_learning_goals(connection, courseId)]
+    )
 
 
-@router.post("/learning-goals", status_code=201, response_model=Result[Identifier], responses=_WRITE_ERRORS)
+@router.post(
+    "/learning-goals", status_code=201, response_model=Result[Identifier], responses=_WRITE_ERRORS
+)
 def goals_create(courseId: UUID, payload: GoalInput, connection: AuthenticatedConnection):
     if get_member_course(connection, courseId) is None:
         return _missing()
-    return _identifier(_write(
-        connection, create_learning_goal, courseId, title=payload.title,
-        concept_ids=payload.conceptIds, target_date=payload.targetDate,
-    ))
+    return _identifier(
+        _write(
+            connection,
+            create_learning_goal,
+            courseId,
+            title=payload.title,
+            concept_ids=payload.conceptIds,
+            target_date=payload.targetDate,
+        )
+    )
 
 
-@router.patch("/learning-goals/{goalId}", response_model=Result[Identifier], responses=_WRITE_ERRORS)
+@router.patch(
+    "/learning-goals/{goalId}", response_model=Result[Identifier], responses=_WRITE_ERRORS
+)
 def goals_status(
     courseId: UUID, goalId: UUID, payload: GoalStatusInput, connection: AuthenticatedConnection
 ):
     if not has_learning_goal(connection, courseId, goalId):
         return _missing()
-    return _identifier(_write(connection, set_learning_goal_status, courseId, goalId, payload.status))
+    return _identifier(
+        _write(connection, set_learning_goal_status, courseId, goalId, payload.status)
+    )
 
 
-@router.get("/learning-goals/{goalId}/roadmaps", response_model=Result[list[Roadmap]], responses=_ERRORS)
+@router.get(
+    "/learning-goals/{goalId}/roadmaps", response_model=Result[list[Roadmap]], responses=_ERRORS
+)
 def roadmaps_index(courseId: UUID, goalId: UUID, connection: AuthenticatedConnection):
     if not has_learning_goal(connection, courseId, goalId):
         return _missing()
-    return Result(data=[Roadmap.model_validate(dict(row)) for row in list_roadmaps(connection, courseId, goalId)])
+    return Result(
+        data=[
+            Roadmap.model_validate(dict(row)) for row in list_roadmaps(connection, courseId, goalId)
+        ]
+    )
 
 
-@router.post("/learning-goals/{goalId}/roadmaps", response_model=Result[Identifier], responses=_WRITE_ERRORS)
+@router.post(
+    "/learning-goals/{goalId}/roadmaps", response_model=Result[Identifier], responses=_WRITE_ERRORS
+)
 def roadmaps_build(courseId: UUID, goalId: UUID, connection: AuthenticatedConnection):
     if not has_learning_goal(connection, courseId, goalId):
         return _missing()
     return _identifier(_write(connection, build_roadmap, courseId, goalId))
 
 
-@router.get("/learning-goals/{goalId}/roadmaps/{roadmapId}",
-            response_model=Result[RoadmapDetail], responses=_ERRORS)
-def roadmaps_detail(courseId: UUID, goalId: UUID, roadmapId: UUID, connection: AuthenticatedConnection):
+@router.get(
+    "/learning-goals/{goalId}/roadmaps/{roadmapId}",
+    response_model=Result[RoadmapDetail],
+    responses=_ERRORS,
+)
+def roadmaps_detail(
+    courseId: UUID, goalId: UUID, roadmapId: UUID, connection: AuthenticatedConnection
+):
     row = get_roadmap(connection, courseId, goalId, roadmapId)
     if row is None:
         return _missing()
-    steps = [RoadmapStep.model_validate(dict(step)) for step in list_roadmap_steps(connection, courseId, roadmapId)]
+    steps = [
+        RoadmapStep.model_validate(dict(step))
+        for step in list_roadmap_steps(connection, courseId, roadmapId)
+    ]
     return Result(data=RoadmapDetail(**Roadmap.model_validate(dict(row)).model_dump(), steps=steps))

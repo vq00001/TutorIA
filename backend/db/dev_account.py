@@ -25,18 +25,22 @@ def seed_dev_account(connection: Connection, email: str, password: str) -> None:
 
     password_hash = PasswordHasher().hash(password)
     if existing is None:
-        connection.execute(insert(users).values(
-            id=identifier,
-            nickname=f"u_{identifier.hex}",
-            display_name="Usuario de desarrollo",
-            email=email,
-            password_hash=password_hash,
-            status="active",
-            email_verified_at=datetime.now(timezone.utc),
-        ))
+        connection.execute(
+            insert(users).values(
+                id=identifier,
+                nickname=f"u_{identifier.hex}",
+                display_name="Usuario de desarrollo",
+                email=email,
+                password_hash=password_hash,
+                status="active",
+                email_verified_at=datetime.now(timezone.utc),
+            )
+        )
     else:
         connection.execute(
-            update(users).where(users.c.id == identifier).values(
+            update(users)
+            .where(users.c.id == identifier)
+            .values(
                 password_hash=password_hash,
                 status="active",
                 email_verified_at=datetime.now(timezone.utc),

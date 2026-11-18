@@ -148,9 +148,7 @@ def install_citations(conn: Connection) -> None:
         END
         $$"""
     )
-    conn.exec_driver_sql(
-        "REVOKE ALL ON FUNCTION app.list_message_citations(uuid) FROM PUBLIC"
-    )
+    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.list_message_citations(uuid) FROM PUBLIC")
     conn.exec_driver_sql(
         "GRANT EXECUTE ON FUNCTION app.list_message_citations(uuid) TO tutoria_api"
     )

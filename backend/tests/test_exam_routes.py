@@ -30,7 +30,9 @@ def test_exam_generation_replay_and_private_detail(postgres, monkeypatch):
     assert first.status_code == 202
     assert client.post(path, json=payload, headers=headers).json() == first.json()
     assert client.post(path, json=payload | {"topic": "Otro"}, headers=headers).status_code == 409
-    assert client.post(path, json=payload | {"questionCount": 21}, headers=headers).status_code == 422
+    assert (
+        client.post(path, json=payload | {"questionCount": 21}, headers=headers).status_code == 422
+    )
     assert client.get(path, headers=headers).json() == {"data": []}
 
     accepted = first.json()["data"]
@@ -39,7 +41,9 @@ def test_exam_generation_replay_and_private_detail(postgres, monkeypatch):
     assert str(job.id) == accepted["jobId"]
     assert str(job.target_id) == accepted["generationId"]
     assert job.payload == {
-        "topic": "Álgebra", "question_count": 1, "duration_seconds": 1800,
+        "topic": "Álgebra",
+        "question_count": 1,
+        "duration_seconds": 1800,
         "question_types": ["multiple"],
     }
 
@@ -47,8 +51,14 @@ def test_exam_generation_replay_and_private_detail(postgres, monkeypatch):
     generation = UUID(accepted["generationId"])
     request_id = record_generation_request(postgres, generation, REQUEST, [])
     exam = publish_exam(
-        postgres, course, generation, title="Álgebra", kind="practice", duration_seconds=1800,
-        items=[MULTIPLE], request_id=request_id,
+        postgres,
+        course,
+        generation,
+        title="Álgebra",
+        kind="practice",
+        duration_seconds=1800,
+        items=[MULTIPLE],
+        request_id=request_id,
     )
     listed = client.get(path, headers=headers).json()["data"]
     assert [row["id"] for row in listed] == [str(exam)]

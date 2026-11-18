@@ -30,18 +30,14 @@ def main() -> None:
             root = args.path if args.path.is_dir() else None
             for file in iter_documents(args.path):
                 parents, children = prepare_document(config, file, root)
-                print(
-                    f"\n--- {file.name}: {len(parents)} parents, {len(children)} children ---"
-                )
+                print(f"\n--- {file.name}: {len(parents)} parents, {len(children)} children ---")
                 for parent in parents:
                     print(
                         f"\n[PARENT {parent.index}] "
                         f"{' > '.join(parent.path) or '(sin título)'} "
                         f"(~{count_tokens(parent.text, config.token_estimate_ratio)} tok)"
                     )
-                    for child in (
-                        item for item in children if item.parent_id == parent.id
-                    ):
+                    for child in (item for item in children if item.parent_id == parent.id):
                         print(
                             f"   - child {child.index} "
                             f"(~{count_tokens(child.embed_text, config.token_estimate_ratio)} tok): "

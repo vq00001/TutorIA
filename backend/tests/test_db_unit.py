@@ -27,7 +27,9 @@ def test_engine_rejects_invalid_database_url(monkeypatch, url):
         connection.engine()
 
 
-@pytest.mark.parametrize("role,owns_tables", [((True, False), False), ((False, True), False), ((False, False), True)])
+@pytest.mark.parametrize(
+    "role,owns_tables", [((True, False), False), ((False, True), False), ((False, False), True)]
+)
 def test_engine_rejects_roles_that_can_bypass_user_isolation(monkeypatch, role, owns_tables):
     conn, engine = Mock(), Mock()
     conn.execute.return_value.one.return_value = role

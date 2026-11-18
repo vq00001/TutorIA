@@ -52,7 +52,9 @@ def graph_preview(courseId: UUID, payload: PreviewRequest, token: BearerToken):
         if course is None:
             return error_response(404, "COURSE_NOT_FOUND", "Clase no encontrada.")
         if course.my_role != "coordinator" or course.status != "active":
-            return error_response(403, "GRAPH_PREVIEW_FORBIDDEN", "La clase no admite esta operación.")
+            return error_response(
+                403, "GRAPH_PREVIEW_FORBIDDEN", "La clase no admite esta operación."
+            )
 
     deadline = monotonic() + _PREVIEW_TIMEOUT_SECONDS
     try:
@@ -64,11 +66,19 @@ def graph_preview(courseId: UUID, payload: PreviewRequest, token: BearerToken):
             remaining=lambda: max(0.001, deadline - monotonic()),
         )
     except requests.exceptions.Timeout:
-        return error_response(504, "GRAPH_PREVIEW_TIMEOUT", "El modelo tardó demasiado en responder.")
+        return error_response(
+            504, "GRAPH_PREVIEW_TIMEOUT", "El modelo tardó demasiado en responder."
+        )
     except requests.exceptions.ConnectionError:
-        return error_response(503, "GRAPH_PREVIEW_MODEL_UNAVAILABLE", "El modelo no está disponible.")
+        return error_response(
+            503, "GRAPH_PREVIEW_MODEL_UNAVAILABLE", "El modelo no está disponible."
+        )
     except requests.exceptions.RequestException:
         return error_response(502, "GRAPH_PREVIEW_MODEL_ERROR", "El modelo devolvió un error.")
     except (ValueError, KeyError, IndexError):
-        return error_response(502, "GRAPH_PREVIEW_INVALID_MODEL_RESPONSE", "El modelo devolvió una respuesta inválida.")
+        return error_response(
+            502,
+            "GRAPH_PREVIEW_INVALID_MODEL_RESPONSE",
+            "El modelo devolvió una respuesta inválida.",
+        )
     return PreviewResponse(data=result)

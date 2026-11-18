@@ -7,36 +7,48 @@ from .connection import RESTORE_LOCK
 # Cada entrada deriva clase, propietario y objetivo de la reserva, no del llamador.
 _OPERATIONS = (
     (
-        "record_job_request", "body bytea, sources jsonb", "bytea, jsonb",
+        "record_job_request",
+        "body bytea, sources jsonb",
+        "bytea, jsonb",
         "generate_chat', 'generate_exam",
-        "app.record_generation_request(job.target_id, body, sources)", False,
+        "app.record_generation_request(job.target_id, body, sources)",
+        False,
     ),
     (
         "publish_chat_job",
         "conversation uuid, content jsonb, reply_id uuid, rid uuid, citations jsonb",
-        "uuid, jsonb, uuid, uuid, jsonb", "generate_chat",
+        "uuid, jsonb, uuid, uuid, jsonb",
+        "generate_chat",
         """CASE WHEN citations = '[]'::jsonb
              THEN app.append_conversation_message(job.course_id, conversation, content,
                                                   job.target_id, reply_id)
              ELSE app.append_cited_assistant_message(job.course_id, conversation, content,
                                                       job.target_id, reply_id, rid, citations)
-             END""", True,
+             END""",
+        True,
     ),
     (
-        "publish_exam_job", "title text, exam_kind text, duration integer, payload jsonb",
-        "text, text, integer, jsonb", "generate_exam",
-        "app.publish_exam(job.course_id, job.target_id, title, exam_kind, duration, payload)", True,
+        "publish_exam_job",
+        "title text, exam_kind text, duration integer, payload jsonb",
+        "text, text, integer, jsonb",
+        "generate_exam",
+        "app.publish_exam(job.course_id, job.target_id, title, exam_kind, duration, payload)",
+        True,
     ),
     (
         "start_ingestion_job",
         "space uuid, digest bytea, parser text, chunker text, parameters jsonb",
-        "uuid, bytea, text, text, jsonb", "ingest_document",
+        "uuid, bytea, text, text, jsonb",
+        "ingest_document",
         """app.start_document_processing(job.course_id, job.target_id, space, digest,
-                                         parser, chunker, parameters)""", False,
+                                         parser, chunker, parameters)""",
+        False,
     ),
     (
-        "publish_ingestion_job", "rid uuid, source_text text, parents jsonb, children jsonb",
-        "uuid, text, jsonb, jsonb", "ingest_document",
+        "publish_ingestion_job",
+        "rid uuid, source_text text, parents jsonb, children jsonb",
+        "uuid, text, jsonb, jsonb",
+        "ingest_document",
         "CASE WHEN app.publish_document_processing_internal(rid, source_text, parents, children) THEN rid END",
         True,
     ),
@@ -79,18 +91,24 @@ def install_job_results(conn: Connection) -> None:
         END
         $$"""
     )
-    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.lock_job_result(uuid, uuid, text[]) FROM PUBLIC, tutoria_api, tutoria_worker")
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.lock_job_result(uuid, uuid, text[]) FROM PUBLIC, tutoria_api, tutoria_worker"
+    )
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS processing_ingestion_job_idx "
         "ON app.processing_runs (ingestion_job_id) WHERE state = 'running'"
     )
     for name, args, types, kinds, expression, complete in _OPERATIONS:
         before, after = _operation_checks(name)
-        finish = """
+        finish = (
+            """
             IF result IS NULL OR NOT app.finish_job(jid, token, NULL, false) THEN
                 RAISE EXCEPTION 'JOB_RESULT_REJECTED' USING ERRCODE = '42501';
             END IF;
-        """ if complete else ""
+        """
+            if complete
+            else ""
+        )
         conn.exec_driver_sql(f"""
             CREATE OR REPLACE FUNCTION app.{name}(jid uuid, token uuid, {args}) RETURNS uuid
             LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp
@@ -142,16 +160,20 @@ def _operation_checks(name: str) -> tuple[str, str]:
             """,
         )
     if name == "publish_ingestion_job":
-        return ("""
+        return (
+            """
             IF NOT EXISTS (
                 SELECT FROM app.processing_runs WHERE id = rid AND ingestion_job_id = jid
                   AND document_id = job.target_id AND state = 'running'
             ) THEN
                 RAISE EXCEPTION 'INVALID_JOB_TARGET' USING ERRCODE = '42501';
             END IF;
-        """, "")
+        """,
+            "",
+        )
     if name == "publish_chat_job":
-        return ("""
+        return (
+            """
             IF jsonb_typeof(citations) IS DISTINCT FROM 'array' OR NOT EXISTS (
                 SELECT FROM app.generation_requests WHERE id = rid AND generation_id = job.target_id
             ) OR (citations = '[]'::jsonb AND EXISTS (
@@ -159,9 +181,12 @@ def _operation_checks(name: str) -> tuple[str, str]:
             )) THEN
                 RAISE EXCEPTION 'INVALID_JOB_REQUEST' USING ERRCODE = '23514';
             END IF;
-        """, "")
+        """,
+            "",
+        )
     if name == "publish_exam_job":
-        return ("""
+        return (
+            """
             IF jsonb_typeof(payload) IS DISTINCT FROM 'object'
                 OR NOT EXISTS (
                     SELECT FROM app.generation_requests
@@ -169,7 +194,9 @@ def _operation_checks(name: str) -> tuple[str, str]:
                 ) THEN
                 RAISE EXCEPTION 'INVALID_JOB_REQUEST' USING ERRCODE = '23514';
             END IF;
-        """, "")
+        """,
+            "",
+        )
     return "", ""
 
 

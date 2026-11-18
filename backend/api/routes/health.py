@@ -21,8 +21,7 @@ class HealthResponse(BaseModel):
     services: dict[str, str]
 
 
-@router.get("/health", response_model=HealthResponse,
-         responses={503: {"model": ErrorResponse}})
+@router.get("/health", response_model=HealthResponse, responses={503: {"model": ErrorResponse}})
 def health() -> HealthResponse | JSONResponse:
     try:
         with dependencies.transaction() as connection:

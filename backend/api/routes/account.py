@@ -46,7 +46,9 @@ def send_token(host: str, sender: str, recipient: str, purpose: Purpose, token: 
             message["Subject"] = "Recupera tu contraseña de TutorIA"
         message.set_content(f"Introduce este código en TutorIA:\n\n{token}\n")
         with smtplib.SMTP_SSL(
-            host, int(os.getenv("SMTP_PORT", "465")), timeout=10,
+            host,
+            int(os.getenv("SMTP_PORT", "465")),
+            timeout=10,
             context=ssl.create_default_context(),
         ) as smtp:
             username = os.getenv("SMTP_USERNAME")

@@ -8,23 +8,30 @@ from backend.knowledge_graph import consolidation
 def candidates():
     return {
         "jacobiano para volumen": {
-            "label": "Jacobiano para volumen", "description": "Factor de escala",
+            "label": "Jacobiano para volumen",
+            "description": "Factor de escala",
             "source_ids": {uuid4()},
         },
         "jacobiano en integrales de volumen": {
-            "label": "Jacobiano en integrales de volumen", "description": "Cambio de variables",
+            "label": "Jacobiano en integrales de volumen",
+            "description": "Cambio de variables",
             "source_ids": {uuid4()},
         },
         "coordenadas polares": {
-            "label": "Coordenadas polares", "description": "Radio y ángulo",
+            "label": "Coordenadas polares",
+            "description": "Radio y ángulo",
             "source_ids": {uuid4()},
         },
     }
 
 
 def merge(refs=("C1", "C2"), label="Jacobiano de volumen"):
-    return {"refs": list(refs), "label": label, "description": "Factor de cambio de volumen",
-            "reason": "Conceptos solapados"}
+    return {
+        "refs": list(refs),
+        "label": label,
+        "description": "Factor de cambio de volumen",
+        "reason": "Conceptos solapados",
+    }
 
 
 def test_merges_nodes_and_unions_sources_without_mutating_input(monkeypatch):
@@ -48,7 +55,8 @@ def test_merges_nodes_and_unions_sources_without_mutating_input(monkeypatch):
     assert set().union(*(node["source_ids"] for node in result.values())) == original_sources
     assert len(nodes) == 3
     assert applied[0]["from_keys"] == [
-        "jacobiano para volumen", "jacobiano en integrales de volumen"
+        "jacobiano para volumen",
+        "jacobiano en integrales de volumen",
     ]
 
 
@@ -62,7 +70,8 @@ def test_does_not_force_merges(monkeypatch):
 def test_skips_single_node_merge_and_keeps_other_valid_merges(monkeypatch):
     nodes = candidates()
     monkeypatch.setattr(
-        consolidation, "model_json",
+        consolidation,
+        "model_json",
         lambda *_: {"merges": [merge(("C3",)), merge()]},
     )
 
@@ -70,11 +79,13 @@ def test_skips_single_node_merge_and_keeps_other_valid_merges(monkeypatch):
 
     assert len(result) == 2
     assert result["coordenadas polares"] == nodes["coordenadas polares"]
-    assert applied == [{
-        "from_keys": ["jacobiano para volumen", "jacobiano en integrales de volumen"],
-        "to_key": "jacobiano de volumen",
-        "reason": "Conceptos solapados",
-    }]
+    assert applied == [
+        {
+            "from_keys": ["jacobiano para volumen", "jacobiano en integrales de volumen"],
+            "to_key": "jacobiano de volumen",
+            "reason": "Conceptos solapados",
+        }
+    ]
 
 
 def test_single_node_merge_alone_leaves_candidates_unchanged(monkeypatch):
@@ -89,7 +100,8 @@ def test_single_node_merge_alone_leaves_candidates_unchanged(monkeypatch):
 
 def test_skips_group_that_would_overshoot_target(monkeypatch):
     monkeypatch.setattr(
-        consolidation, "model_json",
+        consolidation,
+        "model_json",
         lambda *_: {"merges": [merge(("C1", "C2", "C3"))]},
     )
     result, applied = consolidation.consolidate_candidates(candidates(), 2, "test", lambda: 30)

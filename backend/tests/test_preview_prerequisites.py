@@ -63,13 +63,17 @@ def test_preview_consolidates_before_proposing_prerequisites(monkeypatch, capsys
     def fake_consolidation(candidates, target, model, remaining):
         calls.append(("consolidate", len(candidates), target, model, remaining()))
         first_two = list(candidates)[:2]
-        merged = {"definicion e interpretacion": {
-            "label": "Definición e interpretación", "description": "Concepto fusionado",
-            "source_ids": set(),
-        }}
+        merged = {
+            "definicion e interpretacion": {
+                "label": "Definición e interpretación",
+                "description": "Concepto fusionado",
+                "source_ids": set(),
+            }
+        }
         merged.update({key: value for key, value in candidates.items() if key not in first_two})
-        return merged, [{"from_keys": first_two, "to_key": "definicion e interpretacion",
-                         "reason": "Solapados"}]
+        return merged, [
+            {"from_keys": first_two, "to_key": "definicion e interpretacion", "reason": "Solapados"}
+        ]
 
     def fake_prerequisites(candidates, model, remaining):
         calls.append(("prerequisites", len(candidates), model, remaining()))

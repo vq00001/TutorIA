@@ -87,9 +87,15 @@ def _status(raw: str) -> ProcessingStatus:
 
 def _document(row) -> Document:
     return Document(
-        id=row.id, courseId=row.course_id, name=row.original_name, title=row.title,
-        size=row.size_bytes, mimeType=row.mime_type, status=_status(row.processing_status),
-        uploadedById=row.uploaded_by, uploadedAt=row.created_at,
+        id=row.id,
+        courseId=row.course_id,
+        name=row.original_name,
+        title=row.title,
+        size=row.size_bytes,
+        mimeType=row.mime_type,
+        status=_status(row.processing_status),
+        uploadedById=row.uploaded_by,
+        uploadedAt=row.created_at,
     )
 
 
@@ -109,7 +115,9 @@ def documents_index(
         return error_response(422, "INVALID_CURSOR", "Envía ambos campos del cursor.")
     if get_member_course(connection, courseId) is None:
         return _not_found()
-    after = (afterCreatedAt, afterId) if afterCreatedAt is not None and afterId is not None else None
+    after = (
+        (afterCreatedAt, afterId) if afterCreatedAt is not None and afterId is not None else None
+    )
     rows = list_documents(connection, courseId, limit=limit, after=after, lookahead=True)
     page = rows[:limit]
     cursor = None
@@ -117,16 +125,15 @@ def documents_index(
         last = page[-1]
         cursor = Cursor(afterCreatedAt=last.created_at, afterId=last.id)
     return DocumentList(
-        data=[
-            _document(row)
-            for row in page
-        ],
+        data=[_document(row) for row in page],
         nextCursor=cursor,
     )
 
 
 @router.post(
-    "/courses/{courseId}/documents", status_code=202, response_model=UploadResponse,
+    "/courses/{courseId}/documents",
+    status_code=202,
+    response_model=UploadResponse,
     responses={**_ERRORS, **{code: {"model": ErrorResponse} for code in (403, 409, 413, 415, 429)}},
 )
 def documents_upload(
@@ -180,16 +187,24 @@ def documents_upload(
         deadline = datetime.now(timezone.utc) + timedelta(minutes=15)
         return [
             enqueue_upload(
-                conn, courseId, deadline_at=deadline,
-                filename=name, data=data, mime_type=mime, warn_on_duplicate=False,
+                conn,
+                courseId,
+                deadline_at=deadline,
+                filename=name,
+                data=data,
+                mime_type=mime,
+                warn_on_duplicate=False,
             )
             for name, mime, data in batch
         ]
 
     try:
         result = run_idempotent(
-            connection, scope=f"document_upload_batch:{courseId}", key=key,
-            payload=fingerprint, operation=enqueue_batch,
+            connection,
+            scope=f"document_upload_batch:{courseId}",
+            key=key,
+            payload=fingerprint,
+            operation=enqueue_batch,
         )
     except DBAPIError as exc:
         sqlstate = getattr(exc.orig, "sqlstate", None)
@@ -210,16 +225,22 @@ def documents_upload(
                 filename=name,
                 content=data,
             )
-    return UploadResponse(data=[
-        UploadResult(documentId=item["document_id"], jobId=item["job_id"],
-                     duplicate=item["document_id"] is None)
-        for item in result
-    ])
+    return UploadResponse(
+        data=[
+            UploadResult(
+                documentId=item["document_id"],
+                jobId=item["job_id"],
+                duplicate=item["document_id"] is None,
+            )
+            for item in result
+        ]
+    )
 
 
 @router.get(
     "/courses/{courseId}/documents/{documentId}/status",
-    response_model=StatusResponse, responses=_ERRORS,
+    response_model=StatusResponse,
+    responses=_ERRORS,
 )
 def documents_status(
     courseId: UUID, documentId: UUID, connection: AuthenticatedConnection
@@ -227,14 +248,17 @@ def documents_status(
     row = get_document_metadata(connection, courseId, documentId)
     if row is None:
         return _not_found()
-    return StatusResponse(data=DocumentStatus(
-        documentId=documentId, status=_status(row.processing_status), errorCode=row.error_code
-    ))
+    return StatusResponse(
+        data=DocumentStatus(
+            documentId=documentId, status=_status(row.processing_status), errorCode=row.error_code
+        )
+    )
 
 
 @router.get(
     "/courses/{courseId}/documents/{documentId}",
-    response_model=DocumentResponse, responses=_ERRORS,
+    response_model=DocumentResponse,
+    responses=_ERRORS,
 )
 def documents_detail(
     courseId: UUID, documentId: UUID, connection: AuthenticatedConnection
@@ -250,10 +274,16 @@ def documents_detail(
     response_class=Response,
     responses={
         **_ERRORS,
-        200: {"content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}},
+        200: {
+            "content": {
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+            }
+        },
     },
 )
-def documents_download(courseId: UUID, documentId: UUID, connection: AuthenticatedConnection) -> Response:
+def documents_download(
+    courseId: UUID, documentId: UUID, connection: AuthenticatedConnection
+) -> Response:
     original = download_document(connection, courseId, documentId)
     if original is None:
         return _not_found()
@@ -270,10 +300,13 @@ def documents_download(courseId: UUID, documentId: UUID, connection: Authenticat
 
 
 @router.delete(
-    "/courses/{courseId}/documents/{documentId}", status_code=204,
+    "/courses/{courseId}/documents/{documentId}",
+    status_code=204,
     responses={**_ERRORS, 403: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
 )
-def documents_delete(courseId: UUID, documentId: UUID, connection: AuthenticatedConnection) -> Response:
+def documents_delete(
+    courseId: UUID, documentId: UUID, connection: AuthenticatedConnection
+) -> Response:
     if get_document_metadata(connection, courseId, documentId) is None:
         return _not_found()
     try:
@@ -281,10 +314,14 @@ def documents_delete(courseId: UUID, documentId: UUID, connection: Authenticated
             deleted = delete_document(connection, courseId, documentId)
     except DBAPIError as exc:
         if getattr(exc.orig, "sqlstate", None) == "42501":
-            return error_response(403, "DOCUMENT_DELETE_FORBIDDEN", "La cuenta no puede borrar el documento.")
+            return error_response(
+                403, "DOCUMENT_DELETE_FORBIDDEN", "La cuenta no puede borrar el documento."
+            )
         raise
     if not deleted:
         if get_document_metadata(connection, courseId, documentId) is None:
             return _not_found()
-        return error_response(409, "DOCUMENT_DELETE_CONFLICT", "El documento tiene un borrado pendiente.")
+        return error_response(
+            409, "DOCUMENT_DELETE_CONFLICT", "El documento tiene un borrado pendiente."
+        )
     return Response(status_code=204)

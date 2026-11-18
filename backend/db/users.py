@@ -78,7 +78,6 @@ def install_users(conn: Connection) -> None:
         "GRANT INSERT (id, nickname, display_name, email, password_hash) ON app.users TO tutoria_api"
     )
 
-
     conn.exec_driver_sql("DROP POLICY IF EXISTS edit_own_profile ON app.users")
     conn.exec_driver_sql(
         """CREATE POLICY edit_own_profile ON app.users FOR UPDATE TO tutoria_api
@@ -91,14 +90,22 @@ def install_users(conn: Connection) -> None:
 
 
 def insert_pending_user(
-    conn: Connection, *, identifier: UUID, nickname: str, email: str,
-    display_name: str, password_hash: str,
+    conn: Connection,
+    *,
+    identifier: UUID,
+    nickname: str,
+    email: str,
+    display_name: str,
+    password_hash: str,
 ) -> bool:
     """Inserta una cuenta pendiente. Un conflicto de identidad no modifica la cuenta existente."""
     statement = (
         insert(users)
         .values(
-            id=identifier, nickname=nickname, email=email, display_name=display_name,
+            id=identifier,
+            nickname=nickname,
+            email=email,
+            display_name=display_name,
             password_hash=password_hash,
         )
         .on_conflict_do_nothing()
@@ -111,6 +118,7 @@ def get_current_user(conn: Connection) -> RowMapping | None:
     """Lee el perfil asociado a la identidad de la transacción."""
     statement = select(*_profile_columns).where(users.c.id == _current_user_id).limit(1)
     return conn.execute(statement).mappings().one_or_none()
+
 
 def update_current_display_name(conn: Connection, display_name: str) -> RowMapping | None:
     statement = (

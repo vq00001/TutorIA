@@ -179,9 +179,7 @@ def append_assistant_message(
     )
 
 
-def get_conversation(
-    conn: Connection, course_id: UUID, conversation_id: UUID
-) -> RowMapping | None:
+def get_conversation(conn: Connection, course_id: UUID, conversation_id: UUID) -> RowMapping | None:
     statement = sa.select(conversations).where(
         conversations.c.course_id == course_id, conversations.c.id == conversation_id
     )
@@ -311,7 +309,9 @@ def _install_conversation_writes(conn: Connection) -> None:
         END
         $$"""
     )
-    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.read_chat_context(uuid, uuid, uuid) FROM PUBLIC")
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.read_chat_context(uuid, uuid, uuid) FROM PUBLIC"
+    )
     conn.exec_driver_sql(
         "GRANT EXECUTE ON FUNCTION app.read_chat_context(uuid, uuid, uuid) TO tutoria_worker"
     )
@@ -457,12 +457,19 @@ def _install_conversation_delete(conn: Connection) -> None:
         END
         $$"""
     )
-    conn.exec_driver_sql("REVOKE ALL ON FUNCTION app.delete_own_conversation(uuid, uuid) FROM PUBLIC")
-    conn.exec_driver_sql("GRANT EXECUTE ON FUNCTION app.delete_own_conversation(uuid, uuid) TO tutoria_api")
+    conn.exec_driver_sql(
+        "REVOKE ALL ON FUNCTION app.delete_own_conversation(uuid, uuid) FROM PUBLIC"
+    )
+    conn.exec_driver_sql(
+        "GRANT EXECUTE ON FUNCTION app.delete_own_conversation(uuid, uuid) TO tutoria_api"
+    )
 
 
 def delete_own_conversation(conn: Connection, course_id: UUID, conversation_id: UUID) -> bool:
-    return conn.scalar(sa.select(sa.func.app.delete_own_conversation(course_id, conversation_id))) is True
+    return (
+        conn.scalar(sa.select(sa.func.app.delete_own_conversation(course_id, conversation_id)))
+        is True
+    )
 
 
 def _install_message_redaction(conn: Connection) -> None:

@@ -12,7 +12,9 @@ from backend.db.users import users
 
 
 def test_default_dev_credentials_pass_login_validation():
-    assert LoginRequest(email="dev@example.com", password="TutorIA-dev-123").email == "dev@example.com"
+    assert (
+        LoginRequest(email="dev@example.com", password="TutorIA-dev-123").email == "dev@example.com"
+    )
 
 
 def test_seed_dev_account_is_idempotent_and_resets_password(postgres):
@@ -34,10 +36,19 @@ def test_seed_dev_account_does_not_take_an_existing_email(postgres):
     from sqlalchemy import insert
 
     email = f"{uuid4().hex}@example.test"
-    postgres.execute(insert(users).values(
-        id=uuid4(), nickname=f"u_{uuid4().hex}", display_name="Existing",
-        email=email, password_hash="existing-password", status="active",
-    ))
+    postgres.execute(
+        insert(users).values(
+            id=uuid4(),
+            nickname=f"u_{uuid4().hex}",
+            display_name="Existing",
+            email=email,
+            password_hash="existing-password",
+            status="active",
+        )
+    )
     with pytest.raises(ValueError, match="DEV_ACCOUNT_EMAIL_ALREADY_USED"):
         seed_dev_account(postgres, email, "new-password")
-    assert postgres.scalar(select(users.c.password_hash).where(users.c.email == email)) == "existing-password"
+    assert (
+        postgres.scalar(select(users.c.password_hash).where(users.c.email == email))
+        == "existing-password"
+    )

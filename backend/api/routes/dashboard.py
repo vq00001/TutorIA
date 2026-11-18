@@ -68,8 +68,9 @@ class NotificationsResponse(BaseModel):
     data: list[Notification]
 
 
-@router.get("/dashboard/summary", tags=["Dashboard"], response_model=DashboardResponse,
-            responses=_ERRORS)
+@router.get(
+    "/dashboard/summary", tags=["Dashboard"], response_model=DashboardResponse, responses=_ERRORS
+)
 def dashboard_summary(connection: AuthenticatedConnection) -> DashboardResponse:
     today = datetime.now(timezone.utc).date()
     first_day = today - timedelta(days=6)
@@ -78,12 +79,14 @@ def dashboard_summary(connection: AuthenticatedConnection) -> DashboardResponse:
         StudyDay(date=day, seconds=int(totals.get(day, 0)))
         for day in (first_day + timedelta(days=offset) for offset in range(7))
     ]
-    return DashboardResponse(data=DashboardSummary(
-        studyHours=sum(day.seconds for day in days) / 3600,
-        studyHoursByDay=[day.seconds / 3600 for day in days],
-        studyByDay=days,
-        pendingInvitations=len(list_my_invitations(connection)),
-    ))
+    return DashboardResponse(
+        data=DashboardSummary(
+            studyHours=sum(day.seconds for day in days) / 3600,
+            studyHoursByDay=[day.seconds / 3600 for day in days],
+            studyByDay=days,
+            pendingInvitations=len(list_my_invitations(connection)),
+        )
+    )
 
 
 @router.get("/activity", tags=["Activity"], response_model=ActivityResponse, responses=_ERRORS)
@@ -91,13 +94,21 @@ def activity_index(
     connection: AuthenticatedConnection,
     page: Annotated[int, Query(ge=1, le=2147483647)] = 1,
     pageSize: Annotated[int, Query(ge=1, le=100)] = 20,
-    type: Annotated[str | None, Query(min_length=1, max_length=40, pattern=r"^[a-z][a-z0-9_]*$")] = None,
+    type: Annotated[
+        str | None, Query(min_length=1, max_length=40, pattern=r"^[a-z][a-z0-9_]*$")
+    ] = None,
 ) -> ActivityResponse:
     rows, total = page_activity(connection, page=page, page_size=pageSize, entity_type=type)
     return ActivityResponse(
         data=[
-            Activity(id=row.id, courseId=row.course_id, action=row.action, type=row.entity_type,
-                     result=row.result, createdAt=row.created_at)
+            Activity(
+                id=row.id,
+                courseId=row.course_id,
+                action=row.action,
+                type=row.entity_type,
+                result=row.result,
+                createdAt=row.created_at,
+            )
             for row in rows
         ],
         meta=Pagination(page=page, pageSize=pageSize, total=total),
@@ -105,26 +116,41 @@ def activity_index(
 
 
 def _notifications(connection, course_id: UUID | None = None) -> NotificationsResponse:
-    return NotificationsResponse(data=[
-        Notification(
-            id=row.id, courseId=row.course_id, title="Invitación a una clase",
-            message=row.course_name, createdAt=row.created_at, expiresAt=row.expires_at,
-        )
-        for row in list_my_invitations(connection)
-        if course_id is None or row.course_id == course_id
-    ])
+    return NotificationsResponse(
+        data=[
+            Notification(
+                id=row.id,
+                courseId=row.course_id,
+                title="Invitación a una clase",
+                message=row.course_name,
+                createdAt=row.created_at,
+                expiresAt=row.expires_at,
+            )
+            for row in list_my_invitations(connection)
+            if course_id is None or row.course_id == course_id
+        ]
+    )
 
 
-@router.get("/notifications", tags=["Notifications"], response_model=NotificationsResponse,
-            responses=_ERRORS)
+@router.get(
+    "/notifications",
+    tags=["Notifications"],
+    response_model=NotificationsResponse,
+    responses=_ERRORS,
+)
 def notifications_index(connection: AuthenticatedConnection) -> NotificationsResponse:
     return _notifications(connection)
 
 
-@router.get("/courses/{courseId}/notifications", tags=["Notifications"],
-            response_model=NotificationsResponse, responses=_ERRORS)
+@router.get(
+    "/courses/{courseId}/notifications",
+    tags=["Notifications"],
+    response_model=NotificationsResponse,
+    responses=_ERRORS,
+)
 def course_notifications(
-    courseId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    connection: AuthenticatedConnection,
 ) -> NotificationsResponse | JSONResponse:
     result = _notifications(connection, courseId)
     if not result.data and get_member_course(connection, courseId) is None:

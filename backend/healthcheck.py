@@ -32,7 +32,9 @@ def check_postgres(username: str = "tutoria_worker") -> None:
             if connection.execute(text("SELECT 1")).scalar_one() != 1:
                 raise RuntimeError("PostgreSQL no respondió a SELECT 1")
             vector_installed = connection.execute(
-                text("SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_extension WHERE extname = 'vector')")
+                text(
+                    "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_extension WHERE extname = 'vector')"
+                )
             ).scalar_one()
             if not vector_installed:
                 raise RuntimeError("La extensión vector no está instalada")

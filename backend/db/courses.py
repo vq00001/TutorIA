@@ -326,8 +326,11 @@ def page_member_courses(
     visible = _member_courses().cte("visible_courses")
     total = select(func.count()).select_from(visible).scalar_subquery()
     window = (
-        select(visible).order_by(visible.c.created_at, visible.c.id)
-        .offset((page - 1) * page_size).limit(page_size).subquery()
+        select(visible)
+        .order_by(visible.c.created_at, visible.c.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .subquery()
     )
     counts = select(total.label("total")).subquery()
     statement = (

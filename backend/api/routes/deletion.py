@@ -36,7 +36,9 @@ def _request(connection, scope: str, subject: UUID) -> DeletionResponse | JSONRe
         if (state, primary) == ("23514", "LAST_COORDINATOR"):
             return error_response(409, primary, "La clase debe conservar un coordinador.")
         if state == "42501":
-            return error_response(403, "DELETION_FORBIDDEN", "La cuenta no puede solicitar el borrado.")
+            return error_response(
+                403, "DELETION_FORBIDDEN", "La cuenta no puede solicitar el borrado."
+            )
         raise
     return DeletionResponse(data=DeletionRequest(requestId=receipt))
 
@@ -49,9 +51,12 @@ def account_delete(connection: AuthenticatedConnection) -> DeletionResponse | JS
     return _request(connection, "account", actor.id)
 
 
-@router.delete("/courses/{courseId}", status_code=202, response_model=DeletionResponse,
-               responses=_ERRORS)
-def course_delete(courseId: UUID, connection: AuthenticatedConnection) -> DeletionResponse | JSONResponse:
+@router.delete(
+    "/courses/{courseId}", status_code=202, response_model=DeletionResponse, responses=_ERRORS
+)
+def course_delete(
+    courseId: UUID, connection: AuthenticatedConnection
+) -> DeletionResponse | JSONResponse:
     course = get_member_course(connection, courseId)
     if course is None:
         return error_response(404, "COURSE_NOT_FOUND", "Clase no encontrada.")

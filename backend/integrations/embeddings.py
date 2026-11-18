@@ -41,12 +41,10 @@ def embed(config: Config, texts: list[str], batch_size: int = 32) -> list[list[f
             raise TypeError(f"El AI gateway retornó embeddings inválidos: {body}")
         ordered = sorted(
             batch,
-            key=lambda item: item.get("index", -1)
-            if isinstance(item, dict) else -1,
+            key=lambda item: item.get("index", -1) if isinstance(item, dict) else -1,
         )
         if not all(
-            isinstance(item, dict) and isinstance(item.get("embedding"), list)
-            for item in ordered
+            isinstance(item, dict) and isinstance(item.get("embedding"), list) for item in ordered
         ):
             raise TypeError(f"El AI gateway retornó embeddings inválidos: {body}")
         vectors.extend([[float(value) for value in item["embedding"]] for item in ordered])

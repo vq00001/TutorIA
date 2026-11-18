@@ -5,6 +5,7 @@ Uso:
     python pdf_to_md.py documento.pdf
     python pdf_to_md.py documento.pdf -o salida.md
 """
+
 import re
 
 import ftfy
@@ -16,12 +17,13 @@ STRUCTURAL = re.compile(r"^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|\||>|```|---|===)")
 
 # Caracteres invisibles / de control / basura típica de PDFs
 JUNK_CHARS = re.compile(
-    "[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f"        # control (salvo \t \n \r)
-    "\u00ad"                                               # guion blando
-    "\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060\ufeff"   # ancho cero, bidi, BOM
-    "\ufffd"                                               # carácter de reemplazo
-    "\ue000-\uf8ff]"                                       # área de uso privado
+    "[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f"  # control (salvo \t \n \r)
+    "\u00ad"  # guion blando
+    "\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060\ufeff"  # ancho cero, bidi, BOM
+    "\ufffd"  # carácter de reemplazo
+    "\ue000-\uf8ff]"  # área de uso privado
 )
+
 
 class NotConvertible(Exception):
     """El archivo no se puede convertir; el mensaje es apto para mostrar al usuario."""

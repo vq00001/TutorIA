@@ -204,8 +204,10 @@ def publish_exam(
 
 def _exam_metadata(course_id: UUID):
     question_count = (
-        sa.select(sa.func.count()).select_from(questions)
-        .where(questions.c.exam_id == exams.c.id).scalar_subquery()
+        sa.select(sa.func.count())
+        .select_from(questions)
+        .where(questions.c.exam_id == exams.c.id)
+        .scalar_subquery()
     )
     return (
         sa.select(exams, question_count.label("question_count"))
@@ -217,9 +219,11 @@ def _exam_metadata(course_id: UUID):
 def list_exams(conn: Connection, course_id: UUID, *, limit: int = 50) -> list[RowMapping]:
     if not 1 <= limit <= 100:
         raise ValueError("limit debe estar entre 1 y 100")
-    statement = _exam_metadata(course_id).order_by(
-        exams.c.published_at.desc(), exams.c.id.desc()
-    ).limit(limit)
+    statement = (
+        _exam_metadata(course_id)
+        .order_by(exams.c.published_at.desc(), exams.c.id.desc())
+        .limit(limit)
+    )
     return list(conn.execute(statement).mappings())
 
 

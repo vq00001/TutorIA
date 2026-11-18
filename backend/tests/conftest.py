@@ -24,4 +24,3 @@ def postgres():
                 transaction.rollback()
     finally:
         engine.dispose()
-

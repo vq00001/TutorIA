@@ -110,9 +110,11 @@ def generate_graph_preview(
         parents, _ = chunk_text(source.text, source.title, config)
         if not parents:
             raise ValueError("EMPTY_GRAPH_SOURCE_FRAGMENTS")
-        input_details.append(PreviewInput(
-            source_id=source.source_id, title=source.title, fragment_count=len(parents)
-        ))
+        input_details.append(
+            PreviewInput(
+                source_id=source.source_id, title=source.title, fragment_count=len(parents)
+            )
+        )
         for parent in parents:
             identity = (source.source_id, parent.index)
             source_details[identity] = PreviewSource(
@@ -121,16 +123,20 @@ def generate_graph_preview(
                 chunk_index=parent.index,
                 section_path=list(parent.path),
             )
-            fragments.append({
-                "id": identity,
-                "text": parent.text,
-                "locator": {
-                    "title": source.title,
-                    "section": " > ".join(parent.path),
-                    "index": parent.index,
-                },
-                "token_estimate": max(1, count_tokens(parent.text, config.token_estimate_ratio)),
-            })
+            fragments.append(
+                {
+                    "id": identity,
+                    "text": parent.text,
+                    "locator": {
+                        "title": source.title,
+                        "section": " > ".join(parent.path),
+                        "index": parent.index,
+                    },
+                    "token_estimate": max(
+                        1, count_tokens(parent.text, config.token_estimate_ratio)
+                    ),
+                }
+            )
 
     original = extract_candidates(fragments, config.model_llm, remaining)
     candidates = original
@@ -141,7 +147,8 @@ def generate_graph_preview(
         )
     proposals = (
         propose_prerequisites(candidates, config.model_llm, remaining)
-        if include_prerequisites else []
+        if include_prerequisites
+        else []
     )
 
     refs_by_key = {key: f"N{index}" for index, key in enumerate(candidates, 1)}
@@ -151,9 +158,10 @@ def generate_graph_preview(
             ref=refs_by_key[key],
             label=candidate["label"],
             description=candidate["description"],
-            sources=[source_details[identity] for identity in sorted(
-                candidate["source_ids"], key=source_order.__getitem__
-            )],
+            sources=[
+                source_details[identity]
+                for identity in sorted(candidate["source_ids"], key=source_order.__getitem__)
+            ],
         )
         for key, candidate in candidates.items()
     ]

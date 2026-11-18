@@ -28,16 +28,26 @@ def test_dashboard_activity_and_notifications_use_private_data(postgres, monkeyp
     postgres.execute(insert(memberships).values(course_id=course, user_id=student, role="student"))
     _as_user(postgres, student)
     event = record_audit_event(
-        postgres, action="course.study", entity_type="course", request_id=uuid4(),
-        result="success", course_id=course,
+        postgres,
+        action="course.study",
+        entity_type="course",
+        request_id=uuid4(),
+        result="success",
+        course_id=course,
     )
     session = start_study_session(postgres, course)
     postgres.exec_driver_sql("RESET ROLE")
     now = postgres.scalar(select(func.clock_timestamp()))
-    postgres.execute(insert(study_intervals).values(
-        session_id=session, sequence_no=1, course_id=course, user_id=student,
-        start_at=now - timedelta(seconds=30), end_at=now,
-    ))
+    postgres.execute(
+        insert(study_intervals).values(
+            session_id=session,
+            sequence_no=1,
+            course_id=course,
+            user_id=student,
+            start_at=now - timedelta(seconds=30),
+            end_at=now,
+        )
+    )
     _as_user(postgres, owner)
     monkeypatch.setattr(dependencies, "transaction", lambda: nullcontext(postgres))
     client = TestClient(http_api.app)

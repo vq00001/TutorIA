@@ -19,7 +19,9 @@ def test_direct_chat_returns_gateway_answer(monkeypatch):
     course_id = uuid4()
     config = SimpleNamespace(model_llm="qwen3:1.7b")
     completion = Mock(return_value="Respuesta de Qwen")
-    monkeypatch.setattr(conversations, "get_member_course", lambda *_: SimpleNamespace(status="active"))
+    monkeypatch.setattr(
+        conversations, "get_member_course", lambda *_: SimpleNamespace(status="active")
+    )
     monkeypatch.setattr(conversations.Config, "from_env", lambda: config)
     monkeypatch.setattr(conversations, "chat_completion", completion)
 
@@ -49,7 +51,10 @@ def test_chat_replay_history_and_quota_rollback(postgres, monkeypatch):
     assert first.status_code == 202
     accepted = first.json()["data"]
     assert client.post(path, json=payload, headers=headers).json() == first.json()
-    assert client.post(path, json={**payload, "includeDocuments": True}, headers=headers).status_code == 409
+    assert (
+        client.post(path, json={**payload, "includeDocuments": True}, headers=headers).status_code
+        == 409
+    )
 
     detail = f"{path}/{accepted['conversationId']}"
     followup = {"question": "Segunda pregunta"}
@@ -57,19 +62,24 @@ def test_chat_replay_history_and_quota_rollback(postgres, monkeypatch):
     assert second.status_code == 202
     assert client.post(detail + "/messages", json=followup, headers=headers).json() == second.json()
     third = client.post(
-        detail + "/messages", json={"question": "Sin cupo"},
+        detail + "/messages",
+        json={"question": "Sin cupo"},
         headers=headers | {"Idempotency-Key": "third"},
     )
     assert third.status_code == 429
 
     history = client.get(detail, headers=headers, params={"limit": 1}).json()
     assert [message["content"] for message in history["messages"]] == [payload["question"]]
-    tail = client.get(detail, headers=headers, params={"afterSequence": history["nextAfterSequence"]})
+    tail = client.get(
+        detail, headers=headers, params={"afterSequence": history["nextAfterSequence"]}
+    )
     assert [message["content"] for message in tail.json()["messages"]] == [followup["question"]]
     assert client.get(path, headers=headers).json()["data"][0]["id"] == accepted["conversationId"]
     private_headers = {"Authorization": f"Bearer {outsider_token}", "Idempotency-Key": "first"}
     assert client.get(detail, headers=private_headers).status_code == 404
-    assert client.post(detail + "/messages", json=followup, headers=private_headers).status_code == 404
+    assert (
+        client.post(detail + "/messages", json=followup, headers=private_headers).status_code == 404
+    )
 
     _role(postgres, None, worker=True)
     job = claim_job(postgres, "chat", kinds=["generate_chat"])

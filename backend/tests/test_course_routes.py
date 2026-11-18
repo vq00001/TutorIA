@@ -29,7 +29,9 @@ def test_course_routes_use_authenticated_postgres_membership(postgres, monkeypat
     assert created.status_code == 201
     course = created.json()["data"]
     assert (course["name"], course["myRole"], course["ownerId"]) == (
-        "Álgebra", "coordinator", str(owner)
+        "Álgebra",
+        "coordinator",
+        str(owner),
     )
     path = f"/api/v1/courses/{course['id']}"
     assert client.get(path, headers=headers(owner)).json()["data"] == course

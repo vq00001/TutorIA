@@ -76,7 +76,9 @@ def test_document_upload_replay_listing_and_status(postgres, monkeypatch):
     assert client.get(path, headers=outsider_headers).status_code == 404
 
 
-def test_document_upload_accepts_text_and_pdfs_with_tables_or_images(postgres, monkeypatch, tmp_path):
+def test_document_upload_accepts_text_and_pdfs_with_tables_or_images(
+    postgres, monkeypatch, tmp_path
+):
     owner = _user(postgres)
     owner_token = issue_session(postgres, owner)
     _as_user(postgres, owner)
@@ -146,7 +148,8 @@ def test_document_detail_download_and_delete_follow_membership(postgres, monkeyp
     collection = f"/api/v1/courses/{course}/documents"
     original = "Árbol\n".encode()
     uploaded = client.post(
-        collection, files=[("files", ("guía.md", original, "text/markdown"))],
+        collection,
+        files=[("files", ("guía.md", original, "text/markdown"))],
         headers=headers(owner) | {"Idempotency-Key": "details"},
     )
     assert uploaded.status_code == 202

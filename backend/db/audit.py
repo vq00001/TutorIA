@@ -22,7 +22,9 @@ audit_events = sa.Table(
     sa.Column("result", sa.Text, nullable=False),
     sa.Column("metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
     sa.Column(
-        "created_at", sa.DateTime(timezone=True), nullable=False,
+        "created_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
         server_default=sa.func.clock_timestamp(),
     ),
     sa.CheckConstraint(
@@ -60,9 +62,13 @@ def record_audit_event(
     reason_code: str | None = None,
 ) -> UUID:
     """Registra un evento del usuario asociado a la transacción."""
-    return conn.scalar(sa.select(sa.func.app.record_user_audit(
-        course_id, action, entity_type, entity_id, request_id, result, reason_code
-    )))
+    return conn.scalar(
+        sa.select(
+            sa.func.app.record_user_audit(
+                course_id, action, entity_type, entity_id, request_id, result, reason_code
+            )
+        )
+    )
 
 
 def record_worker_audit_event(
@@ -77,9 +83,13 @@ def record_worker_audit_event(
     reason_code: str | None = None,
 ) -> UUID:
     """Registra un evento del worker sin atribuirlo a un usuario."""
-    return conn.scalar(sa.select(sa.func.app.record_worker_audit(
-        course_id, action, entity_type, entity_id, request_id, result, reason_code
-    )))
+    return conn.scalar(
+        sa.select(
+            sa.func.app.record_worker_audit(
+                course_id, action, entity_type, entity_id, request_id, result, reason_code
+            )
+        )
+    )
 
 
 def install_audit(conn: Connection) -> None:

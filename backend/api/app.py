@@ -53,5 +53,24 @@ async def invalid_session(_request: Request, _error: InvalidSession) -> JSONResp
     )
 
 
-for router in (account.router, auth.router, community.router, conversations.router, courses.router, dashboard.router, deletion.router, documents.router, exams.router, exam_attempts.router, graph_apply.router, graph_preview.router, health.router, jobs.router, learning.router, learning_gaps.router, materials.router, study_sessions.router):
+for router in (
+    account.router,
+    auth.router,
+    community.router,
+    conversations.router,
+    courses.router,
+    dashboard.router,
+    deletion.router,
+    documents.router,
+    exams.router,
+    exam_attempts.router,
+    graph_apply.router,
+    graph_preview.router,
+    health.router,
+    jobs.router,
+    learning.router,
+    learning_gaps.router,
+    materials.router,
+    study_sessions.router,
+):
     app.include_router(router, prefix="/api/v1")

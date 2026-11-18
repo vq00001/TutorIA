@@ -17,14 +17,18 @@ personal_nodes = sa.Table(
     sa.Column("user_id", sa.Uuid, nullable=False),
     sa.Column("label", sa.String(255), nullable=False),
     sa.Column(
-        "canonical_key", sa.Text,
+        "canonical_key",
+        sa.Text,
         sa.Computed(
             "lower(normalize(btrim(regexp_replace(label, '[[:space:]]+', ' ', 'g'))) "
             "COLLATE pg_catalog.pg_unicode_fast)"
-        ), nullable=False,
+        ),
+        nullable=False,
     ),
     sa.Column("description", sa.Text, nullable=False),
-    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.Column(
+        "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    ),
     sa.ForeignKeyConstraint(
         ["course_id", "user_id"],
         ["app.memberships.course_id", "app.memberships.user_id"],
@@ -45,7 +49,9 @@ personal_recommendations = sa.Table(
     sa.Column("existing_concept_id", sa.Uuid),
     sa.Column("personal_node_id", sa.Uuid),
     sa.Column("reason", sa.Text, nullable=False),
-    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.Column(
+        "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    ),
     sa.ForeignKeyConstraint(
         ["course_id", "user_id"],
         ["app.memberships.course_id", "app.memberships.user_id"],
@@ -63,8 +69,11 @@ personal_recommendations = sa.Table(
     ),
     sa.ForeignKeyConstraint(
         ["course_id", "user_id", "personal_node_id"],
-        ["app.personal_graph_nodes.course_id", "app.personal_graph_nodes.user_id",
-         "app.personal_graph_nodes.id"],
+        [
+            "app.personal_graph_nodes.course_id",
+            "app.personal_graph_nodes.user_id",
+            "app.personal_graph_nodes.id",
+        ],
         ondelete="CASCADE",
     ),
     sa.CheckConstraint(
@@ -78,15 +87,21 @@ personal_recommendations = sa.Table(
     sa.CheckConstraint("length(btrim(reason)) > 0", name="personal_graph_reason_present"),
 )
 sa.Index(
-    "personal_graph_existing_pair", personal_recommendations.c.course_id,
-    personal_recommendations.c.user_id, personal_recommendations.c.target_concept_id,
-    personal_recommendations.c.existing_concept_id, unique=True,
+    "personal_graph_existing_pair",
+    personal_recommendations.c.course_id,
+    personal_recommendations.c.user_id,
+    personal_recommendations.c.target_concept_id,
+    personal_recommendations.c.existing_concept_id,
+    unique=True,
     postgresql_where=personal_recommendations.c.existing_concept_id.is_not(None),
 )
 sa.Index(
-    "personal_graph_new_pair", personal_recommendations.c.course_id,
-    personal_recommendations.c.user_id, personal_recommendations.c.target_concept_id,
-    personal_recommendations.c.personal_node_id, unique=True,
+    "personal_graph_new_pair",
+    personal_recommendations.c.course_id,
+    personal_recommendations.c.user_id,
+    personal_recommendations.c.target_concept_id,
+    personal_recommendations.c.personal_node_id,
+    unique=True,
     postgresql_where=personal_recommendations.c.personal_node_id.is_not(None),
 )
 
@@ -94,33 +109,62 @@ sa.Index(
 def create_personal_node(
     conn: Connection, course_id: UUID, user_id: UUID, *, label: str, description: str
 ) -> UUID:
-    return conn.execute(sa.insert(personal_nodes).values(
-        id=uuid4(), course_id=course_id, user_id=user_id,
-        label=label, description=description,
-    ).returning(personal_nodes.c.id)).scalar_one()
+    return conn.execute(
+        sa.insert(personal_nodes)
+        .values(
+            id=uuid4(),
+            course_id=course_id,
+            user_id=user_id,
+            label=label,
+            description=description,
+        )
+        .returning(personal_nodes.c.id)
+    ).scalar_one()
 
 
 def create_personal_recommendation(
-    conn: Connection, course_id: UUID, user_id: UUID, *, target_concept_id: UUID,
-    existing_concept_id: UUID | None, personal_node_id: UUID | None, reason: str,
+    conn: Connection,
+    course_id: UUID,
+    user_id: UUID,
+    *,
+    target_concept_id: UUID,
+    existing_concept_id: UUID | None,
+    personal_node_id: UUID | None,
+    reason: str,
 ) -> UUID:
-    return conn.execute(sa.insert(personal_recommendations).values(
-        id=uuid4(), course_id=course_id, user_id=user_id,
-        target_concept_id=target_concept_id, existing_concept_id=existing_concept_id,
-        personal_node_id=personal_node_id, reason=reason,
-    ).returning(personal_recommendations.c.id)).scalar_one()
+    return conn.execute(
+        sa.insert(personal_recommendations)
+        .values(
+            id=uuid4(),
+            course_id=course_id,
+            user_id=user_id,
+            target_concept_id=target_concept_id,
+            existing_concept_id=existing_concept_id,
+            personal_node_id=personal_node_id,
+            reason=reason,
+        )
+        .returning(personal_recommendations.c.id)
+    ).scalar_one()
 
 
 def list_personal_nodes(conn: Connection, course_id: UUID) -> list[RowMapping]:
-    return list(conn.execute(sa.select(personal_nodes).where(
-        personal_nodes.c.course_id == course_id
-    ).order_by(personal_nodes.c.canonical_key)).mappings())
+    return list(
+        conn.execute(
+            sa.select(personal_nodes)
+            .where(personal_nodes.c.course_id == course_id)
+            .order_by(personal_nodes.c.canonical_key)
+        ).mappings()
+    )
 
 
 def list_personal_recommendations(conn: Connection, course_id: UUID) -> list[RowMapping]:
-    return list(conn.execute(sa.select(personal_recommendations).where(
-        personal_recommendations.c.course_id == course_id
-    ).order_by(personal_recommendations.c.created_at, personal_recommendations.c.id)).mappings())
+    return list(
+        conn.execute(
+            sa.select(personal_recommendations)
+            .where(personal_recommendations.c.course_id == course_id)
+            .order_by(personal_recommendations.c.created_at, personal_recommendations.c.id)
+        ).mappings()
+    )
 
 
 def install_personal_graph(conn: Connection) -> None:

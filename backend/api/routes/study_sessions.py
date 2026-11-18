@@ -43,8 +43,11 @@ class StudySessionListResponse(BaseModel):
 
 def _session(row) -> StudySession:
     return StudySession(
-        id=row.id, courseId=row.course_id, startedAt=row.started_at,
-        lastHeartbeatAt=row.last_heartbeat_at, endedAt=row.ended_at,
+        id=row.id,
+        courseId=row.course_id,
+        startedAt=row.started_at,
+        lastHeartbeatAt=row.last_heartbeat_at,
+        endedAt=row.ended_at,
         activeSeconds=row.active_seconds,
     )
 
@@ -62,26 +65,30 @@ def _detail(connection, course_id: UUID, session_id: UUID) -> StudySessionRespon
 
 @router.get("", response_model=StudySessionListResponse, responses=_ERRORS)
 def sessions_index(
-    courseId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    connection: AuthenticatedConnection,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> StudySessionListResponse | JSONResponse:
     if get_member_course(connection, courseId) is None:
         return _not_found()
-    return StudySessionListResponse(data=[
-        _session(row) for row in list_study_sessions(connection, courseId, limit=limit)
-    ])
+    return StudySessionListResponse(
+        data=[_session(row) for row in list_study_sessions(connection, courseId, limit=limit)]
+    )
 
 
 @router.get("/{sessionId}", response_model=StudySessionResponse, responses=_ERRORS)
 def sessions_detail(
-    courseId: UUID, sessionId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    sessionId: UUID,
+    connection: AuthenticatedConnection,
 ) -> StudySessionResponse | JSONResponse:
     return _detail(connection, courseId, sessionId)
 
 
 @router.post("", response_model=StudySessionResponse, responses=_WRITE_ERRORS)
 def sessions_start(
-    courseId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    connection: AuthenticatedConnection,
 ) -> StudySessionResponse | JSONResponse:
     if get_member_course(connection, courseId) is None:
         return _not_found()
@@ -111,13 +118,17 @@ def _update(connection, course_id: UUID, session_id: UUID, *, finish: bool):
 
 @router.post("/{sessionId}/heartbeat", response_model=StudySessionResponse, responses=_WRITE_ERRORS)
 def sessions_heartbeat(
-    courseId: UUID, sessionId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    sessionId: UUID,
+    connection: AuthenticatedConnection,
 ) -> StudySessionResponse | JSONResponse:
     return _update(connection, courseId, sessionId, finish=False)
 
 
 @router.post("/{sessionId}/finish", response_model=StudySessionResponse, responses=_WRITE_ERRORS)
 def sessions_finish(
-    courseId: UUID, sessionId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    sessionId: UUID,
+    connection: AuthenticatedConnection,
 ) -> StudySessionResponse | JSONResponse:
     return _update(connection, courseId, sessionId, finish=True)

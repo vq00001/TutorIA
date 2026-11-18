@@ -10,7 +10,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("file", type=Path)
     parser.add_argument(
-        "--target-concepts", type=int,
+        "--target-concepts",
+        type=int,
         help="objetivo aproximado de nodos tras fusionar conceptos solapados",
     )
     parser.add_argument(
@@ -37,8 +38,10 @@ def main():
         original_count = len(preview.nodes) + sum(
             len(merge.from_labels) - 1 for merge in preview.merges
         )
-        print(f"Consolidación: {original_count} → {len(preview.nodes)} nodos; "
-              f"{len(preview.merges)} grupos fusionados")
+        print(
+            f"Consolidación: {original_count} → {len(preview.nodes)} nodos; "
+            f"{len(preview.merges)} grupos fusionados"
+        )
         for merge in preview.merges:
             print(f"  {', '.join(merge.from_labels)} → {labels[merge.to_ref]}")
 
@@ -48,8 +51,10 @@ def main():
         print(f"   {node.description}")
         for source in node.sources:
             section = " > ".join(source.section_path) or "sin sección"
-            print(f"   Fuente: {source.title}, {section}, "
-                  f"fragmento {source.chunk_index + 1} ({source.source_id})")
+            print(
+                f"   Fuente: {source.title}, {section}, "
+                f"fragmento {source.chunk_index + 1} ({source.source_id})"
+            )
 
     if args.with_prerequisites:
         print(f"\nDependencias propuestas: {len(preview.edges)}")

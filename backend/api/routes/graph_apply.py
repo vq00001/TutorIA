@@ -51,12 +51,16 @@ def graph_apply(courseId: UUID, proposal: GraphPreview, connection: Authenticate
     if course.my_role != "coordinator" or course.status != "active":
         return error_response(403, "GRAPH_APPLY_FORBIDDEN", "La clase no admite esta operación.")
     if not _valid_proposal(proposal):
-        return error_response(422, "INVALID_GRAPH_PROPOSAL", "Revisa los nodos y relaciones de la propuesta.")
+        return error_response(
+            422, "INVALID_GRAPH_PROPOSAL", "Revisa los nodos y relaciones de la propuesta."
+        )
 
     try:
         with connection.begin_nested():
             # Serializa las importaciones a esta clase y evita dos grafos iniciales simultáneos.
-            connection.execute(select(courses.c.id).where(courses.c.id == courseId).with_for_update())
+            connection.execute(
+                select(courses.c.id).where(courses.c.id == courseId).with_for_update()
+            )
             if list_concepts(connection, courseId):
                 return error_response(409, "GRAPH_ALREADY_EXISTS", "La clase ya tiene un grafo.")
             ids = {
@@ -71,10 +75,16 @@ def graph_apply(courseId: UUID, proposal: GraphPreview, connection: Authenticate
         code = getattr(exc.orig, "sqlstate", None)
         primary = getattr(getattr(exc.orig, "diag", None), "message_primary", None)
         if code == "42501":
-            return error_response(403, "GRAPH_APPLY_FORBIDDEN", "La clase no admite esta operación.")
+            return error_response(
+                403, "GRAPH_APPLY_FORBIDDEN", "La clase no admite esta operación."
+            )
         if code == "23505" or primary == "PREREQUISITE_CYCLE":
-            return error_response(409, "GRAPH_APPLY_CONFLICT", "La propuesta entra en conflicto con el grafo.")
+            return error_response(
+                409, "GRAPH_APPLY_CONFLICT", "La propuesta entra en conflicto con el grafo."
+            )
         if code in ("23503", "23514", "22001"):
-            return error_response(422, "INVALID_GRAPH_PROPOSAL", "Revisa los nodos y relaciones de la propuesta.")
+            return error_response(
+                422, "INVALID_GRAPH_PROPOSAL", "Revisa los nodos y relaciones de la propuesta."
+            )
         raise
     return ApplyResponse(data=AppliedGraph(conceptIdsByRef=ids, edgeCount=len(proposal.edges)))

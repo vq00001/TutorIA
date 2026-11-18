@@ -21,11 +21,17 @@ def _request(concept_id):
 
 def _setup(monkeypatch):
     concepts = [
-        SimpleNamespace(id=uuid4(), label="Integral doble", description="Integración sobre una región"),
+        SimpleNamespace(
+            id=uuid4(), label="Integral doble", description="Integración sobre una región"
+        ),
         SimpleNamespace(id=uuid4(), label="Jacobiano", description="Cambio de variables"),
     ]
-    state = {"transaction_open": False, "course": SimpleNamespace(status="active"),
-             "concepts": concepts, "user_id": uuid4()}
+    state = {
+        "transaction_open": False,
+        "course": SimpleNamespace(status="active"),
+        "concepts": concepts,
+        "user_id": uuid4(),
+    }
 
     @contextmanager
     def fake_transaction():
@@ -40,9 +46,12 @@ def _setup(monkeypatch):
     monkeypatch.setattr(learning_gaps, "set_user_context", lambda *_: None)
     monkeypatch.setattr(learning_gaps, "get_member_course", lambda *_: state["course"])
     monkeypatch.setattr(learning_gaps, "list_concepts", lambda *_: state["concepts"])
-    return state, TestClient(http_api.app), f"/api/v1/courses/{uuid4()}/knowledge-graph/learning-gaps/preview", {
-        "Authorization": f"Bearer {'A' * 43}"
-    }
+    return (
+        state,
+        TestClient(http_api.app),
+        f"/api/v1/courses/{uuid4()}/knowledge-graph/learning-gaps/preview",
+        {"Authorization": f"Bearer {'A' * 43}"},
+    )
 
 
 def test_preview_maps_real_ids_and_closes_transaction_before_model(monkeypatch):
@@ -54,13 +63,29 @@ def test_preview_maps_real_ids_and_closes_transaction_before_model(monkeypatch):
         calls.append((nodes, scores, threshold))
         return {
             "weak": {"C2": {"correct": 2, "total": 10}},
-            "new_nodes": [{"ref": "N1", "label": "Determinantes",
-                           "description": "Álgebra lineal", "status": "hypothesis"}],
+            "new_nodes": [
+                {
+                    "ref": "N1",
+                    "label": "Determinantes",
+                    "description": "Álgebra lineal",
+                    "status": "hypothesis",
+                }
+            ],
             "recommendations": [
-                {"target_ref": "C2", "node_ref": "N1", "kind": "new",
-                 "reason": "Base posible", "status": "hypothesis"},
-                {"target_ref": "C2", "node_ref": "C1", "kind": "existing",
-                 "reason": "Repasar integrales", "status": "hypothesis"},
+                {
+                    "target_ref": "C2",
+                    "node_ref": "N1",
+                    "kind": "new",
+                    "reason": "Base posible",
+                    "status": "hypothesis",
+                },
+                {
+                    "target_ref": "C2",
+                    "node_ref": "C1",
+                    "kind": "existing",
+                    "reason": "Repasar integrales",
+                    "status": "hypothesis",
+                },
             ],
             "discarded": 0,
         }
@@ -69,28 +94,38 @@ def test_preview_maps_real_ids_and_closes_transaction_before_model(monkeypatch):
     assert client.post(url, json=_request(state["concepts"][1].id)).status_code == 401
     response = client.post(url, json=_request(state["concepts"][1].id), headers=headers)
     assert response.status_code == 200
-    assert calls == [(
-        [{"label": concept.label, "description": concept.description} for concept in state["concepts"]],
-        {"C2": {"correct": 2, "total": 10}}, 0.4,
-    )]
+    assert calls == [
+        (
+            [
+                {"label": concept.label, "description": concept.description}
+                for concept in state["concepts"]
+            ],
+            {"C2": {"correct": 2, "total": 10}},
+            0.4,
+        )
+    ]
     data = response.json()["data"]
     assert data["userId"] == str(state["user_id"])
-    assert data["weak"] == [{"conceptId": str(state["concepts"][1].id),
-                             "correct": 2, "total": 10}]
+    assert data["weak"] == [{"conceptId": str(state["concepts"][1].id), "correct": 2, "total": 10}]
     assert data["newNodes"][0]["label"] == "Determinantes"
     assert data["recommendations"][0]["newNodeRef"] == "N1"
     assert data["recommendations"][0]["existingConceptId"] is None
     assert data["recommendations"][1]["existingConceptId"] == str(state["concepts"][0].id)
     assert data["recommendations"][1]["newNodeRef"] is None
-    assert all(item["targetConceptId"] == str(state["concepts"][1].id)
-               for item in data["recommendations"])
+    assert all(
+        item["targetConceptId"] == str(state["concepts"][1].id) for item in data["recommendations"]
+    )
 
 
 def test_preview_rejects_unknown_or_invalid_scores_and_inactive_course(monkeypatch):
     state, client, url, headers = _setup(monkeypatch)
-    monkeypatch.setattr(learning_gaps, "infer_gaps", lambda *_: (_ for _ in ()).throw(
-        AssertionError("El modelo no debe recibir entradas inválidas")
-    ))
+    monkeypatch.setattr(
+        learning_gaps,
+        "infer_gaps",
+        lambda *_: (_ for _ in ()).throw(
+            AssertionError("El modelo no debe recibir entradas inválidas")
+        ),
+    )
     assert client.post(url, json=_request(uuid4()), headers=headers).status_code == 422
     duplicate = _request(state["concepts"][1].id)
     duplicate["results"] *= 2
@@ -99,7 +134,9 @@ def test_preview_rejects_unknown_or_invalid_scores_and_inactive_course(monkeypat
     invalid["results"][0]["correct"] = 11
     assert client.post(url, json=invalid, headers=headers).status_code == 422
     state["course"] = SimpleNamespace(status="archived")
-    assert client.post(url, json=_request(state["concepts"][1].id), headers=headers).status_code == 403
+    assert (
+        client.post(url, json=_request(state["concepts"][1].id), headers=headers).status_code == 403
+    )
 
 
 def test_preview_maps_model_connection_error(monkeypatch):
@@ -144,9 +181,16 @@ def test_preview_reads_only_the_authenticated_members_course_graph(postgres, mon
     response = client.post(url, json=_request(second), headers=peer)
     assert response.status_code == 200
     assert response.json()["data"]["userId"] == str(student)
-    assert response.json()["data"]["weak"] == [{"conceptId": str(second),
-                                                 "correct": 2, "total": 10}]
-    assert received == [([
-        {"label": "Integral doble", "description": "Integrar"},
-        {"label": "Jacobiano", "description": "Cambio de variables"},
-    ], {"C2": {"correct": 2, "total": 10}}, 0.4)]
+    assert response.json()["data"]["weak"] == [
+        {"conceptId": str(second), "correct": 2, "total": 10}
+    ]
+    assert received == [
+        (
+            [
+                {"label": "Integral doble", "description": "Integrar"},
+                {"label": "Jacobiano", "description": "Cambio de variables"},
+            ],
+            {"C2": {"correct": 2, "total": 10}},
+            0.4,
+        )
+    ]

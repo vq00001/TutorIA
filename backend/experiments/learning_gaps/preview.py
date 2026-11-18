@@ -5,7 +5,9 @@ from pathlib import Path
 
 from backend.knowledge_graph.learning_gaps import infer_gaps, load_inputs
 
-DEFAULT_NODES = Path(__file__).resolve().parents[1] / "fixtures" / "integracion_multivariable_nodes.json"
+DEFAULT_NODES = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "integracion_multivariable_nodes.json"
+)
 DEFAULT_SCORES = Path(__file__).with_name("scores.json")
 
 
@@ -29,8 +31,10 @@ def main():
     print(f"Recomendaciones de repaso: {len(result['recommendations'])}")
     for recommendation in result["recommendations"]:
         kind = "Tema nuevo" if recommendation["kind"] == "new" else "Concepto existente"
-        print(f"  Para {names[recommendation['target_ref']]}: {kind}: "
-              f"{names[recommendation['node_ref']]} — {recommendation['reason']}")
+        print(
+            f"  Para {names[recommendation['target_ref']]}: {kind}: "
+            f"{names[recommendation['node_ref']]} — {recommendation['reason']}"
+        )
     print(f"Respuestas o sugerencias descartadas: {result['discarded']}")
     print("Hipótesis no confirmadas; no se guardó ni modificó el grafo del curso.")
 

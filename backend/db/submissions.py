@@ -25,9 +25,9 @@ class CourseUnavailable(PermissionError):
 
 
 def _submit(conn, course_id, operation, key, fingerprint, create):
-    visible = conn.scalar(select(courses.c.id).where(
-        courses.c.id == course_id, courses.c.status == "active"
-    ))
+    visible = conn.scalar(
+        select(courses.c.id).where(courses.c.id == course_id, courses.c.status == "active")
+    )
     if visible is None:
         raise CourseUnavailable("COURSE_UNAVAILABLE")
     try:
@@ -45,8 +45,14 @@ def _submit(conn, course_id, operation, key, fingerprint, create):
 
 
 def enqueue_upload(
-    conn: Connection, course_id: UUID, *, filename: str, mime_type: str,
-    data: bytes, deadline_at: datetime, **metadata,
+    conn: Connection,
+    course_id: UUID,
+    *,
+    filename: str,
+    mime_type: str,
+    data: bytes,
+    deadline_at: datetime,
+    **metadata,
 ) -> dict[str, str | None]:
     """Guarda y encola una carga dentro de la transacción del llamador."""
     document = register_upload(
@@ -55,8 +61,12 @@ def enqueue_upload(
     if document is None:
         return {"document_id": None, "job_id": None}
     job = enqueue_job(
-        conn, course_id, kind="ingest_document", target_id=document,
-        idempotency_key=str(document), deadline_at=deadline_at,
+        conn,
+        course_id,
+        kind="ingest_document",
+        target_id=document,
+        idempotency_key=str(document),
+        deadline_at=deadline_at,
     )
     return {"document_id": str(document), "job_id": str(job)}
 
@@ -77,16 +87,24 @@ def submit_upload(
 ) -> dict[str, str | None]:
     """Guarda el original y encola ingestión. Un duplicado por bytes no genera trabajo."""
     fields = {
-        "filename": filename, "mime_type": mime_type, "subject": subject,
-        "title": title or filename, "description": description, "authors": list(authors or []),
+        "filename": filename,
+        "mime_type": mime_type,
+        "subject": subject,
+        "title": title or filename,
+        "description": description,
+        "authors": list(authors or []),
     }
 
     def create(active: Connection) -> dict[str, str | None]:
         return enqueue_upload(active, course_id, data=data, deadline_at=deadline_at, **fields)
 
     return _submit(
-        conn, course_id, "ingest_document", key,
-        {**fields, "sha256": sha256(data).hexdigest()}, create,
+        conn,
+        course_id,
+        "ingest_document",
+        key,
+        {**fields, "sha256": sha256(data).hexdigest()},
+        create,
     )
 
 
@@ -110,15 +128,22 @@ def submit_generation(
         raise TypeError("INVALID_JOB_PAYLOAD")
     job_kind = "generate_chat" if kind == "chat" else "generate_exam"
     model = {
-        "provider": provider, "model_name": model_name,
-        "model_revision": model_revision, "prompt_version": prompt_version,
+        "provider": provider,
+        "model_name": model_name,
+        "model_revision": model_revision,
+        "prompt_version": prompt_version,
     }
 
     def create(active: Connection) -> dict[str, str]:
         generation = start_generation(active, course_id, kind=kind, **model)
         job = enqueue_job(
-            active, course_id, kind=job_kind, target_id=generation, payload=payload,
-            idempotency_key=str(generation), deadline_at=deadline_at,
+            active,
+            course_id,
+            kind=job_kind,
+            target_id=generation,
+            payload=payload,
+            idempotency_key=str(generation),
+            deadline_at=deadline_at,
         )
         return {"generation_id": str(generation), "job_id": str(job)}
 

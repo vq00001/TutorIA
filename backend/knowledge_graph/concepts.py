@@ -76,8 +76,5 @@ def extract_candidates(sources, model, remaining):
                     "description": concept.description.strip(),
                     "source_ids": set(),
                 }
-            candidates[key]["source_ids"].update(
-                source_ids[ref] for ref in concept.sourceRefs
-            )
+            candidates[key]["source_ids"].update(source_ids[ref] for ref in concept.sourceRefs)
     return candidates
-

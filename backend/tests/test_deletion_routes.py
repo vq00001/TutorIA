@@ -38,7 +38,8 @@ def test_edit_and_delete_course_account_and_conversation(postgres, monkeypatch):
     assert client.delete("/api/v1/users/me", headers=own).status_code == 409
 
     chat = client.post(
-        base + "/conversations", json={"question": "Hola"},
+        base + "/conversations",
+        json={"question": "Hola"},
         headers=peer | {"Idempotency-Key": "chat-delete"},
     )
     assert chat.status_code == 202
@@ -58,12 +59,21 @@ def test_edit_and_delete_course_account_and_conversation(postgres, monkeypatch):
     assert account_request.status_code == 202
     assert client.get("/api/v1/users/me", headers=peer).status_code == 401
     postgres.exec_driver_sql("RESET ROLE")
-    requests = postgres.execute(select(deletion_requests).where(
-        deletion_requests.c.id.in_([
-            UUID(course_request.json()["data"]["requestId"]),
-            UUID(account_request.json()["data"]["requestId"]),
-        ])
-    )).mappings().all()
+    requests = (
+        postgres.execute(
+            select(deletion_requests).where(
+                deletion_requests.c.id.in_(
+                    [
+                        UUID(course_request.json()["data"]["requestId"]),
+                        UUID(account_request.json()["data"]["requestId"]),
+                    ]
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
     assert {(row.scope, row.subject_id, row.completed_at) for row in requests} == {
-        ("course", course, None), ("account", student, None),
+        ("course", course, None),
+        ("account", student, None),
     }

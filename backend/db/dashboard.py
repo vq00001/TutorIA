@@ -30,11 +30,19 @@ def page_activity(conn: Connection, *, page: int, page_size: int, entity_type: s
     visible = visible.cte("visible_activity")
     count = sa.select(sa.func.count().label("total")).select_from(visible).subquery()
     items = (
-        sa.select(visible).order_by(visible.c.created_at.desc(), visible.c.id.desc())
-        .offset((page - 1) * page_size).limit(page_size).subquery()
+        sa.select(visible)
+        .order_by(visible.c.created_at.desc(), visible.c.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .subquery()
     )
-    rows = conn.execute(
-        sa.select(items, count.c.total).select_from(count.outerjoin(items, sa.true()))
-        .order_by(items.c.created_at.desc(), items.c.id.desc())
-    ).mappings().all()
+    rows = (
+        conn.execute(
+            sa.select(items, count.c.total)
+            .select_from(count.outerjoin(items, sa.true()))
+            .order_by(items.c.created_at.desc(), items.c.id.desc())
+        )
+        .mappings()
+        .all()
+    )
     return [row for row in rows if row.id is not None], rows[0].total

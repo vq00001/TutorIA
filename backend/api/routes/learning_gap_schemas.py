@@ -120,8 +120,10 @@ class AcceptGapRequest(GapModel):
         labels = [normalized(node.label) for node in self.new_nodes]
         if any(not label for label in labels) or len(set(labels)) != len(labels):
             raise ValueError("DUPLICATE_OR_EMPTY_PERSONAL_NODE")
-        pairs = [(item.target_concept_id, item.existing_concept_id or item.new_node_ref)
-                 for item in self.recommendations]
+        pairs = [
+            (item.target_concept_id, item.existing_concept_id or item.new_node_ref)
+            for item in self.recommendations
+        ]
         if len(set(pairs)) != len(pairs):
             raise ValueError("DUPLICATE_GAP_RECOMMENDATION")
         return self
@@ -187,5 +189,3 @@ class PersonalizedGraph(GapModel):
 
 class PersonalizedGraphResponse(GapModel):
     data: PersonalizedGraph
-
-

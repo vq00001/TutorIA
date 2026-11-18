@@ -22,6 +22,7 @@ def config(**changes):
 
 def test_every_fragment_of_every_text_is_sent_and_keeps_its_source(monkeypatch):
     settings = config()
+
     def text_with_paragraphs(prefix):
         return "\n\n".join(
             " ".join(f"{prefix}{index}" for index in range(start, start + 30))
@@ -38,10 +39,15 @@ def test_every_fragment_of_every_text_is_sent_and_keeps_its_source(monkeypatch):
 
     def fake_model_json(_model, _prompt, batch, _remaining):
         received.extend(batch)
-        return {"concepts": [
-            {"label": "Tema compartido", "description": "Presente en ambos textos",
-             "sourceRefs": [item["ref"] for item in batch]}
-        ]}
+        return {
+            "concepts": [
+                {
+                    "label": "Tema compartido",
+                    "description": "Presente en ambos textos",
+                    "sourceRefs": [item["ref"] for item in batch],
+                }
+            ]
+        }
 
     monkeypatch.setattr(concepts, "model_json", fake_model_json)
     monkeypatch.setattr(concepts, "MAX_BATCH_TOKENS", 35)
@@ -70,27 +76,58 @@ def test_merges_sources_across_texts_and_links_final_node_refs(monkeypatch):
     ]
 
     def fake_concepts(_model, _prompt, batch, _remaining):
-        return {"concepts": [
-            {"label": "Integración doble", "description": "Primera formulación", "sourceRefs": ["S1"]},
-            {"label": "Integral doble", "description": "Segunda formulación", "sourceRefs": ["S2"]},
-            {"label": "Jacobiano", "description": "Cambio de variables", "sourceRefs": ["S3"]},
-        ]}
+        return {
+            "concepts": [
+                {
+                    "label": "Integración doble",
+                    "description": "Primera formulación",
+                    "sourceRefs": ["S1"],
+                },
+                {
+                    "label": "Integral doble",
+                    "description": "Segunda formulación",
+                    "sourceRefs": ["S2"],
+                },
+                {"label": "Jacobiano", "description": "Cambio de variables", "sourceRefs": ["S3"]},
+            ]
+        }
 
     monkeypatch.setattr(concepts, "model_json", fake_concepts)
-    monkeypatch.setattr(consolidation, "model_json", lambda *_: {"merges": [{
-        "refs": ["C1", "C2"], "label": "Integral doble", "description": "Integral en dos variables",
-        "reason": "Son el mismo concepto",
-    }]})
-    monkeypatch.setattr(prerequisites, "model_json", lambda *_: {"prerequisites": [{
-        "sourceRef": "C1", "targetRef": "C2", "reason": "Cambio de variables",
-    }]})
+    monkeypatch.setattr(
+        consolidation,
+        "model_json",
+        lambda *_: {
+            "merges": [
+                {
+                    "refs": ["C1", "C2"],
+                    "label": "Integral doble",
+                    "description": "Integral en dos variables",
+                    "reason": "Son el mismo concepto",
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        prerequisites,
+        "model_json",
+        lambda *_: {
+            "prerequisites": [
+                {
+                    "sourceRef": "C1",
+                    "targetRef": "C2",
+                    "reason": "Cambio de variables",
+                }
+            ]
+        },
+    )
 
     result = generate_graph_preview(
         sources, config(), target_concepts=2, include_prerequisites=True
     )
 
     assert [(node.ref, node.label) for node in result.nodes] == [
-        ("N1", "Jacobiano"), ("N2", "Integral doble")
+        ("N1", "Jacobiano"),
+        ("N2", "Integral doble"),
     ]
     assert [source.source_id for source in result.nodes[1].sources] == ["uno", "dos"]
     assert result.merges[0].from_labels == ["Integración doble", "Integral doble"]

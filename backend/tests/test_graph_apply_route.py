@@ -16,7 +16,10 @@ def _proposal(edges=None, labels=("Integral doble", "Jacobiano")):
         "model": "test-model",
         "inputs": [{"sourceId": "apunte", "title": "Apunte", "fragmentCount": 1}],
         "parameters": {"targetConcepts": None, "includePrerequisites": bool(edges)},
-        "stages": {"consolidation": "skipped", "prerequisites": "completed" if edges else "skipped"},
+        "stages": {
+            "consolidation": "skipped",
+            "prerequisites": "completed" if edges else "skipped",
+        },
         "nodes": [
             {"ref": f"N{i}", "label": label, "description": f"Descripción {i}", "sources": []}
             for i, label in enumerate(labels, 1)
@@ -52,9 +55,7 @@ def test_apply_persists_initial_graph_once_and_rejects_student(postgres, monkeyp
     assert response.json()["data"]["edgeCount"] == 1
     graph = client.get(base, headers=own).json()["data"]
     assert {node["key"] for node in graph["nodes"]} == set(ids.values())
-    assert [(edge["source"], edge["target"]) for edge in graph["edges"]] == [
-        (ids["N2"], ids["N1"])
-    ]
+    assert [(edge["source"], edge["target"]) for edge in graph["edges"]] == [(ids["N2"], ids["N1"])]
     assert client.post(base + "/apply", json=proposal, headers=own).status_code == 409
     assert len(client.get(base, headers=own).json()["data"]["nodes"]) == 2
 

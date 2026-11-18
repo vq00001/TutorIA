@@ -161,7 +161,9 @@ def get_roadmap(
     conn: Connection, course_id: UUID, goal_id: UUID, roadmap_id: UUID
 ) -> RowMapping | None:
     stmt = sa.select(roadmaps).where(
-        roadmaps.c.course_id == course_id, roadmaps.c.goal_id == goal_id, roadmaps.c.id == roadmap_id
+        roadmaps.c.course_id == course_id,
+        roadmaps.c.goal_id == goal_id,
+        roadmaps.c.id == roadmap_id,
     )
     return conn.execute(stmt).mappings().one_or_none()
 

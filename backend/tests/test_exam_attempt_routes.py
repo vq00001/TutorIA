@@ -35,11 +35,15 @@ def test_attempt_routes_start_submit_and_return_private_result(postgres, monkeyp
 
     invalid = {"answers": [{"questionId": str(uuid4())}]}
     assert client.post(path + "/submissions", json=invalid, headers=headers).status_code == 422
-    payload = {"answers": [
-        {"questionId": str(first.id),
-         "selectedOptionIds": [first.options[0]["id"], first.options[2]["id"]]},
-        {"questionId": str(second.id), "textAnswer": "Mi explicación"},
-    ]}
+    payload = {
+        "answers": [
+            {
+                "questionId": str(first.id),
+                "selectedOptionIds": [first.options[0]["id"], first.options[2]["id"]],
+            },
+            {"questionId": str(second.id), "textAnswer": "Mi explicación"},
+        ]
+    }
     submitted = client.post(path + "/submissions", json=payload, headers=headers)
     assert submitted.status_code == 200
     result = submitted.json()["data"]
@@ -48,7 +52,9 @@ def test_attempt_routes_start_submit_and_return_private_result(postgres, monkeyp
     assert result["answers"][0]["gradeStatus"] == "accepted"
     assert result["answers"][1]["textAnswer"] == "Mi explicación"
     assert client.get(path, headers=headers).json() == submitted.json()
-    assert client.post(path + "/submissions", json=payload, headers=headers).json() == submitted.json()
+    assert (
+        client.post(path + "/submissions", json=payload, headers=headers).json() == submitted.json()
+    )
 
     private = {"Authorization": f"Bearer {outsider_token}"}
     assert client.get(path, headers=private).status_code == 404

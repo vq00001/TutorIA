@@ -129,9 +129,9 @@ def get_job(conn: Connection, course_id: UUID, job_id: UUID) -> RowMapping | Non
 def claim_job(
     conn: Connection, worker: str, *, kinds: list[str] | None = None
 ) -> RowMapping | None:
-    claimed = sa.func.app.claim_job(
-        worker, sa.cast(kinds, ARRAY(sa.Text))
-    ).table_valued(*jobs.c.keys())
+    claimed = sa.func.app.claim_job(worker, sa.cast(kinds, ARRAY(sa.Text))).table_valued(
+        *jobs.c.keys()
+    )
     return conn.execute(sa.select(claimed)).mappings().one_or_none()
 
 

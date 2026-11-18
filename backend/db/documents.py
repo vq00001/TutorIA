@@ -315,7 +315,9 @@ def _document_metadata(course_id: UUID):
     )
 
 
-def get_document_metadata(conn: Connection, course_id: UUID, document_id: UUID) -> RowMapping | None:
+def get_document_metadata(
+    conn: Connection, course_id: UUID, document_id: UUID
+) -> RowMapping | None:
     statement = _document_metadata(course_id).where(documents.c.id == document_id)
     return conn.execute(statement).mappings().one_or_none()
 
@@ -332,7 +334,8 @@ def list_documents(
     if not 1 <= limit <= 100:
         raise ValueError("limit debe estar entre 1 y 100")
     statement = (
-        _document_metadata(course_id).order_by(documents.c.created_at, documents.c.id)
+        _document_metadata(course_id)
+        .order_by(documents.c.created_at, documents.c.id)
         .limit(limit + int(lookahead))
     )
     if after is not None:

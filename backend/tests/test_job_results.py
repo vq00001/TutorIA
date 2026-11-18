@@ -28,17 +28,29 @@ def test_chat_publication_uses_the_current_reservation(postgres):
     _role(postgres, None, worker=True)
     job = claim_job(postgres, "chat", kinds=["generate_chat"])
     assert str(job.id) == submitted["job_id"]
-    source = postgres.scalar(select(func.app.record_job_request(
-        job.id, job.lease_token, cast(b'{"messages":[]}', LargeBinary), cast([], JSONB)
-    )))
+    source = postgres.scalar(
+        select(
+            func.app.record_job_request(
+                job.id, job.lease_token, cast(b'{"messages":[]}', LargeBinary), cast([], JSONB)
+            )
+        )
+    )
     content = cast([{"type": "text", "text": "Respuesta"}], JSONB)
     with pytest.raises(ProgrammingError, match="JOB_LEASE_LOST"), postgres.begin_nested():
-        postgres.scalar(select(func.app.publish_chat_job(
-            job.id, uuid4(), conversation, content, reply, source, cast([], JSONB)
-        )))
-    message = postgres.scalar(select(func.app.publish_chat_job(
-        job.id, job.lease_token, conversation, content, reply, source, cast([], JSONB)
-    )))
+        postgres.scalar(
+            select(
+                func.app.publish_chat_job(
+                    job.id, uuid4(), conversation, content, reply, source, cast([], JSONB)
+                )
+            )
+        )
+    message = postgres.scalar(
+        select(
+            func.app.publish_chat_job(
+                job.id, job.lease_token, conversation, content, reply, source, cast([], JSONB)
+            )
+        )
+    )
     _role(postgres, owner)
     assert get_job(postgres, course, job.id).state == "succeeded"
     assert postgres.scalar(select(messages.c.generation_id).where(messages.c.id == message)) == (
@@ -64,6 +76,7 @@ def test_cancel_and_delete_remove_active_jobs_and_register_document_receipt(post
     assert receipt.scope == "document"
     assert receipt.completed_at is not None
 
+
 def test_expired_ingestion_reuses_run_only_with_current_token(postgres):
     from datetime import timedelta
 
@@ -84,23 +97,34 @@ def test_expired_ingestion_reuses_run_only_with_current_token(postgres):
     assert str(first.id) == submitted["job_id"]
 
     def start(job):
-        return postgres.scalar(select(func.app.start_ingestion_job(
-            job.id, job.lease_token, space, cast(bytes(32), LargeBinary),
-            "parser", "chunker", cast({}, JSONB),
-        )))
+        return postgres.scalar(
+            select(
+                func.app.start_ingestion_job(
+                    job.id,
+                    job.lease_token,
+                    space,
+                    cast(bytes(32), LargeBinary),
+                    "parser",
+                    "chunker",
+                    cast({}, JSONB),
+                )
+            )
+        )
 
     run = start(first)
     assert run is not None
     postgres.exec_driver_sql("RESET ROLE")
-    postgres.execute(update(jobs).where(jobs.c.id == first.id).values(
-        lease_until=func.clock_timestamp() - timedelta(seconds=1)
-    ))
+    postgres.execute(
+        update(jobs)
+        .where(jobs.c.id == first.id)
+        .values(lease_until=func.clock_timestamp() - timedelta(seconds=1))
+    )
     _role(postgres, None, worker=True)
     assert recover_jobs(postgres) == 1
     postgres.exec_driver_sql("RESET ROLE")
-    postgres.execute(update(jobs).where(jobs.c.id == first.id).values(
-        run_after=func.clock_timestamp()
-    ))
+    postgres.execute(
+        update(jobs).where(jobs.c.id == first.id).values(run_after=func.clock_timestamp())
+    )
     _role(postgres, None, worker=True)
     second = claim_job(postgres, "second", kinds=["ingest_document"])
     assert second.lease_token != first.lease_token
@@ -108,9 +132,12 @@ def test_expired_ingestion_reuses_run_only_with_current_token(postgres):
     with pytest.raises(ProgrammingError, match="JOB_LEASE_LOST"), postgres.begin_nested():
         start(first)
     postgres.exec_driver_sql("RESET ROLE")
-    assert postgres.scalar(select(processing_runs.c.ingestion_job_id).where(
-        processing_runs.c.id == run
-    )) == first.id
+    assert (
+        postgres.scalar(
+            select(processing_runs.c.ingestion_job_id).where(processing_runs.c.id == run)
+        )
+        == first.id
+    )
 
 
 def test_exam_publication_checks_request_and_completes_job(postgres):
@@ -123,22 +150,43 @@ def test_exam_publication_checks_request_and_completes_job(postgres):
     _role(postgres, None, worker=True)
     job = claim_job(postgres, "exam", kinds=["generate_exam"])
     assert str(job.id) == submitted["job_id"]
-    request = postgres.scalar(select(func.app.record_job_request(
-        job.id, job.lease_token, cast(b'{"messages":[]}', LargeBinary), cast([], JSONB)
-    )))
+    request = postgres.scalar(
+        select(
+            func.app.record_job_request(
+                job.id, job.lease_token, cast(b'{"messages":[]}', LargeBinary), cast([], JSONB)
+            )
+        )
+    )
 
     def publish(request_id):
-        return postgres.scalar(select(func.app.publish_exam_job(
-            job.id, job.lease_token, "Práctica", "practice", 600, cast({
-                "request_id": str(request_id),
-                "questions": [{
-                    "kind": "true_false", "prompt": "¿Es correcto?",
-                    "explanation": "Sí.", "options": ["Verdadero", "Falso"],
-                    "correct_indices": [0], "max_points": "1",
-                    "source_ranks": [],
-                }],
-            }, JSONB)
-        )))
+        return postgres.scalar(
+            select(
+                func.app.publish_exam_job(
+                    job.id,
+                    job.lease_token,
+                    "Práctica",
+                    "practice",
+                    600,
+                    cast(
+                        {
+                            "request_id": str(request_id),
+                            "questions": [
+                                {
+                                    "kind": "true_false",
+                                    "prompt": "¿Es correcto?",
+                                    "explanation": "Sí.",
+                                    "options": ["Verdadero", "Falso"],
+                                    "correct_indices": [0],
+                                    "max_points": "1",
+                                    "source_ranks": [],
+                                }
+                            ],
+                        },
+                        JSONB,
+                    ),
+                )
+            )
+        )
 
     with pytest.raises(IntegrityError, match="INVALID_JOB_REQUEST"), postgres.begin_nested():
         publish(uuid4())

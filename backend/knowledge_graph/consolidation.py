@@ -23,8 +23,11 @@ def consolidate_candidates(candidates, target_count, model, remaining):
 
     keys_by_ref = {f"C{index}": key for index, key in enumerate(candidates, 1)}
     nodes = [
-        {"ref": ref, "label": candidates[key]["label"],
-         "description": candidates[key]["description"]}
+        {
+            "ref": ref,
+            "label": candidates[key]["label"],
+            "description": candidates[key]["description"],
+        }
         for ref, key in keys_by_ref.items()
     ]
     result = model_json(
@@ -77,7 +80,9 @@ def consolidate_candidates(candidates, target_count, model, remaining):
             "description": proposal.description.strip(),
             "source_ids": source_ids,
         }
-        applied.append({"from_keys": old_keys, "to_key": new_key, "reason": proposal.reason.strip()})
+        applied.append(
+            {"from_keys": old_keys, "to_key": new_key, "reason": proposal.reason.strip()}
+        )
         if len(consolidated) <= target_count:
             break
     return consolidated, applied

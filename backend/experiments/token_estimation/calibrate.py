@@ -56,9 +56,7 @@ def _prompt_eval_count(config: Config, text: str) -> tuple[int, str]:
     body = response.json()
     count = body.get("prompt_eval_count") if isinstance(body, dict) else None
     if not isinstance(count, int) or count <= 0:
-        raise ValueError(
-            "Ollama no devolvió prompt_eval_count en /api/embed ni en /api/generate"
-        )
+        raise ValueError("Ollama no devolvió prompt_eval_count en /api/embed ni en /api/generate")
     return count, "generate"
 
 
@@ -67,9 +65,7 @@ def collect_samples(path: Path, limit: int) -> list[tuple[str, str]]:
     if not path.exists():
         raise FileNotFoundError(f"No existe la ruta de muestras: {path}")
     if path.is_file() and path.suffix.lower() not in {".md", ".markdown", ".txt"}:
-        raise ValueError(
-            f"La calibración solo admite .md, .markdown y .txt; recibió: {path.name}"
-        )
+        raise ValueError(f"La calibración solo admite .md, .markdown y .txt; recibió: {path.name}")
     files = iter_documents(path)
     if not files:
         raise ValueError(

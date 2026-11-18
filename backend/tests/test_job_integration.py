@@ -22,17 +22,26 @@ def _deadline():
 
 def _upload(conn, course, key, **changes):
     args = {
-        "course_id": course, "key": key, "deadline_at": _deadline(),
-        "filename": "guide.md", "data": b"contenido", "mime_type": "text/markdown",
+        "course_id": course,
+        "key": key,
+        "deadline_at": _deadline(),
+        "filename": "guide.md",
+        "data": b"contenido",
+        "mime_type": "text/markdown",
     }
     return submit_upload(conn, **(args | changes))
 
 
 def _generation(conn, course, kind, key, **changes):
     args = {
-        "key": key, "deadline_at": _deadline(), "kind": kind,
-        "provider": "ollama", "model_name": "local", "model_revision": "test",
-        "prompt_version": "v1", "payload": {"topic": "álgebra"},
+        "key": key,
+        "deadline_at": _deadline(),
+        "kind": kind,
+        "provider": "ollama",
+        "model_name": "local",
+        "model_revision": "test",
+        "prompt_version": "v1",
+        "payload": {"topic": "álgebra"},
     }
     return submit_generation(conn, course, **(args | changes))
 
@@ -61,11 +70,13 @@ def test_chat_and_exam_enqueue_the_generation_once_per_scope(postgres):
     _role(postgres, owner)
     course = create_course(postgres, name="Generaciones")
     with pytest.raises(IntegrityError, match="INVALID_JOB_DEADLINE"):
-        _generation(postgres, course, "chat", "generate",
-                    deadline_at=_deadline() - timedelta(hours=1))
-    assert postgres.scalar(select(generation_runs.c.id).where(
-        generation_runs.c.course_id == course
-    )) is None
+        _generation(
+            postgres, course, "chat", "generate", deadline_at=_deadline() - timedelta(hours=1)
+        )
+    assert (
+        postgres.scalar(select(generation_runs.c.id).where(generation_runs.c.course_id == course))
+        is None
+    )
 
     chat = _generation(postgres, course, "chat", "generate")
     exam = _generation(postgres, course, "exam", "generate")
@@ -78,7 +89,9 @@ def test_chat_and_exam_enqueue_the_generation_once_per_scope(postgres):
     assert claim_job(postgres, "unsupported", kinds=["ingest_document"]) is None
     claimed = claim_job(postgres, "exam-worker", kinds=["generate_exam"])
     assert (claimed.id, claimed.target_id, claimed.payload) == (
-        UUID(exam["job_id"]), UUID(exam["generation_id"]), {"topic": "álgebra"}
+        UUID(exam["job_id"]),
+        UUID(exam["generation_id"]),
+        {"topic": "álgebra"},
     )
     assert claim_job(postgres, "any-worker").id == UUID(chat["job_id"])
 
@@ -103,8 +116,13 @@ def test_queue_result_and_completion_share_a_transaction(postgres, valid_token):
     def publish():
         with postgres.begin_nested():
             record_worker_audit_event(
-                postgres, course_id=course, entity_id=job_id, entity_type="job",
-                action="job.published", request_id=request_id, result="success",
+                postgres,
+                course_id=course,
+                entity_id=job_id,
+                entity_type="job",
+                action="job.published",
+                request_id=request_id,
+                result="success",
             )
             if not complete_job(postgres, job_id, token):
                 raise ResultRejected
@@ -117,5 +135,7 @@ def test_queue_result_and_completion_share_a_transaction(postgres, valid_token):
 
     _role(postgres, owner)
     assert get_job(postgres, course, job_id).state == ("succeeded" if valid_token else "running")
-    event = postgres.scalar(select(audit_events.c.id).where(audit_events.c.request_id == request_id))
+    event = postgres.scalar(
+        select(audit_events.c.id).where(audit_events.c.request_id == request_id)
+    )
     assert (event is not None) == valid_token

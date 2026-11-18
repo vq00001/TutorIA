@@ -25,9 +25,7 @@ def _safe_filename(value: str) -> str:
     return name[:180]
 
 
-def _document_path(
-    *, course_name: str, course_id: UUID, document_id: UUID, filename: str
-) -> Path:
+def _document_path(*, course_name: str, course_id: UUID, document_id: UUID, filename: str) -> Path:
     course_folder = f"{_folder_name(course_name)}-{course_id.hex}"
     directory = FILES_DIR / course_folder
     directory.mkdir(parents=True, exist_ok=True)

@@ -24,9 +24,11 @@ def _event(request_id, course_id=None):
 
 
 def _visible_events(conn, request_id):
-    return conn.execute(
-        select(audit_events).where(audit_events.c.request_id == request_id)
-    ).mappings().all()
+    return (
+        conn.execute(select(audit_events).where(audit_events.c.request_id == request_id))
+        .mappings()
+        .all()
+    )
 
 
 def test_audit_correlates_user_and_worker_events_and_isolates_readers(postgres):

@@ -74,9 +74,7 @@ def install_vector_search(conn: Connection) -> None:
     )
     signature = "app.search_course_chunks(uuid, uuid, public.vector, integer, double precision)"
     conn.exec_driver_sql(f"REVOKE ALL ON FUNCTION {signature} FROM PUBLIC")
-    conn.exec_driver_sql(
-        f"GRANT EXECUTE ON FUNCTION {signature} TO tutoria_api, tutoria_worker"
-    )
+    conn.exec_driver_sql(f"GRANT EXECUTE ON FUNCTION {signature} TO tutoria_api, tutoria_worker")
 
 
 def search_course_chunks(

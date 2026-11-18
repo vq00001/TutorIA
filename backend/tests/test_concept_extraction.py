@@ -38,11 +38,7 @@ def test_extract_candidates_maps_reference_to_source_id(monkeypatch):
 
     def fake_model_json(_model, _prompt, batch, _timeout):
         assert [item["ref"] for item in batch] == ["S1", "S2"]
-        return {
-            "concepts": [
-                {"label": "Integración", "description": "Tema", "sourceRefs": ["S2"]}
-            ]
-        }
+        return {"concepts": [{"label": "Integración", "description": "Tema", "sourceRefs": ["S2"]}]}
 
     monkeypatch.setattr(concepts, "model_json", fake_model_json)
     result = concepts.extract_candidates(sources, "test-model", lambda: 30)
@@ -62,11 +58,7 @@ def test_extract_candidates_does_not_send_source_ids_to_model(monkeypatch):
                 "locator": sources[0]["locator"],
             }
         ]
-        return {
-            "concepts": [
-                {"label": "Concepto", "description": "Tema", "sourceRefs": ["S1"]}
-            ]
-        }
+        return {"concepts": [{"label": "Concepto", "description": "Tema", "sourceRefs": ["S1"]}]}
 
     monkeypatch.setattr(concepts, "model_json", fake_model_json)
     concepts.extract_candidates(sources, "test-model", lambda: 30)

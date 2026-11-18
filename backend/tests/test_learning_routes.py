@@ -35,12 +35,18 @@ def test_learning_graph_progress_and_private_roadmaps(postgres, monkeypatch):
     alias = f"{base}/concepts/{a}/aliases"
     assert client.post(alias, json={"alias": "Quebrados"}, headers=own).status_code == 201
     assert client.get(alias, headers=peer).json()["data"][0]["normalizedAlias"] == "quebrados"
-    assert client.post(
-        f"{base}/concepts/{b}/prerequisites", json={"prerequisiteId": a}, headers=own
-    ).status_code == 201
-    assert client.post(
-        f"{base}/concepts/{a}/prerequisites", json={"prerequisiteId": b}, headers=own
-    ).status_code == 409
+    assert (
+        client.post(
+            f"{base}/concepts/{b}/prerequisites", json={"prerequisiteId": a}, headers=own
+        ).status_code
+        == 201
+    )
+    assert (
+        client.post(
+            f"{base}/concepts/{a}/prerequisites", json={"prerequisiteId": b}, headers=own
+        ).status_code
+        == 409
+    )
 
     graph = client.get(base + "/knowledge-graph", headers=peer).json()["data"]
     assert {node["key"] for node in graph["nodes"]} == {a, b}
@@ -50,7 +56,9 @@ def test_learning_graph_progress_and_private_roadmaps(postgres, monkeypatch):
     assert all(row["evidenceCount"] == 0 for row in progress)
 
     goals = base + "/learning-goals"
-    created = client.post(goals, json={"title": "Aprender álgebra", "conceptIds": [b]}, headers=peer)
+    created = client.post(
+        goals, json={"title": "Aprender álgebra", "conceptIds": [b]}, headers=peer
+    )
     assert created.status_code == 201
     goal = created.json()["data"]["id"]
     assert client.get(goals, headers=peer).json()["data"][0]["conceptIds"] == [b]
@@ -64,5 +72,8 @@ def test_learning_graph_progress_and_private_roadmaps(postgres, monkeypatch):
     assert client.get(route, headers=peer).json()["data"][0]["id"] == roadmap
     detail = client.get(f"{route}/{roadmap}", headers=peer).json()["data"]
     assert [step["conceptId"] for step in detail["steps"]] == [a, b]
-    assert client.patch(f"{goals}/{goal}", json={"status": "completed"}, headers=peer).status_code == 200
+    assert (
+        client.patch(f"{goals}/{goal}", json={"status": "completed"}, headers=peer).status_code
+        == 200
+    )
     assert client.post(route, headers=peer).status_code == 409

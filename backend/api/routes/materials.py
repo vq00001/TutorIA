@@ -47,24 +47,37 @@ class MaterialResponse(BaseModel):
 
 def _summary(course_id: UUID, row) -> MaterialSummary:
     return MaterialSummary(
-        id=row.id, courseId=course_id, generationId=row.generation_id,
-        title=row.title, type=row.kind, status=row.status, schemaVersion=row.schema_version,
+        id=row.id,
+        courseId=course_id,
+        generationId=row.generation_id,
+        title=row.title,
+        type=row.kind,
+        status=row.status,
+        schemaVersion=row.schema_version,
         createdAt=row.created_at,
     )
 
 
 @router.get("", response_model=MaterialListResponse, responses=_ERRORS)
 def materials_index(
-    courseId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    connection: AuthenticatedConnection,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    beforeCreatedAt: AwareDatetime | None = None, beforeId: UUID | None = None,
+    beforeCreatedAt: AwareDatetime | None = None,
+    beforeId: UUID | None = None,
 ) -> MaterialListResponse | JSONResponse:
     if (beforeCreatedAt is None) != (beforeId is None):
         return error_response(422, "INVALID_CURSOR", "Envía ambos campos del cursor.")
     if get_member_course(connection, courseId) is None:
         return error_response(404, "COURSE_NOT_FOUND", "Clase no encontrada.")
-    before = (beforeCreatedAt, beforeId) if beforeCreatedAt is not None and beforeId is not None else None
-    rows = list_generated_materials(connection, courseId, limit=limit, before=before, lookahead=True)
+    before = (
+        (beforeCreatedAt, beforeId)
+        if beforeCreatedAt is not None and beforeId is not None
+        else None
+    )
+    rows = list_generated_materials(
+        connection, courseId, limit=limit, before=before, lookahead=True
+    )
     page = rows[:limit]
     cursor = None
     if len(rows) > limit:
@@ -75,7 +88,9 @@ def materials_index(
 
 @router.get("/{materialId}", response_model=MaterialResponse, responses=_ERRORS)
 def materials_detail(
-    courseId: UUID, materialId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    materialId: UUID,
+    connection: AuthenticatedConnection,
 ) -> MaterialResponse | JSONResponse:
     row = get_generated_material(connection, courseId, materialId)
     if row is None:

@@ -30,7 +30,10 @@ def test_profile_membership_and_invitation_workflow(postgres, monkeypatch):
     assert changed.status_code == 200
     assert changed.json()["data"]["displayName"] == "Ana"
     assert client.get(profile, headers=peer).json() == changed.json()
-    assert client.patch(profile, json={"displayName": "Ana", "email": email}, headers=peer).status_code == 422
+    assert (
+        client.patch(profile, json={"displayName": "Ana", "email": email}, headers=peer).status_code
+        == 422
+    )
 
     assert client.post(base + "/leave", headers=own).status_code == 409
     invite = base + "/invitations"
@@ -46,7 +49,9 @@ def test_profile_membership_and_invitation_workflow(postgres, monkeypatch):
     accepted = client.patch(decision, json={"decision": "accept"}, headers=peer)
     assert accepted.status_code == 200
     assert accepted.json()["data"] == {"courseId": str(course), "status": "accepted"}
-    assert client.patch(decision, json={"decision": "accept"}, headers=peer).json() == accepted.json()
+    assert (
+        client.patch(decision, json={"decision": "accept"}, headers=peer).json() == accepted.json()
+    )
 
     members = client.get(base + "/members", headers=own).json()["data"]
     member = next(row for row in members if row["userId"] == str(invitee))

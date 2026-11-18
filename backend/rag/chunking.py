@@ -93,9 +93,7 @@ def merge_small(
     for section in sections:
         if pending is not None:
             if pending.path[:-1] == section.path[:-1]:
-                section = Section(
-                    section.path, f"{_with_title(pending)}\n\n{section.body}"
-                )
+                section = Section(section.path, f"{_with_title(pending)}\n\n{section.body}")
             else:
                 result.append(pending)
             pending = None
@@ -106,25 +104,17 @@ def merge_small(
     if pending is not None:
         if result and result[-1].path[:-1] == pending.path[:-1]:
             previous = result[-1]
-            result[-1] = Section(
-                previous.path, f"{previous.body}\n\n{_with_title(pending)}"
-            )
+            result[-1] = Section(previous.path, f"{previous.body}\n\n{_with_title(pending)}")
         else:
             result.append(pending)
     return result
 
 
 def _paragraphs(text: str) -> list[str]:
-    return [
-        paragraph.strip()
-        for paragraph in re.split(r"\n\s*\n", text)
-        if paragraph.strip()
-    ]
+    return [paragraph.strip() for paragraph in re.split(r"\n\s*\n", text) if paragraph.strip()]
 
 
-def split_parent_text(
-    text: str, max_tokens: int, token_ratio: float = 1.3
-) -> list[str]:
+def split_parent_text(text: str, max_tokens: int, token_ratio: float = 1.3) -> list[str]:
     """Divide un parent grande por párrafos sin superar el límite configurado."""
     if count_tokens(text, token_ratio) <= max_tokens:
         return [text]
@@ -202,9 +192,7 @@ def split_children(
         if count_tokens(paragraph, token_ratio) <= target:
             units.append(paragraph)
         else:
-            units.extend(
-                _split_long_paragraph(paragraph, target, overlap_ratio, token_ratio)
-            )
+            units.extend(_split_long_paragraph(paragraph, target, overlap_ratio, token_ratio))
     chunks: list[str] = []
     current: list[str] = []
     current_tokens = 0
@@ -217,18 +205,19 @@ def split_children(
         current_tokens += unit_tokens
     if current:
         chunks.append("\n\n".join(current))
-    if len(chunks) > 1 and count_tokens(chunks[-1], token_ratio) < target * 0.25 and (
-        count_tokens(chunks[-2], token_ratio)
-        + count_tokens(chunks[-1], token_ratio)
-        <= target * 1.3
+    if (
+        len(chunks) > 1
+        and count_tokens(chunks[-1], token_ratio) < target * 0.25
+        and (
+            count_tokens(chunks[-2], token_ratio) + count_tokens(chunks[-1], token_ratio)
+            <= target * 1.3
+        )
     ):
         chunks[-2] = f"{chunks[-2]}\n\n{chunks.pop()}"
     return chunks
 
 
-def chunk_text(
-    text: str, doc_id: str, config: Config
-) -> tuple[list[Parent], list[Child]]:
+def chunk_text(text: str, doc_id: str, config: Config) -> tuple[list[Parent], list[Child]]:
     """Transforma un documento en parents recuperables y children indexables.
 
     Los children reciben la ruta del documento en `embed_text` para que el
@@ -278,9 +267,7 @@ def chunk_text(
                         index=child_index,
                         path=section.path,
                         text=child_text,
-                        embed_text="\n".join(
-                            part for part in (breadcrumb, child_text) if part
-                        ),
+                        embed_text="\n".join(part for part in (breadcrumb, child_text) if part),
                     )
                 )
             parent_index += 1

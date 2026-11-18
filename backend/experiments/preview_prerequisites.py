@@ -36,7 +36,8 @@ def main():
     parser = argparse.ArgumentParser(description="Propone dependencias desde nodos ya creados")
     parser.add_argument("file", nargs="?", type=Path, default=DEFAULT_NODES)
     parser.add_argument(
-        "--target-concepts", type=int,
+        "--target-concepts",
+        type=int,
         help="objetivo aproximado de nodos tras fusionar conceptos solapados",
     )
     args = parser.parse_args()
@@ -49,8 +50,10 @@ def main():
         candidates, merges = consolidate_candidates(
             candidates, args.target_concepts, model, lambda: 180
         )
-        print(f"Consolidación: {len(original_candidates)} → {len(candidates)} nodos; "
-              f"{len(merges)} grupos fusionados")
+        print(
+            f"Consolidación: {len(original_candidates)} → {len(candidates)} nodos; "
+            f"{len(merges)} grupos fusionados"
+        )
         for merge in merges:
             originals = ", ".join(original_candidates[key]["label"] for key in merge["from_keys"])
             print(f"  {originals} → {candidates[merge['to_key']]['label']}")

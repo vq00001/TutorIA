@@ -25,9 +25,11 @@ def test_preview_requires_coordinator_and_closes_transaction_before_model(monkey
     monkeypatch.setattr(graph_preview, "transaction", fake_transaction)
     monkeypatch.setattr(graph_preview, "get_session_user", lambda _connection, _token: uuid4())
     monkeypatch.setattr(graph_preview, "set_user_context", lambda *_: None)
-    monkeypatch.setattr(graph_preview, "get_member_course", lambda *_: SimpleNamespace(
-        my_role=state["role"], status=state["status"]
-    ))
+    monkeypatch.setattr(
+        graph_preview,
+        "get_member_course",
+        lambda *_: SimpleNamespace(my_role=state["role"], status=state["status"]),
+    )
     monkeypatch.setattr(graph_preview.Config, "from_env", lambda: SimpleNamespace(model_llm="test"))
 
     def fake_generate(sources, _config, *, target_concepts, include_prerequisites, remaining):
@@ -37,19 +39,33 @@ def test_preview_requires_coordinator_and_closes_transaction_before_model(monkey
         assert target_concepts == 5
         assert include_prerequisites is True
         state["calls"] += 1
-        return graph_preview.GraphPreview.model_validate({
-            "model": "test", "inputs": [{"sourceId": "apunte-1", "title": "Apunte", "fragmentCount": 1}],
-            "parameters": {"targetConcepts": 5, "includePrerequisites": True},
-            "stages": {"consolidation": "completed", "prerequisites": "completed"},
-            "nodes": [{"ref": "N1", "label": "Integral doble", "description": "Definición", "sources": []}],
-            "edges": [], "merges": [],
-        })
+        return graph_preview.GraphPreview.model_validate(
+            {
+                "model": "test",
+                "inputs": [{"sourceId": "apunte-1", "title": "Apunte", "fragmentCount": 1}],
+                "parameters": {"targetConcepts": 5, "includePrerequisites": True},
+                "stages": {"consolidation": "completed", "prerequisites": "completed"},
+                "nodes": [
+                    {
+                        "ref": "N1",
+                        "label": "Integral doble",
+                        "description": "Definición",
+                        "sources": [],
+                    }
+                ],
+                "edges": [],
+                "merges": [],
+            }
+        )
 
     monkeypatch.setattr(graph_preview, "generate_graph_preview", fake_generate)
     client = TestClient(http_api.app)
     url = f"/api/v1/courses/{course_id}/knowledge-graph/preview"
-    body = {"sources": [{"sourceId": "apunte-1", "title": "Apunte", "text": "Integral doble"}],
-            "targetConcepts": 5, "includePrerequisites": True}
+    body = {
+        "sources": [{"sourceId": "apunte-1", "title": "Apunte", "text": "Integral doble"}],
+        "targetConcepts": 5,
+        "includePrerequisites": True,
+    }
     headers = {"Authorization": f"Bearer {token}"}
 
     assert client.post(url, json=body).status_code == 401
@@ -65,7 +81,8 @@ def test_preview_requires_coordinator_and_closes_transaction_before_model(monkey
     assert response.status_code == 200
     assert response.json()["data"]["nodes"][0]["label"] == "Integral doble"
     assert response.json()["data"]["parameters"] == {
-        "targetConcepts": 5, "includePrerequisites": True
+        "targetConcepts": 5,
+        "includePrerequisites": True,
     }
     assert state["calls"] == 1
 
@@ -89,9 +106,11 @@ def test_preview_maps_model_failures_without_exposing_text(monkeypatch):
     monkeypatch.setattr(graph_preview, "transaction", fake_transaction)
     monkeypatch.setattr(graph_preview, "get_session_user", lambda *_: uuid4())
     monkeypatch.setattr(graph_preview, "set_user_context", lambda *_: None)
-    monkeypatch.setattr(graph_preview, "get_member_course", lambda *_: SimpleNamespace(
-        my_role="coordinator", status="active"
-    ))
+    monkeypatch.setattr(
+        graph_preview,
+        "get_member_course",
+        lambda *_: SimpleNamespace(my_role="coordinator", status="active"),
+    )
     monkeypatch.setattr(graph_preview.Config, "from_env", lambda: SimpleNamespace(model_llm="test"))
     client = TestClient(http_api.app)
     url = f"/api/v1/courses/{uuid4()}/knowledge-graph/preview"
@@ -103,6 +122,7 @@ def test_preview_maps_model_failures_without_exposing_text(monkeypatch):
         (requests.exceptions.Timeout("material privado"), 504),
         (ValueError("material privado"), 502),
     ]:
+
         def fail(*_args, error=error, **_kwargs):
             raise error
 

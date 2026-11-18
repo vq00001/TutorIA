@@ -100,17 +100,31 @@ def _result(connection, course_id: UUID, row) -> AttemptResponse:
     if status in ("graded", "needs_review"):
         answers = [
             AnswerResult(
-                answerId=item.id, questionId=item.question_id, selectedOptionIds=item.selected_option_ids,
-                textAnswer=item.text_answer, points=item.points, feedback=item.feedback,
-                gradeStatus=item.grade_status, gradeMethod=item.grade_method,
+                answerId=item.id,
+                questionId=item.question_id,
+                selectedOptionIds=item.selected_option_ids,
+                textAnswer=item.text_answer,
+                points=item.points,
+                feedback=item.feedback,
+                gradeStatus=item.grade_status,
+                gradeMethod=item.grade_method,
             )
             for item in list_attempt_answers(connection, course_id, row.id)
         ]
-    return AttemptResponse(data=Attempt(
-        id=row.id, examId=row.exam_id, attemptNo=row.attempt_no, status=status,
-        startedAt=row.started_at, deadlineAt=row.deadline_at, submittedAt=row.submitted_at,
-        gradedAt=row.graded_at, scorePercent=row.score_percent, answers=answers,
-    ))
+    return AttemptResponse(
+        data=Attempt(
+            id=row.id,
+            examId=row.exam_id,
+            attemptNo=row.attempt_no,
+            status=status,
+            startedAt=row.started_at,
+            deadlineAt=row.deadline_at,
+            submittedAt=row.submitted_at,
+            gradedAt=row.graded_at,
+            scorePercent=row.score_percent,
+            answers=answers,
+        )
+    )
 
 
 def _write_error(exc: DBAPIError) -> JSONResponse | None:
@@ -125,7 +139,9 @@ def _write_error(exc: DBAPIError) -> JSONResponse | None:
 
 @router.post("", response_model=AttemptResponse, responses=_WRITE_ERRORS)
 def attempts_start(
-    courseId: UUID, examId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    examId: UUID,
+    connection: AuthenticatedConnection,
 ) -> AttemptResponse | JSONResponse:
     exam = get_exam(connection, courseId, examId)
     if exam is None:
@@ -145,7 +161,10 @@ def attempts_start(
 
 @router.get("/{attemptId}", response_model=AttemptResponse, responses=_ERRORS)
 def attempts_detail(
-    courseId: UUID, examId: UUID, attemptId: UUID, connection: AuthenticatedConnection,
+    courseId: UUID,
+    examId: UUID,
+    attemptId: UUID,
+    connection: AuthenticatedConnection,
 ) -> AttemptResponse | JSONResponse:
     row = _read_attempt(connection, courseId, examId, attemptId)
     return _result(connection, courseId, row) if row is not None else _not_found()
@@ -153,7 +172,10 @@ def attempts_detail(
 
 @router.post("/{attemptId}/submissions", response_model=AttemptResponse, responses=_WRITE_ERRORS)
 def attempts_submit(
-    courseId: UUID, examId: UUID, attemptId: UUID, payload: SubmitAttemptRequest,
+    courseId: UUID,
+    examId: UUID,
+    attemptId: UUID,
+    payload: SubmitAttemptRequest,
     connection: AuthenticatedConnection,
 ) -> AttemptResponse | JSONResponse:
     row = _read_attempt(connection, courseId, examId, attemptId)
@@ -177,13 +199,19 @@ def attempts_submit(
         return error_response(409, "ATTEMPT_EXPIRED", "El plazo del intento venció.")
     return _result(connection, courseId, get_exam_attempt(connection, courseId, attemptId))
 
+
 @router.put(
     "/{attemptId}/answers/{answerId}/review",
-    response_model=AttemptResponse, responses=_WRITE_ERRORS,
+    response_model=AttemptResponse,
+    responses=_WRITE_ERRORS,
 )
 def attempts_review_development(
-    courseId: UUID, examId: UUID, attemptId: UUID, answerId: UUID,
-    payload: DevelopmentReviewRequest, connection: AuthenticatedConnection,
+    courseId: UUID,
+    examId: UUID,
+    attemptId: UUID,
+    answerId: UUID,
+    payload: DevelopmentReviewRequest,
+    connection: AuthenticatedConnection,
 ) -> AttemptResponse | JSONResponse:
     row = _read_attempt(connection, courseId, examId, attemptId)
     if row is None:
@@ -193,8 +221,12 @@ def attempts_review_development(
     try:
         with connection.begin_nested():
             review_development_answer(
-                connection, courseId, attemptId, answerId,
-                points=payload.points, feedback=payload.feedback,
+                connection,
+                courseId,
+                attemptId,
+                answerId,
+                points=payload.points,
+                feedback=payload.feedback,
             )
     except DBAPIError as exc:
         sqlstate = getattr(exc.orig, "sqlstate", None)

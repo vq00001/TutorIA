@@ -16,7 +16,8 @@ from .connection import RESTORE_LOCK
 from .purge import _purge, _request_purge, acknowledge_receipt, deletion_requests
 
 gate = sa.Table(
-    "gate", sa.MetaData(schema="restore_control"),
+    "gate",
+    sa.MetaData(schema="restore_control"),
     sa.Column("singleton", sa.Boolean, primary_key=True),
     sa.Column("verified_at", sa.DateTime(timezone=True)),
     sa.CheckConstraint("singleton", name="restore_gate_singleton"),
@@ -57,9 +58,11 @@ def begin_restore(conn: Connection) -> None:
     """Cierra la barrera antes de importar un respaldo en una base aislada."""
     conn.execute(sa.select(sa.func.pg_advisory_xact_lock(RESTORE_LOCK)))
     _install_gate(conn)
-    conn.execute(insert(gate).values(singleton=True, verified_at=None).on_conflict_do_update(
-        index_elements=[gate.c.singleton], set_={"verified_at": None}
-    ))
+    conn.execute(
+        insert(gate)
+        .values(singleton=True, verified_at=None)
+        .on_conflict_do_update(index_elements=[gate.c.singleton], set_={"verified_at": None})
+    )
 
 
 def receipt_manifest_digest(receipts: Iterable[DeletionReceipt]) -> str:
@@ -68,7 +71,9 @@ def receipt_manifest_digest(receipts: Iterable[DeletionReceipt]) -> str:
         if receipt.requested_at.utcoffset() is None:
             raise ValueError("INVALID_RECEIPT_TIMESTAMP")
         entry = (
-            str(receipt.id), receipt.scope, str(receipt.subject_id),
+            str(receipt.id),
+            receipt.scope,
+            str(receipt.subject_id),
             receipt.requested_at.astimezone(timezone.utc).isoformat(),
         )
         if entries.setdefault(receipt.id, entry) != entry:
@@ -90,12 +95,19 @@ def replay_restore(
             raise ValueError("RESTORE_NOT_PENDING")
         for receipt in sorted(receipts, key=lambda item: item.requested_at):
             canonical = _request_purge(
-                conn, request_id=receipt.id, scope=receipt.scope, subject_id=receipt.subject_id,
+                conn,
+                request_id=receipt.id,
+                scope=receipt.scope,
+                subject_id=receipt.subject_id,
                 requested_at=receipt.requested_at,
             )
-            row = conn.execute(sa.select(deletion_requests).where(
-                deletion_requests.c.id == canonical
-            )).mappings().one()
+            row = (
+                conn.execute(
+                    sa.select(deletion_requests).where(deletion_requests.c.id == canonical)
+                )
+                .mappings()
+                .one()
+            )
             if canonical != receipt.id or row.requested_at != receipt.requested_at:
                 raise ValueError("DELETION_RECEIPT_CONFLICT")
             acknowledge_receipt(conn, canonical)

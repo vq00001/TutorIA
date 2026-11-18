@@ -42,9 +42,12 @@ def test_verification_and_password_reset(postgres, monkeypatch):
     recovery = {"token": sent[-1][-1], "password": "new-password-123"}
     assert client.post(reset + "/confirm", json=recovery).status_code == 204
     assert client.get("/api/v1/users/me", headers=auth).status_code == 401
-    assert client.post(
-        "/api/v1/auth/login", json={"email": email, "password": recovery["password"]}
-    ).status_code == 200
+    assert (
+        client.post(
+            "/api/v1/auth/login", json={"email": email, "password": recovery["password"]}
+        ).status_code
+        == 200
+    )
 
 
 def test_requests_require_mail_configuration(monkeypatch):

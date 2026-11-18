@@ -16,21 +16,38 @@ def test_cli_passes_file_text_to_graph_generator(tmp_path, monkeypatch, capsys):
         received["prerequisites"] = include_prerequisites
         return SimpleNamespace(
             inputs=[SimpleNamespace(fragment_count=1)],
-            nodes=[SimpleNamespace(
-                ref="N1", label="Integral doble", description="Tema del apunte",
-                sources=[SimpleNamespace(
-                    title="apunte.md", section_path=["Integrales"], chunk_index=0,
-                    source_id="archivo-1",
-                )],
-            )],
-            merges=[], edges=[],
+            nodes=[
+                SimpleNamespace(
+                    ref="N1",
+                    label="Integral doble",
+                    description="Tema del apunte",
+                    sources=[
+                        SimpleNamespace(
+                            title="apunte.md",
+                            section_path=["Integrales"],
+                            chunk_index=0,
+                            source_id="archivo-1",
+                        )
+                    ],
+                )
+            ],
+            merges=[],
+            edges=[],
         )
 
     monkeypatch.setattr(preview_concepts, "generate_graph_preview", fake_generate)
     monkeypatch.setenv("MODEL_LLM", "test-model")
-    monkeypatch.setattr(sys, "argv", [
-        "preview_concepts", str(file), "--target-concepts", "1", "--with-prerequisites",
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "preview_concepts",
+            str(file),
+            "--target-concepts",
+            "1",
+            "--with-prerequisites",
+        ],
+    )
 
     preview_concepts.main()
 

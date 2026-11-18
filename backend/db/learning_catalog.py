@@ -160,7 +160,8 @@ def has_concept(conn: Connection, course_id: UUID, concept_id: UUID) -> bool:
 
 def list_course_edges(conn: Connection, course_id: UUID) -> list[RowMapping]:
     stmt = (
-        sa.select(concept_edges).where(concept_edges.c.course_id == course_id)
+        sa.select(concept_edges)
+        .where(concept_edges.c.course_id == course_id)
         .order_by(concept_edges.c.source_id, concept_edges.c.target_id)
     )
     return list(conn.execute(stmt).mappings())

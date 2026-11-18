@@ -27,7 +27,9 @@ class CreateCourseRequest(BaseModel):
     description: str
     objectives: str
     subject: str = Field(default="", max_length=150)
-    color: Literal["mauve", "blue", "green", "peach", "pink", "yellow", "teal", "lavender"] = "mauve"
+    color: Literal["mauve", "blue", "green", "peach", "pink", "yellow", "teal", "lavender"] = (
+        "mauve"
+    )
     icon: str = Field(default="✦", max_length=16)
 
     @field_validator("name", mode="before")
@@ -87,16 +89,30 @@ class CourseMembersResponse(BaseModel):
 
 def _course_data(row, members=None) -> CourseData:
     return CourseData(
-        id=row.id, name=row.name, description=row.description, objectives=row.objectives,
-        subject=row.subject, color=row.color, icon=row.icon, status=row.status,
-        myRole=row.my_role, ownerId=row.created_by, rowVersion=row.row_version, members=members,
+        id=row.id,
+        name=row.name,
+        description=row.description,
+        objectives=row.objectives,
+        subject=row.subject,
+        color=row.color,
+        icon=row.icon,
+        status=row.status,
+        myRole=row.my_role,
+        ownerId=row.created_by,
+        rowVersion=row.row_version,
+        members=members,
     )
 
 
 def _members(connection: Connection, course_id: UUID) -> list[CourseMember]:
     return [
-        CourseMember(userId=row.user_id, displayName=row.display_name,
-                     role=row.role, joinedAt=row.joined_at, rowVersion=row.row_version)
+        CourseMember(
+            userId=row.user_id,
+            displayName=row.display_name,
+            role=row.role,
+            joinedAt=row.joined_at,
+            rowVersion=row.row_version,
+        )
         for row in list_course_members(connection, course_id)
     ]
 
@@ -105,8 +121,12 @@ def _course_not_found() -> JSONResponse:
     return error_response(404, "COURSE_NOT_FOUND", "Clase no encontrada.")
 
 
-@router.get("/courses", response_model=CourseListResponse,
-         response_model_exclude_unset=True, responses={401: {"model": ErrorResponse}})
+@router.get(
+    "/courses",
+    response_model=CourseListResponse,
+    response_model_exclude_unset=True,
+    responses={401: {"model": ErrorResponse}},
+)
 def courses_index(
     connection: AuthenticatedConnection,
     page: Annotated[int, Query(ge=1)] = 1,
@@ -119,9 +139,16 @@ def courses_index(
     )
 
 
-@router.post("/courses", status_code=201, response_model=CourseResponse,
-          responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse},
-                     422: {"model": ErrorResponse}})
+@router.post(
+    "/courses",
+    status_code=201,
+    response_model=CourseResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+    },
+)
 def courses_create(
     payload: CreateCourseRequest, connection: AuthenticatedConnection
 ) -> CourseResponse | JSONResponse:
@@ -136,23 +163,32 @@ def courses_create(
     return CourseResponse(data=_course_data(row, _members(connection, course_id)))
 
 
-@router.get("/courses/{courseId}", response_model=CourseResponse,
-         responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
-def courses_detail(courseId: UUID, connection: AuthenticatedConnection) -> CourseResponse | JSONResponse:
+@router.get(
+    "/courses/{courseId}",
+    response_model=CourseResponse,
+    responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def courses_detail(
+    courseId: UUID, connection: AuthenticatedConnection
+) -> CourseResponse | JSONResponse:
     row = get_member_course(connection, courseId)
     if row is None:
         return _course_not_found()
     return CourseResponse(data=_course_data(row, _members(connection, courseId)))
 
 
-@router.get("/courses/{courseId}/members", response_model=CourseMembersResponse,
-         responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
+@router.get(
+    "/courses/{courseId}/members",
+    response_model=CourseMembersResponse,
+    responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
 def courses_members(
     courseId: UUID, connection: AuthenticatedConnection
 ) -> CourseMembersResponse | JSONResponse:
     if get_member_course(connection, courseId) is None:
         return _course_not_found()
     return CourseMembersResponse(data=_members(connection, courseId))
+
 
 class CourseUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -162,7 +198,9 @@ class CourseUpdateRequest(BaseModel):
     description: str | None = None
     objectives: str | None = None
     subject: str | None = Field(default=None, max_length=150)
-    color: Literal["mauve", "blue", "green", "peach", "pink", "yellow", "teal", "lavender"] | None = None
+    color: (
+        Literal["mauve", "blue", "green", "peach", "pink", "yellow", "teal", "lavender"] | None
+    ) = None
     icon: str | None = Field(default=None, max_length=16)
 
     @field_validator("name", mode="before")
@@ -178,10 +216,15 @@ class CourseUpdateRequest(BaseModel):
         return self
 
 
-@router.patch("/courses/{courseId}", response_model=CourseResponse,
-              responses={code: {"model": ErrorResponse} for code in (401, 403, 404, 409, 422)})
+@router.patch(
+    "/courses/{courseId}",
+    response_model=CourseResponse,
+    responses={code: {"model": ErrorResponse} for code in (401, 403, 404, 409, 422)},
+)
 def courses_update(
-    courseId: UUID, payload: CourseUpdateRequest, connection: AuthenticatedConnection,
+    courseId: UUID,
+    payload: CourseUpdateRequest,
+    connection: AuthenticatedConnection,
 ) -> CourseResponse | JSONResponse:
     row = get_member_course(connection, courseId)
     if row is None:
@@ -198,6 +241,6 @@ def courses_update(
         raise
     if not updated:
         return error_response(409, "COURSE_VERSION_CONFLICT", "La versión de la clase cambió.")
-    return CourseResponse(data=_course_data(
-        get_member_course(connection, courseId), _members(connection, courseId)
-    ))
+    return CourseResponse(
+        data=_course_data(get_member_course(connection, courseId), _members(connection, courseId))
+    )
