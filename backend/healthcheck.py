@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-from tabnanny import check
 from urllib.error import HTTPError, URLError
 
 import requests
