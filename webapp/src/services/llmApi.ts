@@ -118,15 +118,8 @@ function isAcceptedResponse(
   )
 }
 
-// The current UI's demo courses use slugs, while the API contract requires UUIDs.
-// Keep demo interactions compatible with the API stubs until courses come from the backend.
 function toApiCourseId(courseId: string) {
-  const demoCourseIds: Record<string, string> = {
-    'calculo-i': '00000000-0000-4000-8000-000000000002',
-    fisica: '00000000-0000-4000-8000-00000000000c',
-    programacion: '00000000-0000-4000-8000-00000000000d',
-  }
-  return demoCourseIds[courseId] ?? courseId
+  return courseId
 }
 
 
