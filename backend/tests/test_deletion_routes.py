@@ -4,8 +4,8 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 from sqlalchemy import insert, select
 
-from backend import http_api
-from backend.routes import dependencies
+from backend.api import app as http_api
+from backend.api.routes import dependencies
 from db.courses import create_course, memberships
 from db.jobs import jobs
 from db.purge import deletion_requests

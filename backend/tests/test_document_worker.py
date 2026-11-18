@@ -3,8 +3,8 @@
 import pymupdf
 import pytest
 
-from backend import document_worker
-from backend.config import Config
+from backend.workers import document_worker
+from backend.core.config import Config
 from backend.utilities.pdf_to_md.pdf_to_md import NotConvertible
 
 

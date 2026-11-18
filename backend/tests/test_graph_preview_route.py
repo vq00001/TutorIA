@@ -5,8 +5,8 @@ from uuid import uuid4
 import requests
 from fastapi.testclient import TestClient
 
-from backend import http_api
-from backend.routes import graph_preview
+from backend.api import app as http_api
+from backend.api.routes import graph_preview
 
 
 def test_preview_requires_coordinator_and_closes_transaction_before_model(monkeypatch):

@@ -2,9 +2,9 @@ from contextlib import nullcontext
 
 from fastapi.testclient import TestClient
 
-from backend import http_api
+from backend.api import app as http_api
 from backend.db.sessions import issue_session
-from backend.routes import dependencies
+from backend.api.routes import dependencies
 from db.courses import create_course
 from db.users import users
 from sqlalchemy import update

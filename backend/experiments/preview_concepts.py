@@ -1,8 +1,8 @@
 import argparse
 from pathlib import Path
 
-from backend.config import Config
-from backend.documents import SUPPORTED_EXTENSIONS, read_document
+from backend.core.config import Config
+from backend.rag.documents import SUPPORTED_EXTENSIONS, read_document
 from backend.knowledge_graph.preview import TextSource, generate_graph_preview
 
 

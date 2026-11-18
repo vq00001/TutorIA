@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
-from backend import http_api
+from backend.api import app as http_api
 from backend.db.sessions import issue_session
-from backend.routes import conversations, dependencies
+from backend.api.routes import conversations, dependencies
 from db.courses import create_course
 from db.jobs import claim_job
 from .test_courses import _as_user, _user

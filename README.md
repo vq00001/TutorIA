@@ -83,45 +83,19 @@ siguen admitidos; se rechazan los PDF corruptos, protegidos o sin texto extraíb
 ```
 /TutorIA
 ├── backend
+│   ├── api/               # FastAPI, rutas HTTP y contratos
+│   ├── cli/               # Comandos locales de terminal
+│   ├── core/              # Configuración y modelos compartidos
+│   ├── db/                # Persistencia y cola de trabajos
+│   ├── experiments/       # Experimentos y datos de evaluación
+│   ├── integrations/      # Clientes de LLM y embeddings
+│   ├── knowledge_graph/   # Conceptos y prerequisitos
+│   ├── rag/               # Chunking, documentos y pipeline
+│   ├── storage/           # Archivos originales y convertidos
+│   ├── workers/           # Procesadores en segundo plano
 │   ├── openapi.yaml
-│   ├── chunking.py
-│   ├── config.py
-│   ├── context.py
-│   ├── documents.py
-│   ├── embeddings.py
-│   ├── experiments
-│   │   ├── __init__.py
-│   │   ├── README.md
-│   │   ├── retrieval
-│   │   │   ├── data
-│   │   │   │   ├── cases
-│   │   │   │   │   ├── test_cases.json
-│   │   │   │   │   └── test_cases_many.json
-│   │   │   │   └── documents
-│   │   │   │       ├── documents.json
-│   │   │   │       └── documents_many.json
-│   │   │   ├── evaluate_limit.py
-│   │   │   ├── __init__.py
-│   │   │   ├── output.py
-│   │   │   ├── README.md
-│   │   │   ├── repository.py
-│   │   │   └── run.py
-│   │   └── token_estimation
-│   │       ├── calibrate.py
-│   │       └── data
-│   │           └── samples.md
-│   ├── __init__.py
-│   ├── llm.py
-│   ├── main.py
-│   ├── Makefile
-│   ├── models.py
-│   ├── ollama
-│   │   ├── Dockerfile
-│   │   └── entrypoint.sh
-│   ├── pipeline.py
 │   ├── pyproject.toml
-│   ├── README.md
-│   └── vector_store.py
+│   └── README.md
 ├── compose.yaml
 ├── Makefile
 ├── README.md

@@ -4,8 +4,8 @@ import json
 import unicodedata
 from pathlib import Path
 
-from backend.config import Config
-from backend.llm import chat_completion
+from backend.core.config import Config
+from backend.integrations.llm import chat_completion
 
 
 def normalized(label):

@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 PYTHON ?= uv run python
-MODULE := main
+MODULE := cli.main
 EXPERIMENTS := experiments
 
 .PHONY: help install prod sync lint format test preview calibrate

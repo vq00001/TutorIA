@@ -26,8 +26,8 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-from ..config import Config
-from ..llm import generate_answer
+from backend.core.config import Config
+from backend.integrations.llm import generate_answer
 from typing import Any
 
 DOCUMENTS = [{"filename": "notas.md", "text": "La capital de Chile es Santiago."}]

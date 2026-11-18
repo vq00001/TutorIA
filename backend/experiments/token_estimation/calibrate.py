@@ -16,8 +16,8 @@ project_root = Path(__file__).resolve().parents[3]
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from backend.config import Config
-from backend.documents import iter_documents, read_document
+from backend.core.config import Config
+from backend.rag.documents import iter_documents, read_document
 
 DEFAULT_DOCUMENTS = Path(__file__).resolve().parent / "data"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"

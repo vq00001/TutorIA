@@ -9,4 +9,4 @@ RUN python -c 'import subprocess, sys, tomllib; deps = tomllib.load(open("pyproj
 COPY . /app/backend/
 
 EXPOSE 8000
-CMD ["uvicorn", "backend.http_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

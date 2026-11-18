@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from backend import file_storage
+from backend.storage import file_storage
 
 
 def test_store_uploaded_document_uses_course_folder_and_preserves_bytes(tmp_path, monkeypatch):

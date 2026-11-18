@@ -3,8 +3,8 @@ from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
-from backend import http_api
-from backend.routes import auth, dependencies
+from backend.api import app as http_api
+from backend.api.routes import auth, dependencies
 from fastapi.testclient import TestClient
 
 REGISTER = "/api/v1/auth/register"

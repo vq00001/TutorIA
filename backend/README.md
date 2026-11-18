@@ -4,12 +4,31 @@ La persistencia se organiza en [db/](db/). El prototipo de procesamiento permite
 
 ```text
 backend/
-├── db/
-│   ├── connection.py        # Transacciones y contexto del usuario
-│   ├── initialize.py        # Prepara la extensión y los módulos
-│   └── users.py             # Tabla y consulta del perfil propio
-├── openapi.yaml             # Contrato OpenAPI utilizado por Swagger
-└── experiments/             # Calibración y datos de evaluación
+├── api/
+│   ├── app.py               # Aplicación FastAPI y registro de rutas
+│   └── routes/              # Endpoints HTTP agrupados por responsabilidad
+├── cli/
+│   └── main.py              # Comandos locales de procesamiento RAG
+├── core/
+│   ├── config.py            # Configuración compartida
+│   └── models.py            # Modelos de datos del núcleo RAG
+├── db/                      # Persistencia, SQL, sesiones y cola de trabajos
+├── integrations/
+│   ├── embeddings.py        # Cliente de embeddings
+│   └── llm.py               # Cliente del modelo conversacional
+├── knowledge_graph/         # Extracción y análisis de conceptos
+├── rag/
+│   ├── chunking.py          # División jerárquica de documentos
+│   ├── documents.py         # Lectura y descubrimiento de archivos
+│   ├── pipeline.py          # Preparación de documentos para ingestión
+│   └── context.py           # Contexto semántico opcional
+├── storage/
+│   └── file_storage.py      # Archivos originales y convertidos
+├── workers/
+│   ├── document_worker.py   # Procesamiento de documentos
+│   └── chat_worker.py       # Respuestas y recuperación vectorial
+├── experiments/             # Calibración y datos de evaluación
+└── openapi.yaml             # Contrato OpenAPI utilizado por Swagger
 ```
 
 ## Servicios de desarrollo
@@ -19,7 +38,7 @@ chat. Configura los modelos y las credenciales con las variables de
 `.env.example`.
 
 El servicio Compose `backend` ejecuta la API persistente de
-`backend/http_api.py`. El contrato disponible para Swagger está en
+`backend/api/app.py`. El contrato disponible para Swagger está en
 `backend/openapi.yaml`.
 
 ## Base de datos local
@@ -66,7 +85,7 @@ Configura `DATABASE_URL` con el rol de la API. Si todavía no tienes `.env`, pue
 `.env.example`. Con PostgreSQL iniciado y `db-init` completado, ejecuta desde la raíz:
 
 ```bash
-uv run --project backend uvicorn backend.http_api:app
+uv run --project backend uvicorn backend.api.app:app
 ```
 
 El endpoint `POST /api/v1/auth/register` recibe `email`, `password` y `displayName`.

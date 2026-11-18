@@ -3,9 +3,9 @@ from contextlib import nullcontext
 from fastapi.testclient import TestClient
 from sqlalchemy import insert
 
-from backend import http_api
+from backend.api import app as http_api
 from backend.db.sessions import issue_session
-from backend.routes import dependencies
+from backend.api.routes import dependencies
 from db.courses import create_course, memberships
 from .test_courses import _as_user, _user
 

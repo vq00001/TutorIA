@@ -1,7 +1,7 @@
 import pytest
 
-from backend.chunking import chunk_text
-from backend.config import Config
+from backend.rag.chunking import chunk_text
+from backend.core.config import Config
 from backend.knowledge_graph import concepts, consolidation, prerequisites
 from backend.knowledge_graph.preview import TextSource, generate_graph_preview
 

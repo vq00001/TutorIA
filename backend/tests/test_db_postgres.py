@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from backend.routes import auth, dependencies
+from backend.api.routes import auth, dependencies
 from db.users import get_current_user, users
 
 
@@ -53,7 +53,7 @@ def test_nickname_is_unique_regardless_of_case(postgres):
 def test_register_persists_pending_account_through_the_api_role(postgres, monkeypatch):
     from contextlib import nullcontext
 
-    from backend import http_api
+    from backend.api import app as http_api
     from fastapi.testclient import TestClient
 
     client = TestClient(http_api.app)
@@ -90,7 +90,7 @@ def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, 
     from datetime import timedelta
     from hashlib import sha256
 
-    from backend import http_api
+    from backend.api import app as http_api
     from backend.db.sessions import sessions
     from fastapi.testclient import TestClient
 
@@ -128,7 +128,7 @@ def test_login_persists_only_token_hash_and_enforces_role_permissions(postgres, 
 def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
     from contextlib import nullcontext
 
-    from backend import http_api
+    from backend.api import app as http_api
     from fastapi.testclient import TestClient
     from sqlalchemy import update
 
@@ -152,7 +152,7 @@ def test_disabled_account_cannot_log_in(postgres, monkeypatch, account_status):
 def test_session_isolates_profiles_and_revokes_only_the_presented_token(postgres, monkeypatch):
     from contextlib import nullcontext
 
-    from backend import http_api
+    from backend.api import app as http_api
     from backend.db.sessions import issue_session
     from fastapi.testclient import TestClient
 
@@ -191,7 +191,7 @@ def test_profile_rejects_sessions_that_are_no_longer_valid(postgres, monkeypatch
     from contextlib import nullcontext
     from datetime import timedelta
 
-    from backend import http_api
+    from backend.api import app as http_api
     from backend.db.sessions import issue_session, sessions
     from fastapi.testclient import TestClient
     from sqlalchemy import update

@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from backend.config import Config
+from backend.core.config import Config
 from backend.knowledge_graph.concepts import normalized_label
 from backend.knowledge_graph.consolidation import consolidate_candidates
 from backend.knowledge_graph.prerequisites import propose_prerequisites

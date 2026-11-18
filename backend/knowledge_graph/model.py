@@ -2,8 +2,8 @@
 
 import json
 
-from backend.config import Config
-from backend.llm import chat_completion
+from backend.core.config import Config
+from backend.integrations.llm import chat_completion
 
 
 def model_json(model, system, data, timeout):

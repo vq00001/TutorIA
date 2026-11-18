@@ -5,9 +5,10 @@ import pymupdf
 from fastapi.testclient import TestClient
 from sqlalchemy import insert
 
-from backend import file_storage, http_api
+from backend.storage import file_storage
+from backend.api import app as http_api
 from backend.db.sessions import issue_session
-from backend.routes import dependencies
+from backend.api.routes import dependencies
 from db.courses import create_course, memberships
 from db.documents import DuplicateDocumentWarning
 
