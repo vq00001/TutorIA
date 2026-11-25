@@ -52,6 +52,7 @@ export interface TutorIADataApi {
   getDashboardSummary(): Promise<JsonApiResponse<DashboardSummary>>
   getCourses(): Promise<JsonApiResponse<Course[]>>
   createCourse(course: NewCourse): Promise<JsonApiResponse<Course>>
+  deleteCourse(courseId: string): Promise<void>
   getCourseMaterials(courseId: string): Promise<JsonApiResponse<MaterialDto[]>>
   getCourseMessages(courseId: string): Promise<JsonApiResponse<ChatMessageDto[]>>
   getCourseGraph(courseId: string): Promise<JsonApiResponse<GraphologyExport>>
@@ -178,6 +179,21 @@ export const databaseApi: TutorIADataApi = {
     return { data: courseDto(response.data) }
   },
 
+  async deleteCourse(courseId) {
+    const response = await authorizedFetch(
+      `${API_BASE_URL}/courses/${encodeURIComponent(courseId)}`,
+      { method: 'DELETE' },
+    )
+    // Permite reintentar cuando un borrado anterior ya retiró el curso.
+    if (response.status === 404) return
+    if (!response.ok) {
+      throw new Error(await responseError(response, 'No se pudo retirar el curso.'))
+    }
+    const result = await response.json() as JsonApiResponse<{ status: string }>
+    if (result?.data?.status !== 'deletion_pending') {
+      throw new Error('El servidor no confirmó el retiro del curso.')
+    }
+  },
   async getCourseMaterials(courseId) {
     const documents: ApiDocument[] = []
     let cursor: DocumentPage['nextCursor'] = null

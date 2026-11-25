@@ -46,7 +46,7 @@ function find(element, predicate) {
   }
 }
 
-function serverFixture(outcome) {
+function serverFixture(outcome, options = {}) {
   const existing = {
     id: EXISTING_COURSE, name: 'Curso anterior', description: 'Conservar',
     objectives: 'Conservar', myRole: 'coordinator',
@@ -59,6 +59,8 @@ function serverFixture(outcome) {
   const materials = new Map([[EXISTING_COURSE, [existingMaterial]]])
   const calls = []
   let created = 0
+  let remainingCleanupFailures = options.cleanupFailures ?? 0
+  const deletionRequests = new Map()
   const api = {
     getStudentProfile: async () => ({ data: { id: 'usuario-test', displayName: 'Test', role: 'member' } }),
     getDashboardSummary: async () => ({ data: {} }),
@@ -76,6 +78,22 @@ function serverFixture(outcome) {
       courses.set(id, course)
       materials.set(id, [])
       return { data: course }
+    },
+    async deleteCourse(id) {
+      calls.push('deleteCourse')
+      if (remainingCleanupFailures > 0) {
+        remainingCleanupFailures--
+        throw new Error('Servidor de borrado no disponible')
+      }
+      if (!courses.has(id)) return
+      // DELETE 202 retira el curso de los listados; la purga física es posterior.
+      deletionRequests.set(id, {
+        status: 'deletion_pending',
+        course: { ...courses.get(id) },
+        materials: (materials.get(id) ?? []).map((material) => ({ ...material })),
+      })
+      courses.delete(id)
+      materials.delete(id)
     },
     async createCourseMaterials(id, files) {
       calls.push('createCourseMaterials')
@@ -97,7 +115,7 @@ function serverFixture(outcome) {
     },
   }
   return {
-    api, courses, materials, calls,
+    api, courses, materials, calls, deletionRequests,
     existing: { ...existing },
     existingMaterial: { ...existingMaterial },
     completeProcessing(status) {
@@ -110,8 +128,8 @@ function serverFixture(outcome) {
   }
 }
 
-async function fixture(outcome = 'ready') {
-  const server = serverFixture(outcome)
+async function fixture(outcome = 'ready', options = {}) {
+  const server = serverFixture(outcome, options)
   const providerHooks = hooks()
   const pageHooks = hooks()
   const navigations = []
@@ -124,6 +142,7 @@ async function fixture(outcome = 'ready') {
     },
     useContext: (context) => context.current,
     useState: (initial) => activeHooks.useState(initial),
+    useRef: (initial) => activeHooks.useState(() => ({ current: initial }))[0],
     useEffect: (callback) => activeHooks.useEffect(callback),
     useCallback: (callback) => callback,
     useMemo: (factory) => factory(),
@@ -160,6 +179,9 @@ async function fixture(outcome = 'ready') {
         const resolved = [base, base + '.ts', base + '.tsx', path.join(base, 'index.ts')]
           .find((candidate) => existsSync(candidate) && statSync(candidate).isFile())
         assert.ok(resolved, 'Módulo local no encontrado: ' + specifier)
+        if (resolved.endsWith('/services/authApi.ts')) {
+          return { authorizedFetch: options.fetch ?? (() => assert.fail('HTTP no simulado')) }
+        }
         if (resolved.endsWith('/components/materials/MaterialDropzone.tsx')) return { MaterialDropzone }
         if (resolved.endsWith('/components/materials/MaterialList.tsx')) return { MaterialList }
         if (resolved.endsWith('/components/ui/PageHeading.tsx')) return { PageHeading: () => null }
@@ -187,6 +209,7 @@ async function fixture(outcome = 'ready') {
 
   return {
     server, navigations,
+    databaseApi: loadModule(path.join(sourceRoot, 'services/databaseApi.ts')).databaseApi,
     setName(name) {
       find(render(), (node) => node.type === 'input' && node.props.required)
         .props.onChange({ target: { value: name } })
@@ -326,4 +349,93 @@ test('reintentar una carga rechazada no acumula cursos nuevos', async () => {
 
   assertNoNewCourse(flow)
   assert.equal(flow.navigations.length, 0)
+})
+
+test('publica el curso cuando la indexación pendiente termina correctamente', { timeout: 5000 }, async () => {
+  const flow = await fixture('queued')
+  flow.setName('Curso con indexación pendiente')
+  flow.selectFiles([file()])
+  const submission = flow.submit()
+  await flush()
+  try {
+    assert.deepEqual(Array.from(flow.view().courses, (course) => course.id), [EXISTING_COURSE])
+    assert.equal(flow.navigations.length, 0)
+  } finally {
+    flow.server.completeProcessing('ready')
+    await submission
+  }
+
+  assert.deepEqual(Array.from(flow.view().courses, (course) => course.id), [NEW_COURSE, EXISTING_COURSE])
+  assert.deepEqual(flow.navigations, ['/cursos/' + NEW_COURSE])
+  assert.equal(flow.server.deletionRequests.size, 0)
+})
+
+test('un fallo del borrado se informa y se resuelve antes de crear otro curso', async () => {
+  const flow = await fixture('upload_rejected', { cleanupFailures: 1 })
+  flow.setName('Curso con compensación pendiente')
+  flow.selectFiles([file()])
+  await flow.submit()
+
+  assert.ok(flow.server.courses.has(NEW_COURSE))
+  assert.ok(flow.view().notice.includes(NEW_COURSE))
+  assert.equal(flow.navigations.length, 0)
+
+  await flow.submit()
+
+  assertNoNewCourse(flow)
+  assert.equal(flow.server.deletionRequests.size, 2)
+  assert.deepEqual(flow.server.calls.slice(0, 4), [
+    'createCourse', 'createCourseMaterials', 'deleteCourse', 'deleteCourse',
+  ])
+})
+
+test('dos envíos simultáneos no crean cursos duplicados', async () => {
+  const flow = await fixture()
+  flow.setName('Curso con envío simultáneo')
+  flow.selectFiles([file()])
+  await Promise.all([flow.submit(), flow.submit()])
+
+  assert.equal(flow.server.calls.filter((operation) => operation === 'createCourse').length, 1)
+  assert.deepEqual([...flow.server.courses.keys()], [EXISTING_COURSE, NEW_COURSE])
+  assert.deepEqual(flow.navigations, ['/cursos/' + NEW_COURSE])
+})
+
+test('el adaptador solicita DELETE y verifica el recibo deletion_pending', async () => {
+  const requests = []
+  const flow = await fixture('ready', {
+    fetch: async (input, init) => {
+      requests.push({ input, init })
+      return new Response(JSON.stringify({
+        data: { requestId: 'recibo-test', status: 'deletion_pending' },
+      }), { status: 202 })
+    },
+  })
+  await flow.databaseApi.deleteCourse(NEW_COURSE)
+
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].input, '/api/v1/courses/' + NEW_COURSE)
+  assert.equal(requests[0].init.method, 'DELETE')
+})
+
+test('el adaptador permite reintentar el retiro de un curso ya ausente', async () => {
+  const flow = await fixture('ready', {
+    fetch: async () => new Response(null, { status: 404 }),
+  })
+  await flow.databaseApi.deleteCourse(NEW_COURSE)
+})
+
+test('el adaptador comunica el rechazo del borrado', async () => {
+  const flow = await fixture('ready', {
+    fetch: async () => new Response(JSON.stringify({ message: 'Borrado rechazado' }), { status: 503 }),
+  })
+  await assert.rejects(flow.databaseApi.deleteCourse(NEW_COURSE), { message: 'Borrado rechazado' })
+})
+
+test('el adaptador rechaza un recibo que no confirma el retiro', async () => {
+  const flow = await fixture('ready', {
+    fetch: async () => new Response(JSON.stringify({ data: { status: 'active' } }), { status: 202 }),
+  })
+  await assert.rejects(flow.databaseApi.deleteCourse(NEW_COURSE), {
+    message: 'El servidor no confirmó el retiro del curso.',
+  })
 })

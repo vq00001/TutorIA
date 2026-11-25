@@ -135,3 +135,45 @@ contrato real, conservando las aserciones de estado final.
 La prueba cubre el flujo de callbacks y contexto con datos simulados.
 La persistencia transaccional de PostgreSQL, el worker real, el DOM y el
 comportamiento completo de React requieren pruebas de integración adicionales.
+
+## GREEN de creación de cursos con materiales
+
+`AppDataContext.addCourse(input, files)` coordina la creación y la ingesta.
+El argumento de archivos es opcional para conservar la creación sin materiales.
+El formulario conserva el estado de espera hasta que todos los documentos
+cargados están en `ready`. El contexto publica el curso al completar ese flujo.
+El sondeo usa intervalos de un segundo y un plazo de 15 minutos, alineado con
+el plazo de los trabajos de ingesta del backend.
+
+Ante un fallo se solicita el `DELETE /courses/{courseId}` existente y se verifica
+el recibo `deletion_pending`. Ese contrato retira el curso de los listados y
+cancela sus trabajos. La purga física de los registros es posterior.
+Una respuesta 404 permite resolver un reintento cuando el curso ya fue retirado.
+
+Si falla la compensación, se muestra el ID del curso pendiente. En la misma
+sesión del contexto, el siguiente intento debe completar ese retiro antes de
+crear otro curso. Un bloqueo local impide iniciar dos creaciones simultáneas.
+La compensación requiere que el navegador continúe ejecutándose y que el
+servidor acepte la retirada. La pérdida de la respuesta al POST de creación,
+sin recibir un ID, requiere un contrato de idempotencia del servidor para
+garantizar recuperación automática.
+
+El doble de API de los tests incorpora `deleteCourse` según el contrato de
+borrado existente. Su mapa `courses` representa cursos visibles y
+`deletionRequests` conserva los datos retirados con estado `deletion_pending`.
+Las aserciones de los 11 casos RED originales se conservan.
+
+La selección contiene ahora 18 casos de creación. Los siete controles nuevos
+comprueban la publicación tras una indexación pendiente, el reintento de una
+compensación fallida, envíos simultáneos y el adaptador HTTP de borrado.
+Con las dos suites anteriores, la selección suma 48 casos.
+
+```bash
+node --test webapp/tests/chat-pagination.test.cjs \
+  webapp/tests/logout-route.test.cjs \
+  webapp/tests/course-creation.test.cjs
+```
+
+La verificación usa React, API y HTTP simulados. Para verificar la autorización,
+la retirada de datos y la purga en PostgreSQL se necesita además la integración
+aislada del backend, incluida `backend/tests/test_deletion_routes.py`.

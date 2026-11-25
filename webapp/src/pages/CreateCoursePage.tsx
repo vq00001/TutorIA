@@ -17,7 +17,7 @@ interface PendingMaterial {
 }
 
 export function CreateCoursePage() {
-  const { addCourse, addMaterials } = useAppData()
+  const { addCourse } = useAppData()
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
@@ -79,19 +79,11 @@ export function CreateCoursePage() {
         name: name.trim(),
         description: description.trim(),
         objectives: objectives.trim(),
-      })
-
-      if (holdedMaterials.length > 0) {
-        const filesToUpload = holdedMaterials.map(
-          (material) => material.file
-        )
-
-        await addMaterials(course.id, filesToUpload)
-      }
+      }, holdedMaterials.map((material) => material.file))
 
       navigate(`/cursos/${course.id}`)
-    } catch {
-      setNotice('No se pudo crear el curso. Inténtalo nuevamente.')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudo crear el curso. Inténtalo nuevamente.')
     } finally {
       setLoading(false)
     }

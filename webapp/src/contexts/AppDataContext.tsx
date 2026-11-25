@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -46,7 +47,7 @@ interface AppDataContextValue {
 
   sendPrompt: (courseId: string, content: string, files?: File[]) => Promise<void>
 
-  addCourse: (course: NewCourse) => Promise<Course>
+  addCourse: (course: NewCourse, files?: File[]) => Promise<Course>
   addMaterials: (courseId: string, files: File[]) => Promise<MaterialFile[]>
   removeMaterial: (courseId: string, materialId: string) => Promise<void>
   refreshMaterials: (courseId: string) => Promise<void>
@@ -109,6 +110,10 @@ export function AppDataProvider({
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [conversationByCourse, setConversationByCourse] = useState<Record<string, string>>({})
+
+  const courseCreation = useRef<{ busy: boolean; pendingCleanup: string | null }>({
+    busy: false, pendingCleanup: null,
+  })
 
   // Initial data loading
 
@@ -317,14 +322,65 @@ export function AppDataProvider({
   )
 
   // Course creation
-  const addCourse = useCallback(async (input: NewCourse) => {
-    const response = await api.createCourse(input)
-    const course = response.data
-    setCourses((current) => [course, ...current])
-    setMaterialsByCourse((current) => ({ ...current, [course.id]: [] }))
-    setMessagesByCourse((current) => ({ ...current, [course.id]: [] }))
-    setGraphsByCourse((current) => ({ ...current, [course.id]: { nodes: [], edges: [] } }))
-    return course
+  const addCourse = useCallback(async (input: NewCourse, files: File[] = []) => {
+    const creation = courseCreation.current
+    if (creation.busy) throw new Error('Ya se está creando un curso. Espera a que termine.')
+    creation.busy = true
+    let createdCourse: Course | null = null
+    try {
+      // Completa una compensación pendiente antes de permitir otra creación.
+      if (creation.pendingCleanup) {
+        await api.deleteCourse(creation.pendingCleanup)
+        creation.pendingCleanup = null
+      }
+      const course = (await api.createCourse(input)).data
+      createdCourse = course
+      let materials: MaterialDto[] = []
+      if (files.length > 0) {
+        materials = (await api.createCourseMaterials(course.id, files)).data
+        if (materials.length === 0) throw new Error('La carga no devolvió materiales para procesar.')
+        const documentIds = new Set(materials.map((material) => material.id))
+        // El backend concede 15 minutos a los trabajos de ingesta.
+        const deadline = Date.now() + 15 * 60_000
+        while (materials.some((material) => material.status !== 'ready')) {
+          if (materials.some((material) => material.status === 'failed')) {
+            throw new Error('No se pudo procesar uno de los archivos.')
+          }
+          if (Date.now() >= deadline) {
+            throw new Error('Se agotó el plazo para procesar los archivos.')
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          const latest = (await api.getCourseMaterials(course.id)).data
+          materials = latest.filter((material) => documentIds.has(material.id))
+          if (materials.length !== documentIds.size) {
+            throw new Error('No se pudo comprobar el estado de todos los archivos.')
+          }
+        }
+      }
+
+      // Publica el curso en la interfaz cuando sus materiales ya están listos.
+      setMaterialsByCourse((current) => ({ ...current, [course.id]: materials.map(adaptMaterial) }))
+      setMessagesByCourse((current) => ({ ...current, [course.id]: [] }))
+      setGraphsByCourse((current) => ({ ...current, [course.id]: { nodes: [], edges: [] } }))
+      setCourses((current) => [course, ...current])
+      return course
+    } catch (error) {
+      if (createdCourse) {
+        creation.pendingCleanup = createdCourse.id
+        try {
+          await api.deleteCourse(createdCourse.id)
+          creation.pendingCleanup = null
+        } catch {
+          const reason = error instanceof Error ? error.message : 'No se pudo preparar el curso.'
+          throw new Error(
+            `${reason} No se pudo retirar el curso ${createdCourse.id}. Vuelve a intentar para completar su eliminación.`,
+          )
+        }
+      }
+      throw error
+    } finally {
+      creation.busy = false
+    }
   }, [api])
 
   // Context value
