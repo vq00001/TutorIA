@@ -88,6 +88,16 @@ interface ApiMessage {
 
 interface ApiConversation { id: string }
 
+interface ConversationPage {
+  data: ApiConversation[]
+  nextCursor: { beforeUpdatedAt: string; beforeId: string } | null
+}
+
+interface MessagePage {
+  messages: ApiMessage[]
+  nextAfterSequence: number | null
+}
+
 interface ApiDashboardSummary {
   studyHours: number
   studyHoursPeriod: string
@@ -200,16 +210,37 @@ export const databaseApi: TutorIADataApi = {
   },
 
   async getCourseMessages(courseId) {
-    const response = await request<JsonApiResponse<ApiConversation[]>>(
-      `/courses/${encodeURIComponent(courseId)}/conversations`, 'No se pudieron obtener las conversaciones.',
-    )
-    const histories = await Promise.all(response.data.map((conversation) =>
-      request<{ messages: ApiMessage[] }>(
-        `/courses/${encodeURIComponent(courseId)}/conversations/${encodeURIComponent(conversation.id)}`,
-        'No se pudo obtener el historial del curso.',
+    const conversations: ApiConversation[] = []
+    let cursor: ConversationPage['nextCursor'] = null
+    do {
+      const query = new URLSearchParams({ limit: '100' })
+      if (cursor) {
+        query.set('beforeUpdatedAt', cursor.beforeUpdatedAt)
+        query.set('beforeId', cursor.beforeId)
+      }
+      const page: ConversationPage = await request<ConversationPage>(
+        `/courses/${encodeURIComponent(courseId)}/conversations?${query}`,
+        'No se pudieron obtener las conversaciones.',
       )
-    ))
-    return { data: histories.flatMap((history) => history.messages.map(asChatMessage)) }
+      conversations.push(...page.data)
+      cursor = page.nextCursor
+    } while (cursor)
+
+    const histories = await Promise.all(conversations.map(async (conversation) => {
+      const messages: ApiMessage[] = []
+      let afterSequence: number | null = 0
+      do {
+        const query = new URLSearchParams({ afterSequence: String(afterSequence) })
+        const page: MessagePage = await request<MessagePage>(
+          `/courses/${encodeURIComponent(courseId)}/conversations/${encodeURIComponent(conversation.id)}?${query}`,
+          'No se pudo obtener el historial del curso.',
+        )
+        messages.push(...page.messages)
+        afterSequence = page.nextAfterSequence ?? null
+      } while (afterSequence !== null)
+      return messages
+    }))
+    return { data: histories.flatMap((history) => history.map(asChatMessage)) }
   },
 
   async getCourseGraph(courseId) {

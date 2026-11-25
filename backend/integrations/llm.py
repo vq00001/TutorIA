@@ -45,6 +45,8 @@ def chat_completion(
         content = None
     if not isinstance(content, str) or not content.strip():
         raise ValueError(f"El AI gateway retornó una respuesta inválida: {body}")
+    if body["choices"][0].get("finish_reason") == "length":
+        raise ValueError("La respuesta del AI gateway quedó incompleta por límite de tokens.")
     return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
 
