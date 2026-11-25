@@ -57,3 +57,35 @@ El cargador de tests compila los módulos TypeScript locales y sustituye
 únicamente `authorizedFetch`. Los controles adicionales verifican que la
 búsqueda se detenga al encontrar la respuesta y que se comuniquen los errores
 HTTP de una página posterior.
+
+## RED de navegación al cerrar sesión
+
+Desde la raíz de TutorIA, con Node.js 22 y las dependencias de npm instaladas:
+
+```bash
+node --test webapp/tests/logout-route.test.cjs
+```
+
+Para incluir las regresiones del chat:
+
+```bash
+node --test webapp/tests/chat-pagination.test.cjs webapp/tests/logout-route.test.cjs
+```
+
+El botón actual de cierre llama directamente a `authApi.logout`. Estos tests
+compilan ese servicio con TypeScript y simulan HTTP, almacenamiento, eventos
+y URL. El contrato esperado es terminar en `/`, sin los parámetros ni el
+fragmento de la ruta anterior, incluso si falla el servidor o ya falta el token.
+También se simula el login de otra cuenta después del cierre.
+
+En `c73d767`, 5 controles pasan y 9 casos de navegación fallan. Los controles
+verifican la limpieza del token y la notificación del cierre con HTTP 204,
+HTTP 503, HTTP 401 y error de red, además del cierre desde el inicio.
+El test permite varias notificaciones del cierre, tal como ocurre actualmente
+con HTTP 401. La cantidad de notificaciones queda fuera de este contrato.
+
+Son pruebas del servicio público usado por el botón, con navegador simulado.
+La navegación real de React Router, el montaje de componentes y el botón Atrás
+requieren una prueba adicional de interfaz. Si la futura solución ubica toda
+la redirección en un componente, habrá que trasladar estas expectativas a ese
+flujo de interfaz.
