@@ -189,3 +189,46 @@ de un segundo, el plazo de 15 minutos y los errores de la fase GREEN.
 y publica el resultado. El bloqueo de envíos simultáneos y la compensación de
 fallos continúan en el contexto. Los tests de creación ejercitan ambas partes
 mediante el mismo formulario y el mismo doble de API.
+
+## RED de flechas de dependencia del grafo
+
+Desde la raíz de TutorIA, con Node.js 22 y las dependencias de npm instaladas:
+
+```bash
+node --test webapp/tests/graph-dependency-arrows.test.cjs
+```
+
+Para incluir las suites anteriores:
+
+```bash
+node --test webapp/tests/chat-pagination.test.cjs \
+  webapp/tests/logout-route.test.cjs \
+  webapp/tests/course-creation.test.cjs \
+  webapp/tests/graph-dependency-arrows.test.cjs
+```
+
+El test compila `KnowledgeGraph.tsx` con TypeScript. Utiliza Graphology real y
+las funciones de resolución de configuración y las clases de programas de la
+versión instalada de Sigma. React y el constructor del renderizador se simulan.
+Durante la importación se proporcionan las constantes numéricas de WebGL que
+requiere Sigma y después se restaura el entorno global.
+
+La convención comprobada en `backend/db/learning_catalog.py:add_prerequisite`
+es `source = prerrequisito` y `target = concepto dependiente`.
+Los tests exigen conservar esos extremos y seleccionar `EdgeArrowProgram`,
+el programa estándar de flecha de Sigma, para las relaciones de dependencia.
+Se admite configurar ese programa mediante el tipo por defecto, el tipo de
+cada arista o un `edgeReducer`. También se comprueba el caso importado con
+`attributes.type = "line"`.
+
+En `5ba359e`, los 12 casos producen 7 controles aprobados y 5 fallos RED.
+Los controles cubren dirección, nodos, atributos visuales, tuplas, relaciones
+con nodos ausentes, datos de entrada, liberación del renderizador y grafos
+sin dependencias. Los casos RED cubren objetos de la API, tuplas, formatos
+mezclados, aristas importadas como líneas y cadenas de dependencias.
+
+El tipo efectivo se calcula siguiendo el orden de Sigma: aplicar `edgeReducer`,
+completar el tipo con `defaultEdgeType` y resolverlo en `edgeProgramClasses`.
+El contrato evalúa la configuración y el programa seleccionado. La presencia
+visual, el tamaño y la legibilidad de las flechas en WebGL requieren una
+comprobación posterior en navegador.
