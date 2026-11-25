@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { readFile } = require('node:fs/promises')
+const { readFileSync } = require('node:fs')
 const path = require('node:path')
 const { test } = require('node:test')
 const { runInNewContext } = require('node:vm')
@@ -7,28 +7,34 @@ const ts = require('typescript')
 
 const services = path.resolve(__dirname, '../src/services')
 
-// Compila el TypeScript original y sustituye únicamente sus dependencias HTTP.
-async function loadService(name, fetchMock) {
-  const filename = path.join(services, name + '.ts')
-  const source = await readFile(filename, 'utf8')
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-    fileName: filename,
-  })
-  const module = { exports: {} }
-  runInNewContext(compiled.outputText, {
-    module,
-    exports: module.exports,
-    Date,
-    URLSearchParams,
-    setTimeout,
-    require(specifier) {
-      if (specifier === './authApi') return { authorizedFetch: fetchMock }
-      assert.equal(specifier, './utils', 'Importación no prevista por el test')
-      return { responseError: () => assert.fail('La API simulada devolvió un error no previsto') }
-    },
-  }, { filename })
-  return module.exports
+// Carga los servicios reales y sustituye únicamente el transporte HTTP.
+function loadService(name, fetchMock) {
+  const modules = new Map()
+  function loadModule(filename) {
+    if (modules.has(filename)) return modules.get(filename).exports
+
+    const source = readFileSync(filename, 'utf8')
+    const compiled = ts.transpileModule(source, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+      fileName: filename,
+    })
+    const module = { exports: {} }
+    modules.set(filename, module)
+    runInNewContext(compiled.outputText, {
+      module,
+      exports: module.exports,
+      Date,
+      URLSearchParams,
+      setTimeout,
+      require(specifier) {
+        if (specifier === './authApi') return { authorizedFetch: fetchMock }
+        assert.ok(specifier.startsWith('./'), 'Importación no prevista por el test')
+        return loadModule(path.resolve(path.dirname(filename), specifier + '.ts'))
+      },
+    }, { filename })
+    return module.exports
+  }
+  return loadModule(path.join(services, name + '.ts'))
 }
 
 function fixture({ conversationCount = 1, messageCount = 1, jobState = 'succeeded' } = {}) {
@@ -143,3 +149,47 @@ test('un trabajo fallido se comunica como error', async () => {
     /El tutor no pudo generar una respuesta/,
   )
 })
+
+test('deja de leer páginas al encontrar la respuesta buscada', async () => {
+  const data = fixture({ messageCount: 101 })
+  const messages = data.histories.get('conversation-0')
+  messages[49].inReplyTo = 'question-latest'
+  messages[100].inReplyTo = 'question-later'
+  const requests = []
+  const transport = async (input) => {
+    requests.push(input)
+    return data.fetchMock(input)
+  }
+  const { waitForAssistant } = await loadService('llmApi', transport)
+
+  const response = await waitForAssistant('course-test', 'conversation-0', 'job-test', 'question-latest')
+
+  assert.equal(response.id, messages[49].id)
+  const pages = requests.filter((input) => new URL(input, 'http://fixture.invalid').pathname.endsWith('/conversation-0'))
+  assert.equal(pages.length, 1)
+})
+
+for (const operation of ['historial', 'respuesta']) {
+  test('propaga el error de una página posterior al cargar ' + operation, async () => {
+    const data = fixture({ messageCount: 51 })
+    const transport = async (input) => {
+      const url = new URL(input, 'http://fixture.invalid')
+      if (url.searchParams.get('afterSequence') === '50') {
+        return new Response('{}', { status: 503 })
+      }
+      return data.fetchMock(input)
+    }
+    if (operation === 'historial') {
+      const { databaseApi } = await loadService('databaseApi', transport)
+      await assert.rejects(databaseApi.getCourseMessages('course-test'), {
+        message: 'No se pudo obtener el historial del curso. (503)',
+      })
+    } else {
+      const { waitForAssistant } = await loadService('llmApi', transport)
+      await assert.rejects(
+        waitForAssistant('course-test', 'conversation-0', 'job-test', 'question-latest'),
+        { message: 'No se pudo cargar la respuesta. (503)' },
+      )
+    }
+  })
+}

@@ -24,7 +24,7 @@ La fixture PostgreSQL de la suite no se solicita.
 
 | Selección | Casos | Defectos que se intentan reproducir |
 | --- | ---: | --- |
-| Frontend | 13 | Páginas omitidas y respuesta nueva fuera de la primera página |
+| Frontend | 16 | Páginas omitidas y respuesta nueva fuera de la primera página |
 | Backend | 6 | `finish_reason="length"` aceptado como respuesta completa |
 
 Los casos del frontend incluyen 0, 20, 21 y 101 conversaciones, así como 0, 50,
@@ -44,3 +44,16 @@ defectos. No se marcan como omitidos ni como fallos esperados.
 La selección cubre los servicios del frontend y el adaptador del gateway.
 El recorte visual por CSS y la generación real del modelo requieren pruebas
 adicionales.
+
+## Paginación compartida
+
+`src/services/conversationApi.ts` expone `iterateConversationMessagePages`,
+un iterador asíncrono que lee las páginas de una conversación en orden.
+`databaseApi.getCourseMessages` consume todas las páginas para reconstruir
+el historial. `waitForAssistant` termina el recorrido al encontrar la respuesta
+al mensaje solicitado. Ambos conservan sus mensajes de error específicos.
+
+El cargador de tests compila los módulos TypeScript locales y sustituye
+únicamente `authorizedFetch`. Los controles adicionales verifican que la
+búsqueda se detenga al encontrar la respuesta y que se comuniquen los errores
+HTTP de una página posterior.

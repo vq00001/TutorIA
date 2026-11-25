@@ -1,6 +1,7 @@
 import type { JsonApiResponse, MessageDto } from '../types'
 import { authorizedFetch } from './authApi'
 import { responseError } from './utils'
+import { iterateConversationMessagePages } from './conversationApi'
 
 interface AskRequest {
   question: string
@@ -16,11 +17,6 @@ interface AcceptedMessage {
 
 interface JobResponse {
   data: { state: 'queued' | 'running' | 'succeeded' | 'failed'; errorCode: string | null }
-}
-
-interface HistoryResponse {
-  messages: MessageDto[]
-  nextAfterSequence: number | null
 }
 
 export async function uploadPromptFiles(courseId: string, files: File[]) {
@@ -88,20 +84,14 @@ export async function waitForAssistant(
     const job = (await jobResponse.json()) as JobResponse
     if (job.data.state === 'failed') throw new Error('El tutor no pudo generar una respuesta.')
     if (job.data.state === 'succeeded') {
-      let afterSequence: number | null = 0
-      do {
-        const query = new URLSearchParams({ afterSequence: String(afterSequence) })
-        const historyResponse = await authorizedFetch(
-          `/api/v1/courses/${toApiCourseId(courseId)}/conversations/${conversationId}?${query}`,
-        )
-        if (!historyResponse.ok) throw new Error(await responseError(historyResponse, 'No se pudo cargar la respuesta.'))
-        const history = (await historyResponse.json()) as HistoryResponse
-        const assistant = history.messages.find(
+      for await (const messages of iterateConversationMessagePages(
+        courseId, conversationId, 'No se pudo cargar la respuesta.',
+      )) {
+        const assistant = messages.find(
           (message) => message.role === 'assistant' && message.inReplyTo === messageId,
         )
         if (assistant) return assistant
-        afterSequence = history.nextAfterSequence ?? null
-      } while (afterSequence !== null)
+      }
       throw new Error('El tutor terminó el trabajo sin devolver una respuesta.')
     }
     await new Promise((resolve) => setTimeout(resolve, 1000))

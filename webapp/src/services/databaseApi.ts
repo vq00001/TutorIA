@@ -5,11 +5,13 @@ import type {
   GraphologyExport,
   JsonApiResponse,
   MaterialDto,
+  MessageDto,
   NewCourse,
   StudentProfile,
 } from '../types'
 import { authorizedFetch } from './authApi'
 import { responseError } from './utils'
+import { iterateConversationMessagePages } from './conversationApi'
 
 const API_BASE_URL = '/api/v1'
 
@@ -77,25 +79,11 @@ interface DocumentPage {
   nextCursor: { afterCreatedAt: string; afterId: string } | null
 }
 
-interface ApiMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  createdAt: string
-  inReplyTo?: string | null
-  sourceDocuments?: import('../types').SourceDocumentDto[]
-}
-
 interface ApiConversation { id: string }
 
 interface ConversationPage {
   data: ApiConversation[]
   nextCursor: { beforeUpdatedAt: string; beforeId: string } | null
-}
-
-interface MessagePage {
-  messages: ApiMessage[]
-  nextAfterSequence: number | null
 }
 
 interface ApiDashboardSummary {
@@ -140,7 +128,7 @@ function asMaterial(document: ApiDocument): MaterialDto {
   }
 }
 
-function asChatMessage(message: ApiMessage): ChatMessageDto {
+function asChatMessage(message: MessageDto): ChatMessageDto {
   return {
     id: message.id,
     role: message.role,
@@ -227,17 +215,10 @@ export const databaseApi: TutorIADataApi = {
     } while (cursor)
 
     const histories = await Promise.all(conversations.map(async (conversation) => {
-      const messages: ApiMessage[] = []
-      let afterSequence: number | null = 0
-      do {
-        const query = new URLSearchParams({ afterSequence: String(afterSequence) })
-        const page: MessagePage = await request<MessagePage>(
-          `/courses/${encodeURIComponent(courseId)}/conversations/${encodeURIComponent(conversation.id)}?${query}`,
-          'No se pudo obtener el historial del curso.',
-        )
-        messages.push(...page.messages)
-        afterSequence = page.nextAfterSequence ?? null
-      } while (afterSequence !== null)
+      const messages: MessageDto[] = []
+      for await (const page of iterateConversationMessagePages(courseId, conversation.id)) {
+        messages.push(...page)
+      }
       return messages
     }))
     return { data: histories.flatMap((history) => history.map(asChatMessage)) }
