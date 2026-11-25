@@ -177,3 +177,15 @@ node --test webapp/tests/chat-pagination.test.cjs \
 La verificación usa React, API y HTTP simulados. Para verificar la autorización,
 la retirada de datos y la purga en PostgreSQL se necesita además la integración
 aislada del backend, incluida `backend/tests/test_deletion_routes.py`.
+
+## Preparación de materiales
+
+`src/services/courseMaterials.ts` contiene `prepareCourseMaterials`, que
+sube los archivos iniciales y espera a que estén listos. Recibe los dos métodos
+de API que necesita y devuelve los documentos procesados. Conserva el sondeo
+de un segundo, el plazo de 15 minutos y los errores de la fase GREEN.
+
+`AppDataContext.addCourse` coordina la creación del curso, llama a esa función
+y publica el resultado. El bloqueo de envíos simultáneos y la compensación de
+fallos continúan en el contexto. Los tests de creación ejercitan ambas partes
+mediante el mismo formulario y el mismo doble de API.

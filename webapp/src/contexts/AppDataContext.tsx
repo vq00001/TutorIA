@@ -15,6 +15,7 @@ import {
   type TutorIADataApi,
 } from '../services/databaseApi'
 import { sendPrompt as requestPrompt, uploadPromptFiles, waitForAssistant } from '../services/llmApi'
+import { prepareCourseMaterials } from '../services/courseMaterials'
 
 import type {
   ChatMessage,
@@ -335,28 +336,7 @@ export function AppDataProvider({
       }
       const course = (await api.createCourse(input)).data
       createdCourse = course
-      let materials: MaterialDto[] = []
-      if (files.length > 0) {
-        materials = (await api.createCourseMaterials(course.id, files)).data
-        if (materials.length === 0) throw new Error('La carga no devolvió materiales para procesar.')
-        const documentIds = new Set(materials.map((material) => material.id))
-        // El backend concede 15 minutos a los trabajos de ingesta.
-        const deadline = Date.now() + 15 * 60_000
-        while (materials.some((material) => material.status !== 'ready')) {
-          if (materials.some((material) => material.status === 'failed')) {
-            throw new Error('No se pudo procesar uno de los archivos.')
-          }
-          if (Date.now() >= deadline) {
-            throw new Error('Se agotó el plazo para procesar los archivos.')
-          }
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          const latest = (await api.getCourseMaterials(course.id)).data
-          materials = latest.filter((material) => documentIds.has(material.id))
-          if (materials.length !== documentIds.size) {
-            throw new Error('No se pudo comprobar el estado de todos los archivos.')
-          }
-        }
-      }
+      const materials = await prepareCourseMaterials(api, course.id, files)
 
       // Publica el curso en la interfaz cuando sus materiales ya están listos.
       setMaterialsByCourse((current) => ({ ...current, [course.id]: materials.map(adaptMaterial) }))
