@@ -89,3 +89,49 @@ La navegación real de React Router, el montaje de componentes y el botón Atrá
 requieren una prueba adicional de interfaz. Si la futura solución ubica toda
 la redirección en un componente, habrá que trasladar estas expectativas a ese
 flujo de interfaz.
+
+## RED de creación de cursos con materiales
+
+Desde la raíz de TutorIA, con Node.js 22 y las dependencias de npm instaladas:
+
+```bash
+node --test webapp/tests/course-creation.test.cjs
+```
+
+Para incluir las regresiones de chat y cierre de sesión:
+
+```bash
+node --test webapp/tests/chat-pagination.test.cjs \
+  webapp/tests/logout-route.test.cjs \
+  webapp/tests/course-creation.test.cjs
+```
+
+El test compila y ejecuta `CreateCoursePage` y `AppDataProvider` originales.
+Los callbacks de nombre, selección de archivos y envío se obtienen del árbol
+JSX de la página. React se sustituye por un simulador mínimo de hooks y contexto.
+La API es un doble en memoria con los métodos del contrato actual
+`TutorIADataApi`. Cada caso empieza con un curso y un documento anteriores.
+
+El contrato comprueba el estado final de la API simulada y del contexto,
+la navegación y el estado de espera. Un fallo de carga o procesamiento debe
+dejar solamente los cursos anteriores. Una carga aceptada en cola debe esperar
+al procesamiento antes de navegar. La estrategia de creación provisional,
+transacción o compensación queda abierta para GREEN.
+
+Los 11 casos incluyen cinco controles que pasan en `e80b7e5`: nombre vacío,
+creación sin archivos, material listo, rechazo al crear el curso y conservación
+de los datos anteriores ante un fallo de carga.
+
+Los seis casos RED cubren rechazo de carga, procesamiento fallido, lote con
+un archivo listo y otro fallido, procesamiento pendiente, fallo posterior a la
+aceptación y reintento de una carga rechazada. Los estados posteriores los
+publica el doble de API, y el formulario actual no los espera.
+
+Los tests mantienen las aserciones del resultado esperado y devuelven error
+mientras persista el defecto. Una futura ampliación del contrato de API para
+GREEN requerirá reflejar las operaciones nuevas en el doble de API según su
+contrato real, conservando las aserciones de estado final.
+
+La prueba cubre el flujo de callbacks y contexto con datos simulados.
+La persistencia transaccional de PostgreSQL, el worker real, el DOM y el
+comportamiento completo de React requieren pruebas de integración adicionales.
