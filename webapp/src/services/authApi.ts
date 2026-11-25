@@ -108,6 +108,8 @@ export async function logout() {
   }
   clearAccessToken()
   window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+  // Reinicia la navegación y reemplaza la entrada de la sesión anterior.
+  window.location.replace('/')
 }
 
 async function getErrorMessage(response: Response, fallback: string) {
